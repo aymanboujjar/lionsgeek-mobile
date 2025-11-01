@@ -38,7 +38,7 @@ export default function Navbar() {
           />
           <View className="flex-1">
             <Text className="text-base font-semibold text-black dark:text-white" numberOfLines={1}>
-              {user?.name || 'User'}
+              {user?.image || 'User'}
             </Text>
             <Text className="text-xs text-black/60 dark:text-white/60" numberOfLines={1}>
               {user?.email || ''}
