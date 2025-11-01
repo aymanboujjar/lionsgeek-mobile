@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, Pressable } from 'react-native';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -14,36 +14,65 @@ export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searchType, setSearchType] = useState('all'); // all, students, hashtags
+  const [filter, setFilter] = useState(''); // student, admin, coach
 
-  // Hardcoded search results for now
-  const hardcodedResults = [
-    { id: 1, name: 'Mehdi Forkani', email: 'forkanimahdi@gmail.com', avatar: 'https://via.placeholder.com/50', promo: 'A1', role: 'Admin' },
-    { id: 2, name: 'Hamza Ezzagmoute', email: 'hamza@example.com', avatar: 'https://via.placeholder.com/50', promo: 'A2', role: 'Student' },
-    { id: 3, name: 'Nabil SAKR', email: 'nabil@example.com', avatar: 'https://via.placeholder.com/50', promo: 'A1', role: 'Student' },
-    { id: 4, name: 'John Doe', email: 'john@example.com', avatar: 'https://via.placeholder.com/50', promo: 'A3', role: 'Student' },
-  ];
-
-  const handleSearch = () => {
+  useEffect(() => {
+    // Debounce search
     if (!searchQuery.trim()) {
       setResults([]);
       return;
     }
 
+    const timeoutId = setTimeout(() => {
+      handleSearch();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, searchType, filter]);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || !token) {
+      setResults([]);
+      return;
+    }
+
     setLoading(true);
-    // Simulate search
-    setTimeout(() => {
-      const filtered = hardcodedResults.filter(user =>
-        user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setResults(filtered);
+    try {
+      const params = new URLSearchParams({
+        q: searchQuery,
+        type: searchType,
+        ...(filter && { filter }),
+      }).toString();
+
+      const response = await API.getWithAuth(`mobile/search?${params}`, token);
+      if (response?.data) {
+        setResults(response.data.results || []);
+      }
+    } catch (error) {
+      console.error('[SEARCH] Error:', error);
+      setResults([]);
+    } finally {
       setLoading(false);
-    }, 300);
+    }
   };
 
   const handleUserPress = (userId) => {
     router.push(`/(tabs)/profile?userId=${userId}`);
   };
+
+  const filterButtons = [
+    { value: '', label: 'All', icon: 'people-outline' },
+    { value: 'student', label: 'Students', icon: 'school-outline' },
+    { value: 'coach', label: 'Coaches', icon: 'person-outline' },
+    { value: 'admin', label: 'Admins', icon: 'shield-outline' },
+  ];
+
+  const typeButtons = [
+    { value: 'all', label: 'All', icon: 'search-outline' },
+    { value: 'students', label: 'Students', icon: 'people-outline' },
+    { value: 'hashtags', label: 'Hashtags', icon: 'pricetag-outline' },
+  ];
 
   return (
     <AppLayout showNavbar={false}>
@@ -58,11 +87,11 @@ export default function SearchScreen() {
           </View>
 
           {/* Search Input */}
-          <View className="flex-row items-center bg-light/50 dark:bg-dark/50 rounded-lg px-3 py-2">
+          <View className="flex-row items-center bg-light/50 dark:bg-dark/50 rounded-lg px-3 py-2 mb-3">
             <Ionicons name="search" size={20} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'} />
             <TextInput
               className="flex-1 ml-2 text-black dark:text-white"
-              placeholder="Search for people..."
+              placeholder="Search students, hashtags..."
               placeholderTextColor={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -75,6 +104,72 @@ export default function SearchScreen() {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Type Filter */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-2">
+            <View className="flex-row gap-2">
+              {typeButtons.map((btn) => (
+                <Pressable
+                  key={btn.value}
+                  onPress={() => setSearchType(btn.value)}
+                  className={`px-4 py-2 rounded-full flex-row items-center ${
+                    searchType === btn.value
+                      ? 'bg-alpha dark:bg-alpha'
+                      : 'bg-light/50 dark:bg-dark/50'
+                  }`}
+                >
+                  <Ionicons
+                    name={btn.icon}
+                    size={16}
+                    color={searchType === btn.value ? (isDark ? '#000' : '#000') : (isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)')}
+                  />
+                  <Text
+                    className={`ml-2 text-sm font-medium ${
+                      searchType === btn.value
+                        ? 'text-black'
+                        : 'text-black/60 dark:text-white/60'
+                    }`}
+                  >
+                    {btn.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+
+          {/* Role Filter */}
+          {searchType === 'all' || searchType === 'students' ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View className="flex-row gap-2">
+                {filterButtons.map((btn) => (
+                  <Pressable
+                    key={btn.value}
+                    onPress={() => setFilter(btn.value)}
+                    className={`px-4 py-2 rounded-full flex-row items-center ${
+                      filter === btn.value
+                        ? 'bg-alpha dark:bg-alpha'
+                        : 'bg-light/50 dark:bg-dark/50'
+                    }`}
+                  >
+                    <Ionicons
+                      name={btn.icon}
+                      size={16}
+                      color={filter === btn.value ? (isDark ? '#000' : '#000') : (isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)')}
+                    />
+                    <Text
+                      className={`ml-2 text-sm font-medium ${
+                        filter === btn.value
+                          ? 'text-black'
+                          : 'text-black/60 dark:text-white/60'
+                      }`}
+                    >
+                      {btn.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+          ) : null}
         </View>
 
         {/* Results */}
@@ -85,43 +180,79 @@ export default function SearchScreen() {
                 <Text className="text-center text-black/60 dark:text-white/60">Searching...</Text>
               </View>
             ) : results.length === 0 && searchQuery.length > 0 ? (
-              <View className="py-8">
-                <Text className="text-center text-black/60 dark:text-white/60">No results found</Text>
+              <View className="py-8 items-center">
+                <Ionicons name="search-outline" size={48} color={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'} />
+                <Text className="text-center text-black/60 dark:text-white/60 mt-4">
+                  No results found
+                </Text>
               </View>
             ) : results.length === 0 ? (
-              <View className="py-8">
-                <Text className="text-center text-black/60 dark:text-white/60">
-                  Start typing to search for people
+              <View className="py-8 items-center">
+                <Ionicons name="search-outline" size={48} color={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'} />
+                <Text className="text-center text-black/60 dark:text-white/60 mt-4">
+                  Start typing to search
+                </Text>
+                <Text className="text-center text-sm text-black/50 dark:text-white/50 mt-2">
+                  Search for students, or filter by type
                 </Text>
               </View>
             ) : (
-              results.map((user) => (
-                <Pressable
-                  key={user.id}
-                  onPress={() => handleUserPress(user.id)}
-                  className="mb-3 bg-light dark:bg-dark rounded-lg p-4 border border-light/20 dark:border-dark/20 flex-row items-center"
-                >
-                  <Image
-                    source={{ uri: user.avatar || 'https://via.placeholder.com/50' }}
-                    className="w-12 h-12 rounded-full mr-3"
-                    defaultSource={require('@/assets/images/icon.png')}
-                  />
-                  <View className="flex-1">
-                    <Text className="text-base font-semibold text-black dark:text-white">
-                      {user.name}
-                    </Text>
-                    <Text className="text-sm text-black/60 dark:text-white/60">
-                      {user.email}
-                    </Text>
-                    {user.promo && (
-                      <Text className="text-xs text-black/50 dark:text-white/50 mt-1">
-                        {user.promo}
-                      </Text>
+              <>
+                <Text className="text-sm text-black/60 dark:text-white/60 mb-3">
+                  {results.length} result{results.length !== 1 ? 's' : ''}
+                </Text>
+                {results.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => item.type === 'user' && handleUserPress(item.id)}
+                    className="mb-3 bg-light dark:bg-dark rounded-lg p-4 border border-light/20 dark:border-dark/20 flex-row items-center"
+                  >
+                    {item.type === 'user' ? (
+                      <>
+                        <Image
+                          source={{ uri: `${API.APP_URL}/storage/img/profile/${item.image}` }}
+                          className="w-12 h-12 rounded-full mr-3"
+                          defaultSource={require('@/assets/images/icon.png')}
+                        />
+                        <View className="flex-1">
+                          <Text className="text-base font-semibold text-black dark:text-white">
+                            {item.name}
+                          </Text>
+                          <Text className="text-sm text-black/60 dark:text-white/60">
+                            {item.email}
+                          </Text>
+                          <View className="flex-row items-center mt-1">
+                            {item.promo && (
+                              <Text className="text-xs text-black/50 dark:text-white/50 mr-2">
+                                {item.promo}
+                              </Text>
+                            )}
+                            {item.roles && item.roles.length > 0 && (
+                              <View className="flex-row">
+                                {item.roles.slice(0, 2).map((role, idx) => (
+                                  <View key={idx} className="px-2 py-0.5 rounded-full bg-alpha/20 mr-1">
+                                    <Text className="text-xs font-medium text-alpha capitalize">
+                                      {role}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'} />
+                      </>
+                    ) : (
+                      <View className="flex-row items-center flex-1">
+                        <Ionicons name="pricetag-outline" size={24} color={isDark ? '#fff' : '#000'} />
+                        <Text className="text-base font-semibold text-black dark:text-white ml-3">
+                          #{item.name}
+                        </Text>
+                      </View>
                     )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'} />
-                </Pressable>
-              ))
+                  </Pressable>
+                ))}
+              </>
             )}
           </View>
         </ScrollView>
@@ -129,4 +260,3 @@ export default function SearchScreen() {
     </AppLayout>
   );
 }
-

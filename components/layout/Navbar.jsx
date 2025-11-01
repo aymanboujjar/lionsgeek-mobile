@@ -22,6 +22,23 @@ export default function Navbar() {
     router.push('/(tabs)/notifications');
   };
 
+  // Log user data for debugging
+  console.log('[NAVBAR] User data:', JSON.stringify(user, null, 2));
+
+  // Get avatar URL - prefer avatar, fallback to image path with correct format, then placeholder
+  const getAvatarUrl = () => {
+    if (user?.avatar) return user.avatar;
+    if (user?.image) {
+      // Check if it's already a full path or just filename
+      if (user.image.includes('storage/')) {
+        return `${API.APP_URL}/${user.image}`;
+      }
+      // Use the format the user prefers
+      return `${API.APP_URL}/storage/img/profile/${user.image}`;
+    }
+    return 'https://via.placeholder.com/40';
+  };
+
   return (
     <View className={`bg-light dark:bg-dark border-b border-light/20 dark:border-dark/20 px-6 pt-12 pb-4`}>
       <View className="flex-row items-center justify-between">
@@ -30,15 +47,13 @@ export default function Navbar() {
           className="flex-row items-center flex-1"
         >
           <Image
-            source={{ 
-              uri: user?.avatar || `${API.APP_URL}/storage/img/profile/${user?.image}` || 'https://via.placeholder.com/40' 
-            }}
+            source={{ uri:API.APP_URL+"/storage/img/profile/"+user.image }}
             className="w-10 h-10 rounded-full mr-3"
             defaultSource={require('@/assets/images/icon.png')}
           />
           <View className="flex-1">
             <Text className="text-base font-semibold text-black dark:text-white" numberOfLines={1}>
-              {user?.image || 'User'}
+              {user?.name || 'User'}
             </Text>
             <Text className="text-xs text-black/60 dark:text-white/60" numberOfLines={1}>
               {user?.email || ''}

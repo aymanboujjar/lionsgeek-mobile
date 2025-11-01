@@ -28,8 +28,12 @@ export default function LoginScreen() {
       console.log('[LOGIN] Response received', { status: response?.status, hasData: !!response?.data });
       
       if (response?.data) {
-        console.log('[LOGIN] Saving auth data');
+        console.log('[LOGIN] Response data:', JSON.stringify(response.data, null, 2));
+        console.log('[LOGIN] User data:', JSON.stringify(response.data.user, null, 2));
+        
+        // Store full user data
         await saveAuth(response.data.token, response.data.user);
+        console.log('[LOGIN] Auth data saved successfully');
         router.replace('/(tabs)');
       } else {
         throw new Error('No data received');

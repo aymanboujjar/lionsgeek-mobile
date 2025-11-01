@@ -38,15 +38,10 @@ export default function LoadingScreen() {
           if (response?.data) {
             // Token is valid, update user data from response
             const userData = response.data;
-            await saveAuth(token, {
-              id: userData.id,
-              name: userData.name,
-              email: userData.email,
-              avatar: userData.avatar,
-              roles: userData.roles,
-              phone: userData.phone,
-              promo: userData.promo,
-            });
+            console.log('[LOADING] User data received:', JSON.stringify(userData, null, 2));
+            
+            // Store full user data
+            await saveAuth(token, userData);
             router.replace('/(tabs)');
           } else {
             // Token invalid, clear and go to login
