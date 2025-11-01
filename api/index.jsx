@@ -1,7 +1,7 @@
 import axios from "axios";
 
 
-const APP_URL = process.env.EXPO_PUBLIC_APP_URL;
+const APP_URL = "http://10.50.58.6:8000" ;
 
 const IMAGE_URL = `${APP_URL}/storage/images`
 const VIDEO_URL = `${APP_URL}/storage/videos`
@@ -9,20 +9,18 @@ const VIDEO_URL = `${APP_URL}/storage/videos`
 const get = async (endpoint, Token) => {
     try {
         let response;
-
+        const headers = {};
+        
         if (Token) {
-            response = await axios.get(`${APP_URL}/api/${endpoint}`, {
-                headers: { Token }
-            });
-        } else {
-            response = await axios.get(`${APP_URL}/api/${endpoint}`);
-            
+            headers['Authorization'] = `Bearer ${Token}`;
+            headers['Accept'] = 'application/json';
         }
 
+        response = await axios.get(`${APP_URL}/api/${endpoint}`, { headers });
         return response;
     } catch (error) {
-        console.log(`API ERROR\nMethod: GET\nEndpoint: ${endpoint}\nError: ${error}`);
-        return null;
+        console.log(`API ERROR\nMethod: GET\nEndpoint: ${endpoint}\nError: ${error?.response?.data || error?.message}`);
+        throw error;
     }
 };
 
@@ -30,13 +28,20 @@ const get = async (endpoint, Token) => {
 
 const post = async (endpoint, data, Token) => {
     try {
-        const response = await axios.post(`${APP_URL}/api/${endpoint}`, data, {
-            headers: { Token },
-        });
+        const headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        };
+        
+        if (Token) {
+            headers['Authorization'] = `Bearer ${Token}`;
+        }
+        
+        const response = await axios.post(`${APP_URL}/api/${endpoint}`, data, { headers });
         return response;
     } catch (error) {
-        console.log(`API ERROR\nMethod: POST\nEndpoint: ${endpoint}\nError: ${error}`);
-        return null;
+        console.log(`API ERROR\nMethod: POST\nEndpoint: ${endpoint}\nError: ${error?.response?.data || error?.message}`);
+        throw error;
     }
 };
 
@@ -82,4 +87,9 @@ const remove = async (endpoint, Token) => {
     }
 };
 
-export default { get, put, post, remove, APP_URL, IMAGE_URL, VIDEO_URL };
+// Mobile API helpers with token from context
+const getWithAuth = async (endpoint, token) => {
+    return get(endpoint, token);
+};
+
+export default { get, put, post, remove, getWithAuth, APP_URL, IMAGE_URL, VIDEO_URL };

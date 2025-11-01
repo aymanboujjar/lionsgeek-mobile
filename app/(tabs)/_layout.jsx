@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import { HapticTab } from '@/components/HapticTab';
@@ -7,20 +7,36 @@ import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useAppContext } from '@/context';
+import { router } from 'expo-router';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { token } = useAppContext();
 
+  useEffect(() => {
+    if (!token) router.replace('/auth/login');
+  }, [token]);
+
+
+  const { user } = useAppContext();
+  const userRoles = user?.roles || [];
+  const isAdmin = userRoles.some(r => ['admin', 'coach'].includes(r?.toLowerCase?.() || r));
+  const isStudent = userRoles.some(r => r?.toLowerCase?.() === 'student') || (!isAdmin && userRoles.length === 0);
 
   const tabScreen = [
-    { route: "index", name: "Home", icon: "house.fill", showTab: true  },
-
-
-  ]
+    { route: "index", name: "Home", icon: "house.fill", showTab: true, roles: [] }, // Everyone
+    { route: "members", name: "Members", icon: "person.3.fill", showTab: isAdmin, roles: ['admin', 'coach'] },
+    { route: "projects", name: "Projects", icon: "hammer.fill", showTab: true, roles: [] }, // Everyone
+    { route: "reservations", name: "Reservations", icon: "calendar", showTab: true, roles: [] }, // Everyone
+    { route: "leaderboard", name: "Leaderboard", icon: "trophy", showTab: isStudent, roles: ['student'] },
+    { route: "more", name: "More", icon: "ellipsis.circle", showTab: true, roles: [] }, // Everyone
+  ].filter(screen => screen.showTab)
 
   const hiddenScreens = [
-    // { route: "screen path", name: "screen name", icon: "icon",  },
-
+    { route: "profile", name: "Profile", icon: "person.fill", showTab: false },
+    { route: "search", name: "Search", icon: "magnifyingglass", showTab: false },
+    { route: "notifications", name: "Notifications", icon: "bell.fill", showTab: false },
   ]
 
 

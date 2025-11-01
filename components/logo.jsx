@@ -1,5 +1,4 @@
-import Svg, { Path } from "react-native-svg";
-import G from "react-native-svg";
+import Svg, { Path, G } from "react-native-svg";
 
 
 export const Home = ({ color, size, width, height, active }) => {
