@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, Pressable } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, Image, Pressable, ActivityIndicator } from 'react-native';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,24 +16,42 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [searchType, setSearchType] = useState('all'); // all, students, hashtags
   const [filter, setFilter] = useState(''); // student, admin, coach
+  const debounceTimer = useRef(null);
+  const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
-    // Debounce search
+    // Clear previous timer
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    // If query is empty, clear results immediately
     if (!searchQuery.trim()) {
       setResults([]);
+      setIsTyping(false);
       return;
     }
 
-    const timeoutId = setTimeout(() => {
-      handleSearch();
-    }, 500);
+    // Show typing indicator
+    setIsTyping(true);
 
-    return () => clearTimeout(timeoutId);
+    // Set loading state after a short delay
+    debounceTimer.current = setTimeout(() => {
+      setIsTyping(false);
+      handleSearch();
+    }, 800); // Wait 800ms after user stops typing
+
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
   }, [searchQuery, searchType, filter]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim() || !token) {
       setResults([]);
+      setLoading(false);
       return;
     }
 
@@ -74,6 +92,12 @@ export default function SearchScreen() {
     { value: 'hashtags', label: 'Hashtags', icon: 'pricetag-outline' },
   ];
 
+  const getImageUrl = (item) => {
+    if (item?.avatar) return item.avatar;
+    if (item?.image) return `${API.APP_URL}/storage/img/profile/${item.image}`;
+    return null;
+  };
+
   return (
     <AppLayout showNavbar={false}>
       <View className="flex-1 bg-light dark:bg-dark">
@@ -87,7 +111,7 @@ export default function SearchScreen() {
           </View>
 
           {/* Search Input */}
-          <View className="flex-row items-center bg-light/50 dark:bg-dark/50 rounded-lg px-3 py-2 mb-3">
+          <View className="flex-row items-center bg-light/50 dark:bg-dark/50 rounded-lg px-3 py-2 mb-3 border border-light/20 dark:border-dark/20">
             <Ionicons name="search" size={20} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'} />
             <TextInput
               className="flex-1 ml-2 text-black dark:text-white"
@@ -98,7 +122,10 @@ export default function SearchScreen() {
               onSubmitEditing={handleSearch}
               autoCapitalize="none"
             />
-            {searchQuery.length > 0 && (
+            {(isTyping || loading) && (
+              <ActivityIndicator size="small" color={isDark ? '#fff' : '#000'} />
+            )}
+            {searchQuery.length > 0 && !isTyping && !loading && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
                 <Ionicons name="close-circle" size={20} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'} />
               </TouchableOpacity>
@@ -175,9 +202,19 @@ export default function SearchScreen() {
         {/* Results */}
         <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
           <View className="px-6 pt-4 pb-8">
-            {loading ? (
-              <View className="py-8">
-                <Text className="text-center text-black/60 dark:text-white/60">Searching...</Text>
+            {isTyping ? (
+              <View className="py-8 items-center">
+                <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                <Text className="text-center text-black/60 dark:text-white/60 mt-4">
+                  Typing...
+                </Text>
+              </View>
+            ) : loading ? (
+              <View className="py-8 items-center">
+                <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                <Text className="text-center text-black/60 dark:text-white/60 mt-4">
+                  Searching...
+                </Text>
               </View>
             ) : results.length === 0 && searchQuery.length > 0 ? (
               <View className="py-8 items-center">
@@ -205,7 +242,7 @@ export default function SearchScreen() {
                   <Pressable
                     key={item.id}
                     onPress={() => item.type === 'user' && handleUserPress(item.id)}
-                    className="mb-3 bg-light dark:bg-dark rounded-lg p-4 border border-light/20 dark:border-dark/20 flex-row items-center"
+                    className="mb-3 bg-light dark:bg-dark rounded-lg p-4 border border-light/20 dark:border-dark/20 flex-row items-center active:opacity-70"
                   >
                     {item.type === 'user' ? (
                       <>

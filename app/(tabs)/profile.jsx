@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Pressable } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, Pressable, ActivityIndicator } from 'react-native';
 import { useAppContext } from '@/context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -63,8 +63,9 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <AppLayout showNavbar={false}>
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-black/60 dark:text-white/60">Loading...</Text>
+        <View className="flex-1 items-center justify-center bg-light dark:bg-dark">
+          <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+          <Text className="text-black/60 dark:text-white/60 mt-4">Loading profile...</Text>
         </View>
       </AppLayout>
     );
@@ -80,7 +81,11 @@ export default function ProfileScreen() {
     );
   }
 
-  const avatarUrl = profile?.avatar || (profile?.image ? `${API.APP_URL}/storage/${profile.image}` : null) || 'https://via.placeholder.com/100';
+  const getImageUrl = () => {
+    if (profile?.avatar) return profile.avatar;
+    if (profile?.image) return `${API.APP_URL}/storage/img/profile/${profile.image}`;
+    return 'https://via.placeholder.com/100';
+  };
 
   return (
     <AppLayout showNavbar={false}>
@@ -105,11 +110,46 @@ export default function ProfileScreen() {
             {/* Profile Picture and Info */}
             <View className="px-6">
               <View className="items-center mb-4">
-                <Image
-                  source={{ uri: avatarUrl }}
-                  className="w-32 h-32 rounded-full mb-3 border-4 border-light dark:border-dark"
-                  defaultSource={require('@/assets/images/icon.png')}
-                />
+                <View className="relative">
+                  <Image
+                    source={{ uri: `${API.APP_URL}/storage/img/profile/${profile.image}` }}
+                    className="w-32 h-32 rounded-full mb-3 border-4 border-light dark:border-dark"
+                    defaultSource={require('@/assets/images/icon.png')}
+                  />
+                </View>
+                
+                {/* Last Online Indicator - Below Profile Image */}
+                {profile?.last_online && (() => {
+                  const lastOnlineDate = new Date(profile.last_online);
+                  const now = new Date();
+                  const diffMinutes = Math.floor((now - lastOnlineDate) / (1000 * 60));
+                  const diffHours = Math.floor(diffMinutes / 60);
+                  const diffDays = Math.floor(diffHours / 24);
+                  
+                  // Show green dot if online (last 5 minutes) or just online
+                  const isOnline = diffMinutes <= 5;
+                  
+                  return (
+                    <View className="flex-row items-center justify-center mb-3">
+                      {isOnline ? (
+                        <View className="flex-row items-center">
+                          <View className="w-3 h-3 rounded-full bg-green-500 mr-2" />
+                        </View>
+                      ) : (
+                        <Text className="text-xs text-black/60 dark:text-white/60">
+                          {diffDays > 0 ? (
+                            `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`
+                          ) : diffHours > 0 ? (
+                            `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`
+                          ) : (
+                            `${diffMinutes} ${diffMinutes === 1 ? 'min' : 'mins'} ago`
+                          )}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })()}
+                
                 <Text className="text-2xl font-bold text-black dark:text-white mb-1">
                   {profile?.name || 'User'}
                 </Text>
@@ -160,35 +200,36 @@ export default function ProfileScreen() {
                 <View className="flex-row gap-2">
                   <Pressable
                     onPress={() => {}}
-                    className="flex-1 bg-alpha dark:bg-alpha rounded-lg py-3 items-center"
+                    className="flex-1 bg-alpha dark:bg-alpha rounded-xl py-3 items-center flex-row justify-center active:opacity-80"
                   >
-                    <Text className="text-base font-semibold text-black">Edit Profile</Text>
+                    <Ionicons name="create-outline" size={18} color="#000" />
+                    <Text className="ml-2 text-base font-semibold text-black">Edit Profile</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => {}}
-                    className="px-4 py-3 border border-light/30 dark:border-dark/30 rounded-lg items-center justify-center bg-light/50 dark:bg-dark/50"
+                    className="px-4 py-3 border border-light/30 dark:border-dark/30 rounded-xl items-center justify-center bg-light/50 dark:bg-dark/50 active:opacity-80"
                   >
-                    <Ionicons name="add-outline" size={20} color={isDark ? '#fff' : '#000'} />
+                    <Ionicons name="settings-outline" size={20} color={isDark ? '#fff' : '#000'} />
                   </Pressable>
                 </View>
               ) : (
                 <View className="flex-row gap-2">
                   <Pressable
                     onPress={() => {}}
-                    className="flex-1 bg-alpha dark:bg-alpha rounded-lg py-3 items-center flex-row justify-center"
+                    className="flex-1 bg-alpha dark:bg-alpha rounded-xl py-3 items-center flex-row justify-center active:opacity-80"
                   >
                     <Ionicons name="person-add-outline" size={18} color="#000" />
                     <Text className="ml-2 text-base font-semibold text-black">Connect</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => {}}
-                    className="px-4 py-3 border border-light/30 dark:border-dark/30 rounded-lg items-center justify-center bg-light/50 dark:bg-dark/50"
+                    className="px-4 py-3 border border-light/30 dark:border-dark/30 rounded-xl items-center justify-center bg-light/50 dark:bg-dark/50 active:opacity-80"
                   >
                     <Ionicons name="mail-outline" size={20} color={isDark ? '#fff' : '#000'} />
                   </Pressable>
                   <Pressable
                     onPress={() => {}}
-                    className="px-4 py-3 border border-light/30 dark:border-dark/30 rounded-lg items-center justify-center bg-light/50 dark:bg-dark/50"
+                    className="px-4 py-3 border border-light/30 dark:border-dark/30 rounded-xl items-center justify-center bg-light/50 dark:bg-dark/50 active:opacity-80"
                   >
                     <Ionicons name="ellipsis-horizontal" size={20} color={isDark ? '#fff' : '#000'} />
                   </Pressable>
@@ -262,25 +303,25 @@ export default function ProfileScreen() {
                 )}
                 {profile?.access_cowork !== undefined && (
                   <View className="flex-row items-center mb-2">
-                    <Ionicons name="business-outline" size={16} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'} />
+                    <Ionicons 
+                      name={profile.access_cowork ? "business" : "business-outline"} 
+                      size={18} 
+                      color={profile.access_cowork ? (isDark ? '#fff' : '#000') : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)')} 
+                    />
                     <Text className="text-sm text-black/80 dark:text-white/80 ml-2">
-                      Cowork Access: {profile.access_cowork ? 'Yes' : 'No'}
+                      Cowork Space
                     </Text>
                   </View>
                 )}
                 {profile?.access_studio !== undefined && (
                   <View className="flex-row items-center mb-2">
-                    <Ionicons name="videocam-outline" size={16} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'} />
+                    <Ionicons 
+                      name={profile.access_studio ? "videocam" : "videocam-outline"} 
+                      size={18} 
+                      color={profile.access_studio ? (isDark ? '#fff' : '#000') : (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)')} 
+                    />
                     <Text className="text-sm text-black/80 dark:text-white/80 ml-2">
-                      Studio Access: {profile.access_studio ? 'Yes' : 'No'}
-                    </Text>
-                  </View>
-                )}
-                {profile?.last_online && (
-                  <View className="flex-row items-center mb-2">
-                    <Ionicons name="time-outline" size={16} color={isDark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)'} />
-                    <Text className="text-sm text-black/80 dark:text-white/80 ml-2">
-                      Last online: {profile.last_online}
+                      Studio
                     </Text>
                   </View>
                 )}

@@ -1,22 +1,25 @@
 import axios from "axios";
 
 
-const APP_URL = "http://10.50.58.6:8000" ;
+const APP_URL = "http://10.79.182.6:8000" ;
 
 const IMAGE_URL = `${APP_URL}/storage/images`
 const VIDEO_URL = `${APP_URL}/storage/videos`
 
 const get = async (endpoint, Token) => {
     try {
-        let response;
-        const headers = {};
-        
-        if (Token) {
-            headers['Authorization'] = `Bearer ${Token}`;
-            headers['Accept'] = 'application/json';
+        // Token is REQUIRED for all API calls
+        if (!Token) {
+            throw new Error('Authentication token is required');
         }
 
-        response = await axios.get(`${APP_URL}/api/${endpoint}`, { headers });
+        const headers = {
+            'Authorization': `Bearer ${Token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+        };
+
+        const response = await axios.get(`${APP_URL}/api/${endpoint}`, { headers });
         return response;
     } catch (error) {
         console.log(`API ERROR\nMethod: GET\nEndpoint: ${endpoint}\nError: ${error?.response?.data || error?.message}`);
@@ -28,6 +31,7 @@ const get = async (endpoint, Token) => {
 
 const post = async (endpoint, data, Token) => {
     try {
+        // Token is REQUIRED for all API calls (except login/forgot-password)
         const headers = {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
