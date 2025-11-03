@@ -81,21 +81,7 @@ export default function Leaderboard() {
         }
       >
         {/* Banner Image */}
-        <View className="relative h-48 -mx-6 -mt-6 mb-6 bg-alpha/20 dark:bg-alpha/30">
-          <Image
-            source={{ uri: `${API.APP_URL}/assets/images/banner/Winners-amico.png` }}
-            className="w-full h-full"
-            resizeMode="cover"
-            onError={(e) => {
-              console.log('[LEADERBOARD] Banner image failed to load');
-            }}
-          />
-          <View className="absolute inset-0 bg-black/30" />
-          <View className="absolute bottom-6 left-6 right-6">
-            <Text className="text-3xl font-bold text-white mb-1">Leaderboard</Text>
-            <Text className="text-base text-white/90">Top coders this week</Text>
-          </View>
-        </View>
+       
 
         {loading ? (
           <View className="flex-1 items-center justify-center py-20">
@@ -330,7 +316,7 @@ export default function Leaderboard() {
           onRequestClose={() => setShowDetails(false)}
         >
           <View className="flex-1 bg-black/50 justify-end">
-            <View className="bg-light dark:bg-dark rounded-t-3xl p-6 max-h-[80%]">
+            <View className="bg-light dark:bg-dark rounded-t-3xl p-6" style={{ maxHeight: '75%' }}>
               <View className="flex-row items-center justify-between mb-4">
                 <Text className="text-xl font-bold text-black dark:text-white">User Details</Text>
                 <TouchableOpacity onPress={() => setShowDetails(false)}>
@@ -354,12 +340,36 @@ export default function Leaderboard() {
                     <Text className="text-sm text-black/60 dark:text-white/60 mt-1">
                       Rank #{selectedUser.rank || 'N/A'}
                     </Text>
+                    {selectedUser.total_time && (
+                      <View className="mt-4 px-4 py-2 bg-light/50 dark:bg-dark/50 rounded-xl">
+                        <Text className="text-sm text-black/60 dark:text-white/60">Total Time</Text>
+                        <Text className="text-lg font-bold text-black dark:text-white">{selectedUser.total_time}</Text>
+                      </View>
+                    )}
+                    {selectedUser.daily_avg && (
+                      <View className="mt-2 px-4 py-2 bg-light/50 dark:bg-dark/50 rounded-xl">
+                        <Text className="text-sm text-black/60 dark:text-white/60">Daily Average</Text>
+                        <Text className="text-lg font-bold text-black dark:text-white">{selectedUser.daily_avg}</Text>
+                      </View>
+                    )}
+                    {selectedUser.top_language && (
+                      <View className="mt-2 px-4 py-2 bg-light/50 dark:bg-dark/50 rounded-xl">
+                        <Text className="text-sm text-black/60 dark:text-white/60">Top Language</Text>
+                        <Text className="text-lg font-bold text-black dark:text-white">{selectedUser.top_language}</Text>
+                      </View>
+                    )}
+                    {selectedUser.user_rank && (
+                      <View className="mt-2 px-4 py-2 bg-light/50 dark:bg-dark/50 rounded-xl">
+                        <Text className="text-sm text-black/60 dark:text-white/60">User Rank</Text>
+                        <Text className="text-lg font-bold text-black dark:text-white">{selectedUser.user_rank}</Text>
+                      </View>
+                    )}
                     <Pressable
                       onPress={() => {
                         setShowDetails(false);
                         router.push(`/(tabs)/profile?userId=${selectedUser.id}`);
                       }}
-                      className="mt-4 bg-alpha dark:bg-alpha rounded-xl px-6 py-3 active:opacity-80"
+                      className="mt-6 bg-alpha dark:bg-alpha rounded-xl px-6 py-3 active:opacity-80"
                     >
                       <Text className="text-base font-semibold text-black">View Full Profile</Text>
                     </Pressable>
