@@ -1,7 +1,7 @@
 import axios from "axios";
 
 
-const APP_URL = "http://10.79.182.6:8000" ;
+const APP_URL = "http://192.168.100.100:8000" ;
 
 const IMAGE_URL = `${APP_URL}/storage/images`
 const VIDEO_URL = `${APP_URL}/storage/videos`
