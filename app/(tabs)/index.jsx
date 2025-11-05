@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { useAppContext } from '@/context';
 import StoryItem from '@/components/feed/StoryItem';
 import FeedItem from '@/components/feed/FeedItem';
@@ -8,6 +8,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import AppLayout from '@/components/layout/AppLayout';
 import API from '@/api';
+import { router } from 'expo-router';
 
 export default function HomeScreen() {
   const { user, token } = useAppContext();
@@ -16,13 +17,31 @@ export default function HomeScreen() {
   const [posts, setPosts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ totalHours: 0, streak: 0, rank: 0 });
 
-  // Hardcoded posts for now
+  // Enhanced hardcoded posts
   const hardcodedPosts = [
     {
       id: 1,
+      type: 'achievement',
+      title: '🎉 Milestone Achieved!',
+      description: 'You completed 100 hours of coding this week! Keep up the amazing work.',
+      created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+      user: {
+        name: 'System',
+        avatar: null,
+      },
+      likes: 45,
+      comments: 12,
+      reposts: 8,
+      isReposted: false,
+      badge: '🔥 Hot',
+      badgeColor: '#ef4444',
+    },
+    {
+      id: 2,
       type: 'post',
-      title: 'New Project Launch',
+      title: 'New Project Launch 🚀',
       description: 'Excited to announce our new project! Working with an amazing team to bring innovative solutions.',
       created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       user: {
@@ -36,9 +55,9 @@ export default function HomeScreen() {
       isReposted: false,
     },
     {
-      id: 2,
+      id: 3,
       type: 'project',
-      title: 'LionsGeek Studio Reservation',
+      title: '🎬 Studio Reservation Confirmed',
       description: 'Just reserved Studio A for tomorrow\'s recording session. Looking forward to it!',
       created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
       user: {
@@ -52,10 +71,10 @@ export default function HomeScreen() {
       isReposted: false,
     },
     {
-      id: 3,
+      id: 4,
       type: 'post',
-      title: 'Workshop Announcement',
-      description: 'Join us for an exciting workshop on modern web development next week!',
+      title: '📚 Workshop Announcement',
+      description: 'Join us for an exciting workshop on modern web development next week! Limited spots available.',
       created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
       user: {
         name: 'Nabil SAKR',
@@ -68,22 +87,6 @@ export default function HomeScreen() {
       isReposted: true,
       reposted: true,
       reposted_by: user?.name || 'You',
-    },
-    {
-      id: 4,
-      type: 'reservation',
-      title: 'Coworking Space Available',
-      description: 'Coworking space B3 is now available for booking. Perfect for team collaborations!',
-      created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-      user: {
-        name: 'Yahya Moussair',
-        avatar: 'https://via.placeholder.com/40',
-        image: null,
-      },
-      likes: 18,
-      comments: 4,
-      reposts: 2,
-      isReposted: false,
       image: 'https://via.placeholder.com/400x200',
     },
   ];
@@ -91,6 +94,8 @@ export default function HomeScreen() {
   useEffect(() => {
     setPosts(hardcodedPosts);
     setLoading(false);
+    // Simulate stats
+    setStats({ totalHours: 127, streak: 7, rank: 5 });
   }, []);
 
   const fetchFeed = async () => {
@@ -99,7 +104,6 @@ export default function HomeScreen() {
     try {
       const response = await API.getWithAuth('mobile/feed', token);
       if (response?.data) {
-        // Merge feed data with repost handlers
         const feedPosts = (response.data.feed || []).map(post => ({
           ...post,
           onRepost: handleRepost,
@@ -108,7 +112,6 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('[HOME] Error fetching feed:', error);
-      // Keep hardcoded posts on error
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -132,7 +135,6 @@ export default function HomeScreen() {
       }, token);
 
       if (response?.data) {
-        // Update post in state
         setPosts(prevPosts =>
           prevPosts.map(p =>
             p.id === post.id
@@ -155,7 +157,6 @@ export default function HomeScreen() {
   };
 
   const handlePostCreated = (newPost) => {
-    // Add new post to the beginning of the feed
     setPosts(prevPosts => [
       {
         ...newPost,
@@ -165,11 +166,6 @@ export default function HomeScreen() {
     ]);
   };
 
-  const handleCreatePost = () => {
-    // Modal is handled in CreatePost component
-    console.log('Create post pressed');
-  };
-
   return (
     <AppLayout showNavbar={true}>
       <ScrollView 
@@ -177,12 +173,53 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={isDark ? '#fff' : '#000'} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffc801" />
         }
       >
         <View className="px-6">
+          {/* Quick Stats Cards */}
+          <View className="mb-6 pt-4">
+            <View className="flex-row gap-3">
+              <TouchableOpacity 
+                onPress={() => router.push('/(tabs)/leaderboard')}
+                className="flex-1 bg-alpha/20 dark:bg-alpha/30 rounded-2xl p-4 border border-alpha/30 active:opacity-80"
+              >
+                <View className="flex-row items-center justify-between mb-2">
+                  <Ionicons name="trophy" size={24} color="#ffc801" />
+                  <View className="px-2 py-1 bg-alpha/50 rounded-full">
+                    <Text className="text-xs font-bold text-black">#{stats.rank}</Text>
+                  </View>
+                </View>
+                <Text className="text-xs text-black/60 dark:text-white/60 mb-1">Your Rank</Text>
+                <Text className="text-2xl font-bold text-black dark:text-white">Top {stats.rank}%</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                className="flex-1 bg-good/20 dark:bg-good/30 rounded-2xl p-4 border border-good/30 active:opacity-80"
+              >
+                <View className="flex-row items-center justify-between mb-2">
+                  <Ionicons name="flame" size={24} color="#51b04f" />
+                  <View className="px-2 py-1 bg-good/50 rounded-full">
+                    <Text className="text-xs font-bold text-white">{stats.streak}</Text>
+                  </View>
+                </View>
+                <Text className="text-xs text-black/60 dark:text-white/60 mb-1">Day Streak</Text>
+                <Text className="text-2xl font-bold text-black dark:text-white">{stats.streak} 🔥</Text>
+              </TouchableOpacity>
+
+              <View className="w-20 items-center justify-center bg-beta/10 dark:bg-beta/20 rounded-2xl border border-beta/20">
+                <Ionicons name="time" size={32} color={isDark ? '#fff' : '#212529'} />
+                <Text className="text-xs font-bold text-black dark:text-white mt-1 text-center">{stats.totalHours}h</Text>
+              </View>
+            </View>
+          </View>
+
           {/* Stories Section */}
-          <View className="mb-6 pt-2">
+          <View className="mb-6">
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-base font-bold text-black dark:text-white">Stories</Text>
+              <Ionicons name="add-circle-outline" size={24} color="#ffc801" />
+            </View>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
@@ -193,33 +230,36 @@ export default function HomeScreen() {
                 <StoryItem user={user} isOwn={true} />
               </View>
               <View className="mr-4">
-                <StoryItem user={{ name: 'Hamza Ezzagmoute', avatar: 'https://via.placeholder.com/60', image: null }} />
+                <StoryItem user={{ name: 'Hamza', avatar: 'https://via.placeholder.com/60', image: null }} />
               </View>
               <View className="mr-4">
-                <StoryItem user={{ name: 'Nabil SAKR', avatar: 'https://via.placeholder.com/60', image: null }} />
+                <StoryItem user={{ name: 'Nabil', avatar: 'https://via.placeholder.com/60', image: null }} />
               </View>
               <View className="mr-4">
-                <StoryItem user={{ name: 'John Doe', avatar: 'https://via.placeholder.com/60', image: null }} />
+                <StoryItem user={{ name: 'John', avatar: 'https://via.placeholder.com/60', image: null }} />
               </View>
             </ScrollView>
           </View>
 
           {/* Create Post Section */}
-          <View className="mb-5">
-            <CreatePost onPostPress={handleCreatePost} onPostCreated={handlePostCreated} />
+          <View className="mb-6">
+            <CreatePost onPostPress={() => {}} onPostCreated={handlePostCreated} />
           </View>
 
           {/* Feed Section */}
           <View className="mb-4">
             <View className="flex-row items-center justify-between mb-5">
-              <Text className="text-xl font-bold text-black dark:text-white">Feed</Text>
-              <Text className="text-sm text-black/60 dark:text-white/60">
-                {posts.length} {posts.length === 1 ? 'post' : 'posts'}
-              </Text>
+              <View className="flex-row items-center">
+                <Ionicons name="newspaper" size={24} color="#ffc801" />
+                <Text className="text-xl font-bold text-black dark:text-white ml-2">Latest Updates</Text>
+              </View>
+              <TouchableOpacity>
+                <Ionicons name="filter" size={20} color={isDark ? '#fff' : '#000'} />
+              </TouchableOpacity>
             </View>
             {loading ? (
               <View className="py-16 items-center">
-                <ActivityIndicator size="large" color={isDark ? '#fff' : '#000'} />
+                <ActivityIndicator size="large" color="#ffc801" />
                 <Text className="text-black/60 dark:text-white/60 mt-4">Loading feed...</Text>
               </View>
             ) : posts.length === 0 ? (
@@ -231,7 +271,7 @@ export default function HomeScreen() {
               </View>
             ) : (
               posts.map((item, index) => (
-                <View key={item.id} className={index !== posts.length - 1 ? "mb-6" : ""}>
+                <View key={item.id} className={index !== posts.length - 1 ? "mb-5" : ""}>
                   <FeedItem 
                     item={{
                       ...item,
