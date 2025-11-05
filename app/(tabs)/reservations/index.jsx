@@ -238,45 +238,44 @@ export default function Reservations() {
         </View>
 
         {/* 🔹 Reservation List */}
-        {loading ? (
-          <Text className="text-center text-black/60 dark:text-white/60 py-8">Loading...</Text>
-        ) : currentReservations.length === 0 ? (
-          <Text className="text-center text-black/60 dark:text-white/60 py-8">No reservations yet</Text>
-        ) : filtered.length === 0 && selectedDate ? (
-          <Text className="text-center text-black/60 dark:text-white/60 py-8">No reservations on this date</Text>
-        ) : (
-          filtered.map((reservation) => (
-            <View
-              key={reservation.id}
-              className="mb-4 rounded-xl p-4"
-              style={{
-                backgroundColor: isDark ? '#111827' : '#FFFFFF',
-                borderWidth: 1,
-                borderColor: isDark ? '#1F2937' : '#E5E7EB',
-              }}
-            >
-              <View className="flex-row items-center justify-between mb-2">
-                <Text className="text-base font-semibold text-black dark:text-white capitalize">
-                  {reservation.title || 'Reservation'}
-                </Text>
-                {(() => {
-                  const badge = getStatusBadge(reservation);
-                  return (
-                    <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: badge.bg }}>
-                      <Text style={{ fontSize: 12, fontWeight: '600', color: badge.fg }}>{badge.label}</Text>
-                    </View>
-                  );
-                })()}
-              </View>
-
-              <Text className="text-sm text-black/60 dark:text-white/60 mb-1">date: {reservation.day}</Text>
-              <Text className="text-sm text-black/60 dark:text-white/60 mb-1">Start: {reservation.start?.includes(':') ? reservation.start : formatDate(reservation.start)}</Text>
-              <Text className="text-sm text-black/60 dark:text-white/60 mb-2">End: {reservation.end?.includes(':') ? reservation.end : formatDate(reservation.end)}</Text>
-
-              <Button title="Add to phone calendar" onPress={() => addToDeviceCalendar(reservation)} />
+        {filtered.map((reservation) => (
+          <Pressable
+            key={reservation.id}
+            onPress={() =>
+              router.push({
+                pathname: '/reservations/[id]',
+                params: { id: reservation.id },
+              })
+            }
+            className="mb-4 rounded-xl p-4"
+            style={{
+              backgroundColor: isDark ? '#111827' : '#FFFFFF',
+              borderWidth: 1,
+              borderColor: isDark ? '#1F2937' : '#E5E7EB',
+            }}
+          >
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-base font-semibold text-black dark:text-white capitalize">
+                {reservation.title || 'Reservation'}
+              </Text>
+              {(() => {
+                const badge = getStatusBadge(reservation);
+                return (
+                  <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: badge.bg }}>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: badge.fg }}>{badge.label}</Text>
+                  </View>
+                );
+              })()}
             </View>
-          ))
-        )}
+
+            <Text className="text-sm text-black/60 dark:text-white/60 mb-1">Date: {reservation.day}</Text>
+            <Text className="text-sm text-black/60 dark:text-white/60 mb-1">Start: {reservation.start?.includes(':') ? reservation.start : formatDate(reservation.start)}</Text>
+            <Text className="text-sm text-black/60 dark:text-white/60 mb-2">End: {reservation.end?.includes(':') ? reservation.end : formatDate(reservation.end)}</Text>
+
+            <Button title="Add to phone calendar" onPress={() => addToDeviceCalendar(reservation)} />
+          </Pressable>
+        ))}
+
       </ScrollView>
     </AppLayout>
   );

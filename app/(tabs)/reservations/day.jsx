@@ -70,6 +70,7 @@ export default function DayView() {
     return reservations
       .filter((r) => getReservationDate(r) === day)
       .map((r) => ({
+        id: r.id,
         start: toDateTimeFromDateAndTime(day, r.start),
         end: toDateTimeFromDateAndTime(day, r.end || r.start),
         title: r.title || 'Reservation',
@@ -384,8 +385,16 @@ export default function DayView() {
               })}
 
               {positioned.map((e, i) => (
-                <View
+                <Pressable
                   key={i}
+                  onPress={() => {
+                    if (e.id) {
+                      router.push({
+                        pathname: '/reservations/[id]',
+                        params: { id: e.id },
+                      });
+                    }
+                  }}
                   style={{
                     position: 'absolute',
                     top: e.top,
@@ -441,7 +450,7 @@ export default function DayView() {
                       {e.summary}
                     </Text>
                   ) : null}
-                </View>
+                </Pressable>
               ))}
             </View>
           </View>
