@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Switch,
   Image,
+  FlatList
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -28,6 +29,7 @@ export default function NewReservation({ selectedDate }) {
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState([]);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
+  const [loadingPlaces, setLoadingPlaces] = useState(false);
 
   const isDark = true; // or use useColorScheme()
   const brand = '#4B9EEA';
@@ -56,6 +58,21 @@ export default function NewReservation({ selectedDate }) {
     }
   }, [step]);
 
+
+const [places, setPlaces] = useState([]);
+
+useEffect(() => {
+  if (step === 1 && places.length === 0) {
+    setLoadingPlaces(true);
+    fetch('http://192.168.100.100:8000/api/places')
+      .then((res) => res.json())
+      .then((data) => setPlaces(data.studios)) 
+      .catch((e) => console.error('places fetch error', e))
+      .finally(() => setLoadingPlaces(false));
+  }
+}, [step]);
+
+
   const toggleUser = (id) => {
     setSelectedUsers((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -81,9 +98,9 @@ export default function NewReservation({ selectedDate }) {
       studio,
       users: selectedUsers,
       equipment: selectedEquipment,
-      start: startTime.toTimeString().slice(0, 5), 
+      start: startTime.toTimeString().slice(0, 5),
       end: endTime.toTimeString().slice(0, 5),
-      date: selectedDate, 
+      date: selectedDate,
     };
     console.log('Submitting reservation:', payload);
     // POST to your backend here
@@ -190,19 +207,67 @@ export default function NewReservation({ selectedDate }) {
             />
 
             {/* Studio */}
-            <Text style={{ color: isDark ? '#FFF' : '#000', fontSize: 16 }}>Studio</Text>
-            <TextInput
-              value={studio}
-              onChangeText={setStudio}
-              placeholder="Select or type studio name"
-              placeholderTextColor="#9CA3AF"
-              style={{
-                backgroundColor: isDark ? '#1F2937' : '#FFF',
-                borderRadius: 10,
-                padding: 12,
-                color: isDark ? '#FFF' : '#000',
-              }}
-            />
+
+            <Text style={{ color: isDark ? '#FFF' : '#000', fontSize: 16, marginBottom: 8 }}>
+              Studio
+            </Text>
+
+            {loadingPlaces ? (
+              <ActivityIndicator color={brand} />
+            ) : (
+              <FlatList
+                data={places} // fetched studios
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 8, gap: 12 }}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => {
+                  const isSelected = studio === item.id;
+                  return (
+                    <Pressable
+                      onPress={() => setStudio(item.id)}
+                      style={{
+                        borderWidth: isSelected ? 2 : 1,
+                        borderColor: isSelected ? brand : '#9CA3AF',
+                        borderRadius: 12,
+                        overflow: 'hidden',
+                        alignItems: 'center',
+                        marginRight: 8,
+                      }}
+                    >
+                      {item.image ? (
+                        <Image
+                          source={{ uri: item.image }}
+                          style={{ width: 100, height: 80, resizeMode: 'cover' }}
+                        />
+                      ) : (
+                        <View
+                          style={{
+                            width: 100,
+                            height: 80,
+                            backgroundColor: '#E5E7EB',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Text>No Image</Text>
+                        </View>
+                      )}
+                      <Text
+                        style={{
+                          color: isDark ? '#FFF' : '#000',
+                          fontWeight: isSelected ? '600' : '400',
+                          padding: 4,
+                        }}
+                      >
+                        {item.name}
+                      </Text>
+                    </Pressable>
+                  );
+                }}
+              />
+            )}
+
 
             {/* Start Time */}
             <Text style={{ color: isDark ? '#FFF' : '#000', fontSize: 16 }}>Start Time</Text>
