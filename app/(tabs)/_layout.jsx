@@ -28,12 +28,14 @@ export default function TabLayout() {
     { route: "index", name: "Home", icon: "house.fill", showTab: true, roles: [] }, // Everyone
     { route: "members", name: "Members", icon: "person.3.fill", showTab: isAdmin, roles: ['admin', 'coach'] },
     { route: "projects", name: "Projects", icon: "hammer.fill", showTab: true, roles: [] }, // Everyone
-    { route: "reservations", name: "Reservations", icon: "calendar", showTab: true, roles: [] }, // Everyone
+    { route: "reservations/index", name: "Reservations", icon: "calendar", showTab: true, roles: [] }, // Everyone
     { route: "leaderboard", name: "Leaderboard", icon: "trophy", showTab: isStudent, roles: ['student'] },
     { route: "more", name: "More", icon: "ellipsis.circle", showTab: true, roles: [] }, // Everyone
   ].filter(screen => screen.showTab)
-
+  
   const hiddenScreens = [
+    { route: "reservations/day", name: "Reservations", icon: "calendar", showTab: true, roles: [] }, // Everyone
+    { route: "reservations/_layout", name: "Reservations", icon: "calendar", showTab: true, roles: [] }, // Everyone
     { route: "profile", name: "Profile", icon: "person.fill", showTab: false },
     { route: "search", name: "Search", icon: "magnifyingglass", showTab: false },
     { route: "notifications", name: "Notifications", icon: "bell.fill", showTab: false },

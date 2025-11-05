@@ -175,7 +175,7 @@ export default function Reservations() {
           </Pressable>
           <Pressable
             className={`flex-1 items-center py-2 rounded-lg`}
-            onPress={() => router.push({ pathname: '/(tabs)/day', params: { date: currentDate } })}
+            onPress={() => router.push({ pathname: '/reservations/day', params: { date: currentDate } })}
             style={{ backgroundColor: viewMode === 'day' ? (isDark ? '#111827' : '#ffffff') : 'transparent' }}
           >
             <Text className={`font-medium`} style={{ color: viewMode === 'day' ? (isDark ? '#ffffff' : '#111827') : (isDark ? '#9CA3AF' : '#6B7280') }}>Day</Text>
@@ -191,7 +191,7 @@ export default function Reservations() {
             }}
             onDayPress={(day) => {
               setSelectedDate(day.dateString);
-              router.push({ pathname: '/(tabs)/day', params: { date: day.dateString } });
+              router.push({ pathname: '/reservations/day', params: { date: day.dateString } });
             }}
             enableSwipeMonths
             markingType="dot"
