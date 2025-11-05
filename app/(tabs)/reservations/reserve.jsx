@@ -11,10 +11,13 @@ import {
   FlatList
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
+import { useAppContext } from '@/context';
+import { Modal } from 'react-native';
+import { useRouter } from 'expo-router'
 export default function NewReservation({ selectedDate }) {
   const [step, setStep] = useState(1);
-
+  const router = useRouter();
+  const [showModal, setShowModal] = useState(false);
   // Step 1
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -59,18 +62,18 @@ export default function NewReservation({ selectedDate }) {
   }, [step]);
 
 
-const [places, setPlaces] = useState([]);
+  const [places, setPlaces] = useState([]);
 
-useEffect(() => {
-  if (step === 1 && places.length === 0) {
-    setLoadingPlaces(true);
-    fetch('http://192.168.100.100:8000/api/places')
-      .then((res) => res.json())
-      .then((data) => setPlaces(data.studios)) 
-      .catch((e) => console.error('places fetch error', e))
-      .finally(() => setLoadingPlaces(false));
-  }
-}, [step]);
+  useEffect(() => {
+    if (step === 1 && places.length === 0) {
+      setLoadingPlaces(true);
+      fetch('http://192.168.100.100:8000/api/places')
+        .then((res) => res.json())
+        .then((data) => setPlaces(data.studios))
+        .catch((e) => console.error('places fetch error', e))
+        .finally(() => setLoadingPlaces(false));
+    }
+  }, [step]);
 
 
   const toggleUser = (id) => {
@@ -91,21 +94,37 @@ useEffect(() => {
   const [endTime, setEndTime] = useState(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const { user } = useAppContext();
   const submitReservation = () => {
     const payload = {
-      name,
+      title: name,
       description,
-      studio,
-      users: selectedUsers,
-      equipment: selectedEquipment,
+      studio_id: studio,
+      day: selectedDate,
       start: startTime.toTimeString().slice(0, 5),
       end: endTime.toTimeString().slice(0, 5),
-      date: selectedDate,
+      user_id: user.id,
+      team_members: selectedUsers,
+      equipment: selectedEquipment,
     };
-    console.log('Submitting reservation:', payload);
-    // POST to your backend here
 
+    console.log('Submitting reservation:', payload);
+
+    fetch(`http://192.168.100.100:8000/api/reservations/store`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log('Reservation created:', data);
+        setShowModal(true); // Show modal
+      })
+      .catch((error) => {
+        console.error('Error creating reservation:', error);
+      });
   };
+
 
   return (
     <View
@@ -492,6 +511,54 @@ useEffect(() => {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={showModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowModal(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: isDark ? '#1F2937' : '#FFF',
+              padding: 20,
+              borderRadius: 12,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: isDark ? '#FFF' : '#000', fontSize: 18, marginBottom: 16 }}>
+              Reservation Created Successfully!
+            </Text>
+
+            <Pressable
+              onPress={() => {
+                setShowModal(false);           // optional, just hides modal quickly
+                router.replace('/reservations/day'); // replace current screen
+              }}
+              style={{
+                backgroundColor: brand,
+                paddingVertical: 10,
+                paddingHorizontal: 20,
+                borderRadius: 8,
+              }}
+            >
+              <Text style={{ color: '#FFF', fontWeight: '600' }}>close</Text>
+            </Pressable>
+
+
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
