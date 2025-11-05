@@ -14,88 +14,84 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAppContext } from '@/context';
 import { Modal } from 'react-native';
 import { useRouter } from 'expo-router'
+import API from '@/api';
 export default function NewReservation({ selectedDate }) {
-  const [step, setStep] = useState(1);
+  const { user, token } = useAppContext();
   const router = useRouter();
+  const [step, setStep] = useState(1);
   const [showModal, setShowModal] = useState(false);
-  // Step 1
+
+ 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [studio, setStudio] = useState('');
+  const [places, setPlaces] = useState([]);
+  const [loadingPlaces, setLoadingPlaces] = useState(false);
 
-  // Step 2
+ 
   const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Step 3
+ 
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState([]);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
-  const [loadingPlaces, setLoadingPlaces] = useState(false);
 
-  const isDark = true; // or use useColorScheme()
-  const brand = '#4B9EEA';
-
-  // Fetch users
-  useEffect(() => {
-    if (step === 2 && users.length === 0) {
-      setLoadingUsers(true);
-      fetch('http://192.168.100.100:8000/api/users')
-        .then((res) => res.json())
-        .then((data) => setUsers(data))
-        .catch((e) => console.error('Users fetch error', e))
-        .finally(() => setLoadingUsers(false));
-    }
-  }, [step]);
-
-  // Fetch equipment
-  useEffect(() => {
-    if (step === 3 && equipment.length === 0) {
-      setLoadingEquipment(true);
-      fetch('http://192.168.100.100:8000/api/equipment')
-        .then((res) => res.json())
-        .then((data) => setEquipment(data))
-        .catch((e) => console.error('Equipment fetch error', e))
-        .finally(() => setLoadingEquipment(false));
-    }
-  }, [step]);
-
-
-  const [places, setPlaces] = useState([]);
-
-  useEffect(() => {
-    if (step === 1 && places.length === 0) {
-      setLoadingPlaces(true);
-      fetch('http://192.168.100.100:8000/api/places')
-        .then((res) => res.json())
-        .then((data) => setPlaces(data.studios))
-        .catch((e) => console.error('places fetch error', e))
-        .finally(() => setLoadingPlaces(false));
-    }
-  }, [step]);
-
-
-  const toggleUser = (id) => {
-    setSelectedUsers((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const toggleEquipment = (id) => {
-    setSelectedEquipment((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const nextStep = () => setStep((s) => Math.min(s + 1, 3));
-  const prevStep = () => setStep((s) => Math.max(s - 1, 1));
   const [startTime, setStartTime] = useState(new Date());
   const [endTime, setEndTime] = useState(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-  const { user } = useAppContext();
-  const submitReservation = () => {
+
+  const isDark = true;
+  const brand = '#4B9EEA';
+
+  /** ------------------ FETCH DATA ------------------ **/
+
+  useEffect(() => {
+    if (!token) return;
+
+    // Fetch places 
+    if (step === 1 && places.length === 0) {
+      setLoadingPlaces(true);
+      API.getWithAuth('places', token)
+        .then(res => setPlaces(res.data?.studios || []))
+        .catch(err => console.error('Places fetch error', err))
+        .finally(() => setLoadingPlaces(false));
+    }
+
+    // Fetch users 
+    if (step === 2 && users.length === 0) {
+      setLoadingUsers(true);
+      API.getWithAuth('users', token)
+        .then(res => setUsers(res.data || []))
+        .catch(err => console.error('Users fetch error', err))
+        .finally(() => setLoadingUsers(false));
+    }
+
+    // Fetch equipment 
+    if (step === 3 && equipment.length === 0) {
+      setLoadingEquipment(true);
+      API.getWithAuth('equipment', token)
+        .then(res => setEquipment(res.data || []))
+        .catch(err => console.error('Equipment fetch error', err))
+        .finally(() => setLoadingEquipment(false));
+    }
+
+  }, [step, token]);
+
+  const toggleUser = (id) =>
+    setSelectedUsers(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const toggleEquipment = (id) =>
+    setSelectedEquipment(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const nextStep = () => setStep(s => Math.min(s + 1, 3));
+  const prevStep = () => setStep(s => Math.max(s - 1, 1));
+
+  const submitReservation = async () => {
+    if (!token) return;
+
     const payload = {
       title: name,
       description,
@@ -110,21 +106,14 @@ export default function NewReservation({ selectedDate }) {
 
     console.log('Submitting reservation:', payload);
 
-    fetch(`http://192.168.100.100:8000/api/reservations/store`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log('Reservation created:', data);
-        setShowModal(true); // Show modal
-      })
-      .catch((error) => {
-        console.error('Error creating reservation:', error);
-      });
+    try {
+      const response = await API.postWithAuth('reservations/store', payload, token);
+      console.log('Reservation created:', response.data);
+      setShowModal(true);
+    } catch (error) {
+      console.error('Error creating reservation:', error);
+    }
   };
-
 
   return (
     <View

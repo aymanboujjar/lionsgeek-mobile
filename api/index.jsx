@@ -36,11 +36,11 @@ const post = async (endpoint, data, Token) => {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
         };
-        
+
         if (Token) {
             headers['Authorization'] = `Bearer ${Token}`;
         }
-        
+
         const response = await axios.post(`${APP_URL}/api/${endpoint}`, data, { headers });
         return response;
     } catch (error) {
@@ -95,5 +95,9 @@ const remove = async (endpoint, Token) => {
 const getWithAuth = async (endpoint, token) => {
     return get(endpoint, token);
 };
+const postWithAuth = async (endpoint, data, token) => {
+    return post(endpoint, data, token);
+};
 
-export default { get, put, post, remove, getWithAuth, APP_URL, IMAGE_URL, VIDEO_URL };
+
+export default { get, put, post, remove, getWithAuth, postWithAuth, APP_URL, IMAGE_URL, VIDEO_URL };
