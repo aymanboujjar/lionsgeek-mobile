@@ -175,7 +175,7 @@ export default function Reservations() {
           </Pressable>
           <Pressable
             className={`flex-1 items-center py-2 rounded-lg`}
-            onPress={() => router.push({ pathname: '/reservations/day', params: { date: currentDate } })}
+            onPress={() => router.push({ pathname: '/reservations/day', params: { date: currentDate  , reservations:reservations} })}
             style={{ backgroundColor: viewMode === 'day' ? (isDark ? '#111827' : '#ffffff') : 'transparent' }}
           >
             <Text className={`font-medium`} style={{ color: viewMode === 'day' ? (isDark ? '#ffffff' : '#111827') : (isDark ? '#9CA3AF' : '#6B7280') }}>Day</Text>
@@ -191,7 +191,7 @@ export default function Reservations() {
             }}
             onDayPress={(day) => {
               setSelectedDate(day.dateString);
-              router.push({ pathname: '/reservations/day', params: { date: day.dateString } });
+              router.push({ pathname: '/reservations/day', params: { date: day.dateString , reservations:reservations } });
             }}
             enableSwipeMonths
             markingType="dot"
@@ -250,7 +250,7 @@ export default function Reservations() {
             >
               <View className="flex-row items-center justify-between mb-2">
                 <Text className="text-base font-semibold text-black dark:text-white capitalize">
-                  {reservation.type || 'Reservation'}
+                  {reservation.title || 'Reservation'}
                 </Text>
                 {(() => {
                   const badge = getStatusBadge(reservation);
@@ -262,6 +262,9 @@ export default function Reservations() {
                 })()}
               </View>
 
+              <Text className="text-sm text-black/60 dark:text-white/60 mb-1">
+               Type : {reservation.type}
+              </Text>
               <Text className="text-sm text-black/60 dark:text-white/60 mb-1">
                 Start: {reservation.start?.includes(':') ? reservation.start : formatDate(reservation.start)}
               </Text>

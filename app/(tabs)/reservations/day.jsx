@@ -72,7 +72,8 @@ export default function DayView() {
       .map((r) => ({
         start: toDateTimeFromDateAndTime(day, r.start),
         end: toDateTimeFromDateAndTime(day, r.end || r.start),
-        title: r.type || 'Reservation',
+        title: r.title || 'Reservation',
+        type: r.type,
         summary: r.location || '',
         color: r.canceled
           ? isDark
