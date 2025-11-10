@@ -231,14 +231,15 @@ export default function Reservations() {
         />
 
         {/* 🔹 Today Quick Jump */}
-        <View className="items-start mt-2">
+        {/* <View className="items-start mt-2">
           <Pressable onPress={() => setSelectedDate(toDateOnly(new Date().toISOString()))} className="px-4 py-2 rounded-full bg-black/10 dark:bg-white/10">
             <Text className="text-black dark:text-white">Today</Text>
           </Pressable>
-        </View>
+        </View> */}
 
         {/* 🔹 Reservation List */}
-        {filtered.map((reservation) => (
+        {/* hadi hadik li kayna ltaht majatch zweena */}
+        {/* {filtered.map((reservation) => (
           <Pressable
             key={reservation.id}
             onPress={() =>
@@ -274,7 +275,7 @@ export default function Reservations() {
 
             <Button title="Add to phone calendar" onPress={() => addToDeviceCalendar(reservation)} />
           </Pressable>
-        ))}
+        ))} */}
 
       </ScrollView>
     </AppLayout>

@@ -15,25 +15,41 @@ import { useAppContext } from '@/context';
 import { Modal } from 'react-native';
 import { useRouter } from 'expo-router'
 import API from '@/api';
-export default function NewReservation({ selectedDate }) {
+export default function NewReservation({ selectedDate, prefillTime }) {
   const { user, token } = useAppContext();
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [showModal, setShowModal] = useState(false);
+  useEffect(() => {
+    if (prefillTime) {
+      const toDate = (timeStr) => {
+        const [h, m] = timeStr.split(':').map(Number);
+        const d = new Date();
+        d.setHours(h);
+        d.setMinutes(m);
+        d.setSeconds(0);
+        d.setMilliseconds(0);
+        return d;
+      };
 
- 
+      setStartTime(toDate(prefillTime.start));
+      setEndTime(toDate(prefillTime.end));
+    }
+  }, [prefillTime]);
+
+
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [studio, setStudio] = useState('');
   const [places, setPlaces] = useState([]);
   const [loadingPlaces, setLoadingPlaces] = useState(false);
 
- 
+
   const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
- 
+
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState([]);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
