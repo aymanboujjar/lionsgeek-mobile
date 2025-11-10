@@ -21,55 +21,7 @@ export default function HomeScreen() {
 
   // Enhanced hardcoded posts
   const hardcodedPosts = [
-    {
-      id: 1,
-      type: 'achievement',
-      title: '🎉 Milestone Achieved!',
-      description: 'You completed 100 hours of coding this week! Keep up the amazing work.',
-      created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-      user: {
-        name: 'System',
-        avatar: null,
-      },
-      likes: 45,
-      comments: 12,
-      reposts: 8,
-      isReposted: false,
-      badge: '🔥 Hot',
-      badgeColor: '#ef4444',
-    },
-    {
-      id: 2,
-      type: 'post',
-      title: 'New Project Launch 🚀',
-      description: 'Excited to announce our new project! Working with an amazing team to bring innovative solutions.',
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      user: {
-        name: 'Mehdi Forkani',
-        avatar: 'https://via.placeholder.com/40',
-        image: null,
-      },
-      likes: 24,
-      comments: 5,
-      reposts: 3,
-      isReposted: false,
-    },
-    {
-      id: 3,
-      type: 'project',
-      title: '🎬 Studio Reservation Confirmed',
-      description: 'Just reserved Studio A for tomorrow\'s recording session. Looking forward to it!',
-      created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-      user: {
-        name: 'Hamza Ezzagmoute',
-        avatar: 'https://via.placeholder.com/40',
-        image: null,
-      },
-      likes: 12,
-      comments: 3,
-      reposts: 1,
-      isReposted: false,
-    },
+
     {
       id: 4,
       type: 'post',
@@ -177,42 +129,7 @@ export default function HomeScreen() {
         }
       >
         <View className="px-6">
-          {/* Quick Stats Cards */}
-          <View className="mb-6 pt-4">
-            <View className="flex-row gap-3">
-              <TouchableOpacity 
-                onPress={() => router.push('/(tabs)/leaderboard')}
-                className="flex-1 bg-alpha/20 dark:bg-alpha/30 rounded-2xl p-4 border border-alpha/30 active:opacity-80"
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <Ionicons name="trophy" size={24} color="#ffc801" />
-                  <View className="px-2 py-1 bg-alpha/50 rounded-full">
-                    <Text className="text-xs font-bold text-black">#{stats.rank}</Text>
-                  </View>
-                </View>
-                <Text className="text-xs text-black/60 dark:text-white/60 mb-1">Your Rank</Text>
-                <Text className="text-2xl font-bold text-black dark:text-white">Top {stats.rank}%</Text>
-              </TouchableOpacity>
 
-              <TouchableOpacity 
-                className="flex-1 bg-good/20 dark:bg-good/30 rounded-2xl p-4 border border-good/30 active:opacity-80"
-              >
-                <View className="flex-row items-center justify-between mb-2">
-                  <Ionicons name="flame" size={24} color="#51b04f" />
-                  <View className="px-2 py-1 bg-good/50 rounded-full">
-                    <Text className="text-xs font-bold text-white">{stats.streak}</Text>
-                  </View>
-                </View>
-                <Text className="text-xs text-black/60 dark:text-white/60 mb-1">Day Streak</Text>
-                <Text className="text-2xl font-bold text-black dark:text-white">{stats.streak} 🔥</Text>
-              </TouchableOpacity>
-
-              <View className="w-20 items-center justify-center bg-beta/10 dark:bg-beta/20 rounded-2xl border border-beta/20">
-                <Ionicons name="time" size={32} color={isDark ? '#fff' : '#212529'} />
-                <Text className="text-xs font-bold text-black dark:text-white mt-1 text-center">{stats.totalHours}h</Text>
-              </View>
-            </View>
-          </View>
 
           {/* Stories Section */}
           <View className="mb-6">
@@ -248,15 +165,7 @@ export default function HomeScreen() {
 
           {/* Feed Section */}
           <View className="mb-4">
-            <View className="flex-row items-center justify-between mb-5">
-              <View className="flex-row items-center">
-                <Ionicons name="newspaper" size={24} color="#ffc801" />
-                <Text className="text-xl font-bold text-black dark:text-white ml-2">Latest Updates</Text>
-              </View>
-              <TouchableOpacity>
-                <Ionicons name="filter" size={20} color={isDark ? '#fff' : '#000'} />
-              </TouchableOpacity>
-            </View>
+
             {loading ? (
               <View className="py-16 items-center">
                 <ActivityIndicator size="large" color="#ffc801" />
