@@ -25,10 +25,10 @@ export default function TabLayout() {
   const isStudent = userRoles.some(r => r?.toLowerCase?.() === 'student') || (!isAdmin && userRoles.length === 0);
 
   const tabScreen = [
-    { route: "index", name: "Home", icon: "home", showTab: true, roles: [] }, // Everyone
-    { route: "reservations", name: "Reservations", icon: "calendar-today", showTab: true, roles: [] }, // Everyone
-    { route: "leaderboard", name: "Leaderboard", icon: "leaderboard", showTab: true, roles: [] },
-    { route: "more", name: "More", icon: "menu", showTab: true, roles: [] }, // Everyone
+    { route: "index", name: "Home", icon: "house.fill", showTab: true, roles: [] }, // Everyone
+    { route: "reservations", name: "Reservations", icon: "calendar", showTab: true, roles: [] }, // Everyone
+    { route: "leaderboard", name: "Leaderboard", icon: "trophy.fill", showTab: true, roles: [] },
+    { route: "more", name: "More", icon: "ellipsis", showTab: true, roles: [] }, // Everyone
   ].filter(screen => screen.showTab)
   
   const hiddenScreens = [
@@ -42,18 +42,28 @@ export default function TabLayout() {
   ]
 
 
+  const isDark = colorScheme === 'dark';
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: Colors.alpha,
+        tabBarInactiveTintColor: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
         headerShown: false,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
             position: 'absolute',
+            backgroundColor: isDark ? Colors.dark : Colors.light,
+            borderTopColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
+            borderTopWidth: 1,
           },
-          default: {},
+          default: {
+            backgroundColor: isDark ? Colors.dark : Colors.light,
+            borderTopColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
+            borderTopWidth: 1,
+          },
         }),
       }}>
 

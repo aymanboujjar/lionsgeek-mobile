@@ -228,12 +228,12 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
           >
             <Text className="text-alpha font-semibold" style={{ fontSize: 14 }}>
               {step > 1 ? '← Back' : 'Cancel'}
-            </Text>
-          </Pressable>
+          </Text>
+        </Pressable>
 
           <Text className={`${isDark ? 'text-light' : 'text-beta'} font-bold`} style={{ fontSize: 18 }}>
-            New Reservation
-          </Text>
+          New Reservation
+        </Text>
 
           <Pressable
             onPress={step === 3 ? submitReservation : nextStep}
@@ -242,8 +242,8 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
           >
             <Text className="text-white font-bold" style={{ fontSize: 14 }}>
               {step === 3 ? 'Done ✓' : 'Next →'}
-            </Text>
-          </Pressable>
+          </Text>
+        </Pressable>
         </View>
       </View>
 
@@ -251,8 +251,8 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
       <View className="flex-row justify-center items-center" style={{ gap: 8, marginBottom: 12, paddingHorizontal: 16 }}>
         {[1, 2, 3].map((n) => (
           <View key={n} className="flex-row items-center">
-            <View
-              style={{
+      <View
+        style={{
                 width: step >= n ? 40 : 12,
                 height: 12,
                 borderRadius: 6,
@@ -261,8 +261,8 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
               }}
             />
             {n < 3 && (
-              <View
-                style={{
+          <View
+            style={{
                   width: 20,
                   height: 2,
                   backgroundColor: step > n ? Colors.alpha : Colors.dark_gray,
@@ -281,34 +281,34 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
             {/* Name field */}
             <View>
               <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-1.5`} style={{ fontSize: 14 }}>Name</Text>
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Reservation name"
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Reservation name"
                 placeholderTextColor={Colors.dark_gray}
                 className={`${isDark ? 'bg-dark_gray text-light' : 'bg-white text-beta'} border ${isDark ? 'border-dark' : 'border-beta/20'}`}
-                style={{
-                  borderRadius: 10,
-                  padding: 12,
+              style={{
+                borderRadius: 10,
+                padding: 12,
                   fontSize: 14,
                   borderWidth: 1,
-                }}
-              />
+              }}
+            />
             </View>
 
             {/* Description */}
             <View>
               <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-1.5`} style={{ fontSize: 14 }}>Description</Text>
-              <TextInput
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Add a description..."
+            <TextInput
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Add a description..."
                 placeholderTextColor={Colors.dark_gray}
-                multiline
+              multiline
                 className={`${isDark ? 'bg-dark_gray text-light' : 'bg-white text-beta'} border ${isDark ? 'border-dark' : 'border-beta/20'}`}
-                style={{
-                  borderRadius: 10,
-                  padding: 12,
+              style={{
+                borderRadius: 10,
+                padding: 12,
                   height: 90,
                   fontSize: 14,
                   borderWidth: 1,
@@ -320,64 +320,64 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
             {/* Studio */}
             <View>
               <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-3`} style={{ fontSize: 16 }}>
-                Studio
-              </Text>
+              Studio
+            </Text>
 
-              {loadingPlaces ? (
+            {loadingPlaces ? (
                 <ActivityIndicator color={Colors.alpha} />
-              ) : (
-                <FlatList
-                  data={places} // fetched studios
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 8, gap: 12 }}
-                  keyExtractor={(item) => item.id.toString()}
-                  renderItem={({ item }) => {
-                    const isSelected = studio === item.id;
-                    return (
-                      <Pressable
-                        onPress={() => setStudio(item.id)}
-                        style={{
+            ) : (
+              <FlatList
+                data={places} // fetched studios
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 8, gap: 12 }}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => {
+                  const isSelected = studio === item.id;
+                  return (
+                    <Pressable
+                      onPress={() => setStudio(item.id)}
+                      style={{
                           borderWidth: isSelected ? 3 : 1,
                           borderColor: isSelected ? Colors.alpha : Colors.dark_gray,
                           borderRadius: 16,
-                          overflow: 'hidden',
-                          alignItems: 'center',
-                          marginRight: 8,
+                        overflow: 'hidden',
+                        alignItems: 'center',
+                        marginRight: 8,
                           backgroundColor: isSelected ? (isDark ? Colors.dark_gray : Colors.light) : (isDark ? Colors.dark : Colors.light),
                           shadowColor: isSelected ? Colors.alpha : 'transparent',
                           shadowOffset: { width: 0, height: 2 },
                           shadowOpacity: isSelected ? 0.3 : 0,
                           shadowRadius: 4,
                           elevation: isSelected ? 4 : 0,
-                        }}
-                      >
-                        {item.image ? (
-                          <Image
-                            source={{ uri: item.image }}
-                            style={{ width: 100, height: 80, resizeMode: 'cover' }}
-                          />
-                        ) : (
-                          <View
-                            style={{
-                              width: 100,
-                              height: 80,
+                      }}
+                    >
+                      {item.image ? (
+                        <Image
+                          source={{ uri: item.image }}
+                          style={{ width: 100, height: 80, resizeMode: 'cover' }}
+                        />
+                      ) : (
+                        <View
+                          style={{
+                            width: 100,
+                            height: 80,
                               backgroundColor: Colors.dark_gray,
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                            }}
-                          >
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}
+                        >
                             <Text className={`${isDark ? 'text-light' : 'text-beta'}`}>No Image</Text>
-                          </View>
-                        )}
+                        </View>
+                      )}
                         <Text style={{ color: isDark ? Colors.light : Colors.dark, fontWeight: isSelected ? '600' : '400', padding: 4 }}>
-                          {item.name}
-                        </Text>
-                      </Pressable>
-                    );
-                  }}
-                />
-              )}
+                        {item.name}
+                      </Text>
+                    </Pressable>
+                  );
+                }}
+              />
+            )}
             </View>
 
             {/* Date Selection */}
@@ -463,9 +463,9 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
             {/* Start Time */}
             <View>
               <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>Start Time *</Text>
-              <Pressable
-                onPress={() => setShowStartPicker(true)}
-                style={{
+            <Pressable
+              onPress={() => setShowStartPicker(true)}
+              style={{
                   borderRadius: 12,
                   padding: 16,
                   borderWidth: 2,
@@ -498,7 +498,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                     color: isDark ? Colors.light : Colors.beta
                   }}>
                     {startTime ? format(startTime, 'HH:mm') : 'Select start time'}
-                  </Text>
+              </Text>
                 </View>
                 <View style={{
                   width: 8,
@@ -506,20 +506,20 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                   borderRadius: 4,
                   backgroundColor: showStartPicker ? Colors.alpha : 'transparent',
                 }} />
-              </Pressable>
-              {showStartPicker && (
+            </Pressable>
+            {showStartPicker && (
                 <View style={{ marginTop: 12, alignItems: 'center' }}>
-                  <DateTimePicker
-                    value={startTime}
-                    mode="time"
-                    is24Hour={true}
+              <DateTimePicker
+                value={startTime}
+                mode="time"
+                is24Hour={true}
                     display="spinner"
-                    onChange={(event, selected) => {
+                onChange={(event, selected) => {
                       if (event.type === 'set' && selected) {
                         setStartTime(selected);
                       }
                       if (event.type === 'dismissed') {
-                        setShowStartPicker(false);
+                  setShowStartPicker(false);
                       }
                     }}
                     style={{ width: '100%' }}
@@ -543,9 +543,9 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
             {/* End Time */}
             <View>
               <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>End Time *</Text>
-              <Pressable
-                onPress={() => setShowEndPicker(true)}
-                style={{
+            <Pressable
+              onPress={() => setShowEndPicker(true)}
+              style={{
                   borderRadius: 12,
                   padding: 16,
                   borderWidth: 2,
@@ -578,7 +578,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                     color: isDark ? Colors.light : Colors.beta
                   }}>
                     {endTime ? format(endTime, 'HH:mm') : 'Select end time'}
-                  </Text>
+              </Text>
                 </View>
                 <View style={{
                   width: 8,
@@ -586,20 +586,20 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                   borderRadius: 4,
                   backgroundColor: showEndPicker ? Colors.alpha : 'transparent',
                 }} />
-              </Pressable>
-              {showEndPicker && (
+            </Pressable>
+            {showEndPicker && (
                 <View style={{ marginTop: 12, alignItems: 'center' }}>
-                  <DateTimePicker
-                    value={endTime}
-                    mode="time"
-                    is24Hour={true}
+              <DateTimePicker
+                value={endTime}
+                mode="time"
+                is24Hour={true}
                     display="spinner"
-                    onChange={(event, selected) => {
+                onChange={(event, selected) => {
                       if (event.type === 'set' && selected) {
                         setEndTime(selected);
                       }
                       if (event.type === 'dismissed') {
-                        setShowEndPicker(false);
+                  setShowEndPicker(false);
                       }
                     }}
                     style={{ width: '100%' }}
@@ -799,8 +799,8 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
             <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center' }}>
               <Pressable
                 onPress={addToDeviceCalendar}
-                style={{
-                  flex: 1,
+          style={{
+            flex: 1,
                   paddingVertical: 12,
                   paddingHorizontal: 16,
                   borderRadius: 8,
@@ -816,18 +816,18 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                   textAlign: 'center',
                 }}>
                  Calendar 📅  
-                </Text>
+            </Text>
               </Pressable>
 
-              <Pressable
-                onPress={() => {
+            <Pressable
+              onPress={() => {
                   setShowModal(false);
                   setShowModal(false);
                   if (onClose) onClose();
                   // router.replace('/reservations/day');
                 }}
                 className="bg-alpha"
-                style={{
+              style={{
                   flex: 1,
                   paddingVertical: 12,
                   paddingHorizontal: 16,
@@ -835,7 +835,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                 }}
               >
                 <Text className="text-white" style={{ fontWeight: '700', fontSize: 14, textAlign: 'center' }}>Close</Text>
-              </Pressable>
+            </Pressable>
             </View>
           </View>
         </View>
