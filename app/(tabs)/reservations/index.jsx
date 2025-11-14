@@ -7,6 +7,7 @@ import { useAppContext } from '@/context';
 import API from '@/api';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import AppLayout from '@/components/layout/AppLayout';
+import { Colors } from '@/constants/Colors';
 
 export default function Reservations() {
   const { token } = useAppContext();
@@ -20,7 +21,6 @@ export default function Reservations() {
   const [markedDatesStudios, setMarkedDatesStudios] = useState({});
   const [markedDatesCowork, setMarkedDatesCowork] = useState({});
   const [tab, setTab] = useState('studios'); // 'studios' | 'cowork'
-  const brand = '#ffc801';
   const router = useRouter();
 
   // 🔹 Fetch reservations
@@ -37,11 +37,11 @@ export default function Reservations() {
         data.forEach((r) => {
           const date = getReservationDate(r);
           if (date) {
-            const color = r.canceled ? (isDark ? '#64748B' : '#94A3B8') : brand;
+            const color = r.canceled ? Colors.dark_gray : Colors.alpha;
             const current = marked[date];
             if (!current) {
               marked[date] = { marked: true, dotColor: color };
-            } else if (current.dotColor !== brand && color === brand) {
+            } else if (current.dotColor !== Colors.alpha && color === Colors.alpha) {
               marked[date] = { marked: true, dotColor: color };
             }
           }
@@ -67,11 +67,11 @@ export default function Reservations() {
         data.forEach((r) => {
           const date = getReservationDate(r);
           if (date) {
-            const color = r.canceled ? (isDark ? '#64748B' : '#94A3B8') : brand;
+            const color = r.canceled ? Colors.dark_gray : Colors.alpha;
             const current = marked[date];
             if (!current) {
               marked[date] = { marked: true, dotColor: color };
-            } else if (current.dotColor !== brand && color === brand) {
+            } else if (current.dotColor !== Colors.alpha && color === Colors.alpha) {
               marked[date] = { marked: true, dotColor: color };
             }
           }
@@ -114,7 +114,7 @@ export default function Reservations() {
     const parts = String(datetime).split(' ');
     return parts[0] || '';
   };
-  
+
   // Get exact reservation date - prioritize day field (actual reservation date)
   const getReservationDate = (r) => {
     // First try the actual reservation day field
@@ -155,7 +155,7 @@ export default function Reservations() {
   const toDateTimeFromDateAndTime = (dateStr, timeStr) => {
     if (!dateStr) return '';
     if (!timeStr) return `${dateStr} 00:00`;
-    
+
     const timeStrClean = String(timeStr).trim();
     // Handle various time formats: "HH:MM", "HH:MM:SS", etc.
     const timeMatch = timeStrClean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
@@ -224,7 +224,7 @@ export default function Reservations() {
   // Optimized navigation handler - immediate navigation for speed
   const handleDayPress = useCallback((day) => {
     setSelectedDate(day.dateString);
-    
+
     // Immediate navigation for faster response
     if (tab === 'studios') {
       router.push({
@@ -249,85 +249,141 @@ export default function Reservations() {
 
   const getStatusBadge = (reservation) => {
     // console.log(reservation);
-    if (reservation.canceled) return { label: 'Canceled', bg: isDark ? '#374151' : '#E5E7EB', fg: isDark ? '#E5E7EB' : '#374151' };
-    if (reservation.approved) return { label: 'Approved', bg: brand + '33', fg: brand };
-    return { label: 'Pending', bg: isDark ? '#6B7280' : '#E5E7EB', fg: isDark ? '#E5E7EB' : '#374151' };
+    if (reservation.canceled) return { label: 'Canceled', bg: Colors.dark_gray, fg: Colors.light };
+    if (reservation.approved) return { label: 'Approved', bg: Colors.alpha + '33', fg: Colors.alpha };
+    return { label: 'Pending', bg: Colors.dark_gray, fg: Colors.light };
   };
 
   return (
     <AppLayout>
       <ScrollView
         className="flex-1"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brand} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.alpha} />}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
       >
-        <View className="mb-6">
-          <Text className={`text-3xl font-bold ${isDark ? 'text-light' : 'text-beta'}`} style={{ color: isDark ? '#fafafa' : '#212529' }}>Reservations</Text>
-          <Text className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`} style={{ marginTop: 4, color: isDark ? '#9CA3AF' : '#6B7280' }}>Manage your studio and cowork bookings</Text>
+        <View className="mb-8">
+          <Text style={{ 
+            fontSize: 32, 
+            fontWeight: '800', 
+            color: isDark ? Colors.light : Colors.beta,
+            letterSpacing: -0.5,
+            marginBottom: 6,
+          }}>Reservations</Text>
+          <Text style={{ 
+            fontSize: 14, 
+            color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
+            fontWeight: '500',
+          }}>Manage your studio and cowork bookings</Text>
         </View>
 
         {/* 🔹 Studios/Cowork Tabs */}
-        <View className={`flex-row mb-4 rounded-2xl overflow-hidden ${isDark ? 'bg-dark_gray' : 'bg-gray-100'}`} style={{ padding: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 }}>
+        <View style={{ 
+          flexDirection: 'row',
+          marginBottom: 20,
+          borderRadius: 16,
+          overflow: 'hidden',
+          backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+          padding: 4,
+          shadowColor: Colors.dark,
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          elevation: 3,
+          borderWidth: 1,
+          borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+        }}>
           <Pressable
-            className="flex-1 items-center py-3 rounded-xl"
-            onPress={() => setTab('studios')}
-            style={{ 
-              backgroundColor: tab === 'studios' ? brand : 'transparent',
-              shadowColor: tab === 'studios' ? brand : 'transparent',
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              paddingVertical: 12,
+              borderRadius: 12,
+              backgroundColor: tab === 'studios' ? Colors.alpha : 'transparent',
+              shadowColor: tab === 'studios' ? Colors.alpha : 'transparent',
               shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: tab === 'studios' ? 0.3 : 0,
-              shadowRadius: 4,
-              elevation: tab === 'studios' ? 3 : 0,
+              shadowOpacity: tab === 'studios' ? 0.25 : 0,
+              shadowRadius: 6,
+              elevation: tab === 'studios' ? 4 : 0,
             }}
+            onPress={() => setTab('studios')}
           >
-            <Text className={`font-semibold ${tab === 'studios' ? 'text-white' : isDark ? 'text-gray-400' : 'text-gray-600'}`}>Studios</Text>
+            <Text style={{
+              fontWeight: '700',
+              fontSize: 15,
+              color: tab === 'studios' 
+                ? Colors.dark 
+                : (isDark ? Colors.light : Colors.beta)
+            }}>Studios</Text>
           </Pressable>
           <Pressable
-            className="flex-1 items-center py-3 rounded-xl"
-            onPress={() => setTab('cowork')}
-            style={{ 
-              backgroundColor: tab === 'cowork' ? brand : 'transparent',
-              shadowColor: tab === 'cowork' ? brand : 'transparent',
+            style={{
+              flex: 1,
+              alignItems: 'center',
+              paddingVertical: 12,
+              borderRadius: 12,
+              backgroundColor: tab === 'cowork' ? Colors.alpha : 'transparent',
+              shadowColor: tab === 'cowork' ? Colors.alpha : 'transparent',
               shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: tab === 'cowork' ? 0.3 : 0,
-              shadowRadius: 4,
-              elevation: tab === 'cowork' ? 3 : 0,
+              shadowOpacity: tab === 'cowork' ? 0.25 : 0,
+              shadowRadius: 6,
+              elevation: tab === 'cowork' ? 4 : 0,
             }}
+            onPress={() => setTab('cowork')}
           >
-            <Text className={`font-semibold ${tab === 'cowork' ? 'text-white' : isDark ? 'text-gray-400' : 'text-gray-600'}`}>Cowork</Text>
+            <Text style={{
+              fontWeight: '700',
+              fontSize: 15,
+              color: tab === 'cowork' 
+                ? Colors.dark 
+                : (isDark ? Colors.light : Colors.beta)
+            }}>Coworks</Text>
           </Pressable>
         </View>
 
         {/* 🔹 Calendar */}
-        <View className={`${isDark ? 'bg-dark' : 'bg-white'} rounded-2xl`} style={{ padding: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4, borderWidth: 1, borderColor: isDark ? '#1F2937' : '#E5E7EB' }}>
+        <View style={{
+          backgroundColor: isDark ? Colors.dark : Colors.light,
+          borderRadius: 20,
+          padding: 20,
+          marginBottom: 20,
+          shadowColor: Colors.dark,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.12,
+          shadowRadius: 12,
+          elevation: 5,
+          borderWidth: 1,
+          borderColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
+        }}>
           <Calendar
             markedDates={{
               ...currentMarkedDates,
-              ...(selectedDate ? { [selectedDate]: { selected: true, selectedColor: brand, selectedTextColor: '#ffffff' } } : {}),
+              ...(selectedDate ? { [selectedDate]: { selected: true, selectedColor: Colors.alpha, selectedTextColor: isDark ? Colors.dark : Colors.light } } : {}),
             }}
             onDayPress={handleDayPress}
             enableSwipeMonths
             markingType="dot"
             hideExtraDays
             theme={{
-              calendarBackground: 'transparent',
-              dayTextColor: isDark ? '#E5E7EB' : '#212529',
-              monthTextColor: isDark ? '#FFFFFF' : '#212529',
-              arrowColor: brand,
-              todayTextColor: brand,
-              selectedDayBackgroundColor: brand,
-              selectedDayTextColor: '#ffffff',
-              textDisabledColor: isDark ? '#4B5563' : '#D1D5DB',
-              textDayFontWeight: '500',
+              backgroundColor: isDark ? Colors.dark : Colors.light,
+              calendarBackground: isDark ? Colors.dark : Colors.light,
+              dayTextColor: isDark ? Colors.light : Colors.beta,
+              monthTextColor: isDark ? Colors.light : Colors.beta,
+              arrowColor: Colors.alpha,
+              todayTextColor: Colors.alpha,
+              selectedDayBackgroundColor: Colors.alpha,
+              selectedDayTextColor: isDark ? Colors.dark : Colors.light,
+              textDisabledColor: isDark ? Colors.dark_gray : Colors.dark_gray + '80',
+              textDayFontWeight: '600',
               textMonthFontWeight: '700',
-              textDayHeaderFontWeight: '600',
+              textDayHeaderFontWeight: '700',
+              textDayHeaderFontColor: isDark ? Colors.light : Colors.beta,
               textMonthFontSize: 20,
               textDayHeaderFontSize: 13,
               'stylesheet.calendar.header': {
                 monthText: {
                   fontSize: 20,
                   fontWeight: '700',
-                  color: isDark ? '#FFFFFF' : '#212529',
+                  color: isDark ? Colors.light : Colors.beta,
                   marginTop: 6,
                   marginBottom: 10,
                 },
@@ -337,10 +393,52 @@ export default function Reservations() {
                   justifyContent: 'space-between',
                   paddingBottom: 7,
                 },
+                dayHeader: {
+                  marginTop: 2,
+                  marginBottom: 7,
+                  textAlign: 'center',
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: isDark ? Colors.light : Colors.beta,
+                },
+              },
+              'stylesheet.day.basic': {
+                base: {
+                  width: 32,
+                  height: 32,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: isDark ? Colors.dark : 'transparent',
+                },
+            
+                todayText: {
+                  color: Colors.alpha,
+                  fontWeight: '700',
+                  fontSize: 16,
+                },
+                selected: {
+                  backgroundColor: Colors.alpha,
+                },
+                selectedText: {
+                  color: isDark ? Colors.dark : Colors.light,
+                  fontWeight: '700',
+                  fontSize: 16,
+                },
+                text: {
+                  marginTop: 0,
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: isDark ? Colors.light : Colors.beta,
+                },
+                disabledText: {
+                  color: isDark ? Colors.dark_gray : Colors.dark_gray + '80',
+                  opacity: 0.5,
+                },
               },
             }}
             style={{
               borderRadius: 12,
+              backgroundColor: isDark ? Colors.dark : Colors.light,
             }}
           />
         </View>
@@ -365,9 +463,9 @@ export default function Reservations() {
             }
             className="mb-4 rounded-xl p-4"
             style={{
-              backgroundColor: isDark ? '#111827' : '#FFFFFF',
+              backgroundColor: isDark ? Colors.dark : Colors.light,
               borderWidth: 1,
-              borderColor: isDark ? '#1F2937' : '#E5E7EB',
+              borderColor: isDark ? Colors.dark_gray : Colors.dark_gray,
             }}
           >
             <View className="flex-row items-center justify-between mb-2">

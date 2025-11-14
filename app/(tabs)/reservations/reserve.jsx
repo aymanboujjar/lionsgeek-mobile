@@ -16,6 +16,8 @@ import { Modal } from 'react-native';
 import { useRouter } from 'expo-router'
 import { useColorScheme } from '@/hooks/useColorScheme';
 import API from '@/api';
+import { Colors } from '@/constants/Colors';
+import { format } from 'date-fns';
 export default function NewReservation({ selectedDate, prefillTime, onClose }) {
   const { user, token } = useAppContext();
   const router = useRouter();
@@ -40,6 +42,13 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
     }
   }, [prefillTime]);
 
+  // Set day from selectedDate
+  useEffect(() => {
+    if (selectedDate) {
+      setDay(selectedDate);
+    }
+  }, [selectedDate]);
+
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -57,12 +66,12 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
   const [selectedEquipment, setSelectedEquipment] = useState([]);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
 
+  const [day, setDay] = useState(selectedDate || new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState(new Date());
   const [endTime, setEndTime] = useState(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-
-  const brand = '#ffc801';
+  const [showDayPicker, setShowDayPicker] = useState(false);
 
 
   useEffect(() => {
@@ -113,7 +122,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
       title: name,
       description,
       studio_id: studio,
-      day: selectedDate,
+      day: day,
       start: startTime.toTimeString().slice(0, 5),
       end: endTime.toTimeString().slice(0, 5),
       user_id: user.id,
@@ -180,7 +189,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                 width: step >= n ? 40 : 12,
                 height: 12,
                 borderRadius: 6,
-                backgroundColor: step >= n ? brand : (isDark ? '#374151' : '#D1D5DB'),
+                backgroundColor: step >= n ? Colors.alpha : Colors.dark_gray,
                 transition: 'width 0.3s',
               }}
             />
@@ -189,7 +198,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                 style={{ 
                   width: 20, 
                   height: 2, 
-                  backgroundColor: step > n ? brand : (isDark ? '#374151' : '#D1D5DB'),
+                  backgroundColor: step > n ? Colors.alpha : Colors.dark_gray,
                   marginHorizontal: 4,
                 }} 
               />
@@ -209,7 +218,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                 value={name}
                 onChangeText={setName}
                 placeholder="Reservation name"
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                placeholderTextColor={Colors.dark_gray}
                 className={`${isDark ? 'bg-dark_gray text-light' : 'bg-white text-beta'} border ${isDark ? 'border-dark' : 'border-beta/20'}`}
                 style={{
                   borderRadius: 10,
@@ -227,7 +236,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                 value={description}
                 onChangeText={setDescription}
                 placeholder="Add a description..."
-                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                placeholderTextColor={Colors.dark_gray}
                 multiline
                 className={`${isDark ? 'bg-dark_gray text-light' : 'bg-white text-beta'} border ${isDark ? 'border-dark' : 'border-beta/20'}`}
                 style={{
@@ -248,7 +257,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
               </Text>
 
             {loadingPlaces ? (
-              <ActivityIndicator color={brand} />
+              <ActivityIndicator color={Colors.alpha} />
             ) : (
               <FlatList
                 data={places} // fetched studios
@@ -263,13 +272,13 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                       onPress={() => setStudio(item.id)}
                       style={{
                         borderWidth: isSelected ? 3 : 1,
-                        borderColor: isSelected ? brand : (isDark ? '#374151' : '#D1D5DB'),
+                        borderColor: isSelected ? Colors.alpha : Colors.dark_gray,
                         borderRadius: 16,
                         overflow: 'hidden',
                         alignItems: 'center',
                         marginRight: 8,
-                        backgroundColor: isSelected ? (isDark ? '#1F2937' : '#FFF') : (isDark ? '#111827' : '#F9FAFB'),
-                        shadowColor: isSelected ? brand : 'transparent',
+                        backgroundColor: isSelected ? (isDark ? Colors.dark_gray : Colors.light) : (isDark ? Colors.dark : Colors.light),
+                        shadowColor: isSelected ? Colors.alpha : 'transparent',
                         shadowOffset: { width: 0, height: 2 },
                         shadowOpacity: isSelected ? 0.3 : 0,
                         shadowRadius: 4,
@@ -286,7 +295,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                           style={{
                             width: 100,
                             height: 80,
-                            backgroundColor: '#E5E7EB',
+                            backgroundColor: Colors.dark_gray,
                             justifyContent: 'center',
                             alignItems: 'center',
                           }}
@@ -294,7 +303,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                           <Text className={`${isDark ? 'text-light' : 'text-beta'}`}>No Image</Text>
                         </View>
                       )}
-                      <Text style={{ color: isDark ? '#FFF' : '#000', fontWeight: isSelected ? '600' : '400', padding: 4 }}>
+                      <Text style={{ color: isDark ? Colors.light : Colors.dark, fontWeight: isSelected ? '600' : '400', padding: 4 }}>
                         {item.name}
                       </Text>
                     </Pressable>
@@ -304,21 +313,101 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
             )}
             </View>
 
+            {/* Date Selection */}
+            <View>
+              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>Date *</Text>
+              <Pressable
+                onPress={() => setShowDayPicker(true)}
+                style={{
+                  borderRadius: 12,
+                  padding: 16,
+                  borderWidth: 2,
+                  borderColor: showDayPicker ? Colors.alpha : Colors.dark_gray,
+                  backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  shadowColor: showDayPicker ? Colors.alpha : 'transparent',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: showDayPicker ? 0.3 : 0,
+                  shadowRadius: 4,
+                  elevation: showDayPicker ? 4 : 0,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    backgroundColor: Colors.alpha + '20',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Text style={{ fontSize: 20 }}>📅</Text>
+                  </View>
+                  <Text style={{ 
+                    fontSize: 16, 
+                    fontWeight: '600',
+                    color: isDark ? Colors.light : Colors.beta
+                  }}>
+                    {day ? format(new Date(day), 'EEEE, MMMM d, yyyy') : 'Select date'}
+                  </Text>
+                </View>
+                <View style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: showDayPicker ? Colors.alpha : 'transparent',
+                }} />
+              </Pressable>
+              {showDayPicker && (
+                <View style={{ marginTop: 12, alignItems: 'center' }}>
+                  <DateTimePicker
+                    value={new Date(day || new Date())}
+                    mode="date"
+                    display="spinner"
+                    minimumDate={new Date()}
+                    onChange={(event, selected) => {
+                      if (event.type === 'set' && selected) {
+                        setDay(format(selected, 'yyyy-MM-dd'));
+                      }
+                      if (event.type === 'dismissed') {
+                        setShowDayPicker(false);
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                  <Pressable
+                    onPress={() => setShowDayPicker(false)}
+                    style={{
+                      marginTop: 12,
+                      paddingHorizontal: 24,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      backgroundColor: Colors.alpha,
+                    }}
+                  >
+                    <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+
             {/* Start Time */}
             <View>
-              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>Start Time</Text>
+              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>Start Time *</Text>
               <Pressable
                 onPress={() => setShowStartPicker(true)}
                 style={{
                   borderRadius: 12,
                   padding: 16,
                   borderWidth: 2,
-                  borderColor: showStartPicker ? brand : (isDark ? '#374151' : '#D1D5DB'),
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                  borderColor: showStartPicker ? Colors.alpha : Colors.dark_gray,
+                  backgroundColor: isDark ? Colors.dark_gray : Colors.light,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  shadowColor: showStartPicker ? brand : 'transparent',
+                  shadowColor: showStartPicker ? Colors.alpha : 'transparent',
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: showStartPicker ? 0.3 : 0,
                   shadowRadius: 4,
@@ -330,7 +419,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                     width: 40,
                     height: 40,
                     borderRadius: 10,
-                    backgroundColor: brand + '20',
+                    backgroundColor: Colors.alpha + '20',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
@@ -339,47 +428,66 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                   <Text style={{ 
                     fontSize: 16, 
                     fontWeight: '600',
-                    color: isDark ? '#fafafa' : '#212529'
+                    color: isDark ? Colors.light : Colors.beta
                   }}>
-                    {startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Select start time'}
+                    {startTime ? format(startTime, 'HH:mm') : 'Select start time'}
                   </Text>
                 </View>
                 <View style={{
                   width: 8,
                   height: 8,
                   borderRadius: 4,
-                  backgroundColor: showStartPicker ? brand : 'transparent',
+                  backgroundColor: showStartPicker ? Colors.alpha : 'transparent',
                 }} />
               </Pressable>
+              {showStartPicker && (
+                <View style={{ marginTop: 12, alignItems: 'center' }}>
+                  <DateTimePicker
+                    value={startTime}
+                    mode="time"
+                    is24Hour={true}
+                    display="spinner"
+                    onChange={(event, selected) => {
+                      if (event.type === 'set' && selected) {
+                        setStartTime(selected);
+                      }
+                      if (event.type === 'dismissed') {
+                        setShowStartPicker(false);
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                  <Pressable
+                    onPress={() => setShowStartPicker(false)}
+                    style={{
+                      marginTop: 12,
+                      paddingHorizontal: 24,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      backgroundColor: Colors.alpha,
+                    }}
+                  >
+                    <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
-            {showStartPicker && (
-              <DateTimePicker
-                value={startTime}
-                mode="time"
-                is24Hour={true}
-                display="default"
-                onChange={(event, selected) => {
-                  setShowStartPicker(false);
-                  if (selected) setStartTime(selected);
-                }}
-              />
-            )}
 
             {/* End Time */}
             <View>
-              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>End Time</Text>
+              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>End Time *</Text>
               <Pressable
                 onPress={() => setShowEndPicker(true)}
                 style={{
                   borderRadius: 12,
                   padding: 16,
                   borderWidth: 2,
-                  borderColor: showEndPicker ? brand : (isDark ? '#374151' : '#D1D5DB'),
-                  backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                  borderColor: showEndPicker ? Colors.alpha : Colors.dark_gray,
+                  backgroundColor: isDark ? Colors.dark_gray : Colors.light,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  shadowColor: showEndPicker ? brand : 'transparent',
+                  shadowColor: showEndPicker ? Colors.alpha : 'transparent',
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: showEndPicker ? 0.3 : 0,
                   shadowRadius: 4,
@@ -391,7 +499,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                     width: 40,
                     height: 40,
                     borderRadius: 10,
-                    backgroundColor: brand + '20',
+                    backgroundColor: Colors.alpha + '20',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
@@ -400,31 +508,50 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                   <Text style={{ 
                     fontSize: 16, 
                     fontWeight: '600',
-                    color: isDark ? '#fafafa' : '#212529'
+                    color: isDark ? Colors.light : Colors.beta
                   }}>
-                    {endTime ? endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Select end time'}
+                    {endTime ? format(endTime, 'HH:mm') : 'Select end time'}
                   </Text>
                 </View>
                 <View style={{
                   width: 8,
                   height: 8,
                   borderRadius: 4,
-                  backgroundColor: showEndPicker ? brand : 'transparent',
+                  backgroundColor: showEndPicker ? Colors.alpha : 'transparent',
                 }} />
               </Pressable>
+              {showEndPicker && (
+                <View style={{ marginTop: 12, alignItems: 'center' }}>
+                  <DateTimePicker
+                    value={endTime}
+                    mode="time"
+                    is24Hour={true}
+                    display="spinner"
+                    onChange={(event, selected) => {
+                      if (event.type === 'set' && selected) {
+                        setEndTime(selected);
+                      }
+                      if (event.type === 'dismissed') {
+                        setShowEndPicker(false);
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  />
+                  <Pressable
+                    onPress={() => setShowEndPicker(false)}
+                    style={{
+                      marginTop: 12,
+                      paddingHorizontal: 24,
+                      paddingVertical: 10,
+                      borderRadius: 8,
+                      backgroundColor: Colors.alpha,
+                    }}
+                  >
+                    <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
-            {showEndPicker && (
-              <DateTimePicker
-                value={endTime}
-                mode="time"
-                is24Hour={true}
-                display="default"
-                onChange={(event, selected) => {
-                  setShowEndPicker(false);
-                  if (selected) setEndTime(selected);
-                }}
-              />
-            )}
           </View>
 
         )}
@@ -437,7 +564,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
             >
               Select Members
             </Text>
-            {loadingUsers && <ActivityIndicator color={brand} />}
+            {loadingUsers && <ActivityIndicator color={Colors.alpha} />}
             {!loadingUsers &&
               users.map((user) => {
                 const hasCustomImage = user.image && !user.image.includes('pdp.png');
@@ -489,7 +616,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                             width: 40,
                             height: 40,
                             borderRadius: 20,
-                            backgroundColor: brand + '33', // light tint of brand
+                            backgroundColor: Colors.alpha + '33',
                             justifyContent: 'center',
                             alignItems: 'center',
                             marginRight: 8,
@@ -497,7 +624,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                         >
                           <Text
                             style={{
-                              color: brand,
+                              color: Colors.alpha,
                               fontWeight: '600',
                               fontSize: 16,
                             }}
@@ -518,9 +645,9 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                         height: 20,
                         borderRadius: 10,
                         borderWidth: 2,
-                        borderColor: brand,
+                        borderColor: Colors.alpha,
                         backgroundColor: selectedUsers.includes(user.id)
-                          ? brand
+                          ? Colors.alpha
                           : 'transparent',
                       }}
                     />
@@ -539,7 +666,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
             >
               Select Equipment
             </Text>
-            {loadingEquipment && <ActivityIndicator color={brand} />}
+            {loadingEquipment && <ActivityIndicator color={Colors.alpha} />}
             {!loadingEquipment &&
               equipment.map((item) => (
                 <Pressable
@@ -578,9 +705,9 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                       height: 20,
                       borderRadius: 10,
                       borderWidth: 2,
-                      borderColor: brand,
+                      borderColor: Colors.alpha,
                       backgroundColor: selectedEquipment.includes(item.id)
-                        ? brand
+                        ? Colors.alpha
                         : 'transparent',
                     }}
                   />

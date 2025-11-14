@@ -13,6 +13,7 @@ import { useAppContext } from '@/context';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import API from '@/api';
+import { Colors } from '@/constants/Colors';
 import { format } from 'date-fns';
 
 export default function NewCoworkReservation({ selectedDate, prefillTime, onClose }) {
@@ -20,7 +21,6 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const brand = '#ffc801';
 
   // Form state
   const [table, setTable] = useState('');
@@ -193,7 +193,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
           <View>
             <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>Table *</Text>
             {loadingTables ? (
-              <ActivityIndicator color={brand} />
+              <ActivityIndicator color={Colors.alpha} />
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
                 <View style={{ flexDirection: 'row', gap: 12, paddingHorizontal: 4 }}>
@@ -213,9 +213,9 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                             paddingVertical: 12,
                             borderRadius: 12,
                             borderWidth: isSelected ? 3 : 1,
-                            borderColor: isSelected ? brand : (isDark ? '#374151' : '#D1D5DB'),
-                            backgroundColor: isSelected ? (isDark ? '#1F2937' : '#FFF') : (isDark ? '#111827' : '#F9FAFB'),
-                            shadowColor: isSelected ? brand : 'transparent',
+                            borderColor: isSelected ? Colors.alpha : Colors.dark_gray,
+                            backgroundColor: isSelected ? (isDark ? Colors.dark_gray : Colors.light) : (isDark ? Colors.dark : Colors.light),
+                            shadowColor: isSelected ? Colors.alpha : 'transparent',
                             shadowOffset: { width: 0, height: 2 },
                             shadowOpacity: isSelected ? 0.3 : 0,
                             shadowRadius: 4,
@@ -223,7 +223,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                           }}
                         >
                           <Text style={{ 
-                            color: isSelected ? brand : (isDark ? '#fafafa' : '#212529'), 
+                            color: isSelected ? Colors.alpha : (isDark ? Colors.light : Colors.beta), 
                             fontWeight: isSelected ? '700' : '500',
                             fontSize: 16
                           }}>
@@ -249,7 +249,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                 setSeats(numericValue);
               }}
               placeholder="Number of seats"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              placeholderTextColor={Colors.dark_gray}
               keyboardType="number-pad"
               className={`${isDark ? 'bg-dark_gray text-light' : 'bg-white text-beta'} border ${isDark ? 'border-dark' : 'border-beta/20'}`}
               style={{
@@ -270,12 +270,12 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                 borderRadius: 12,
                 padding: 16,
                 borderWidth: 2,
-                borderColor: showDayPicker ? brand : (isDark ? '#374151' : '#D1D5DB'),
-                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderColor: showDayPicker ? Colors.alpha : Colors.dark_gray,
+                backgroundColor: isDark ? Colors.dark_gray : Colors.light,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                shadowColor: showDayPicker ? brand : 'transparent',
+                shadowColor: showDayPicker ? Colors.alpha : 'transparent',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: showDayPicker ? 0.3 : 0,
                 shadowRadius: 4,
@@ -287,7 +287,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                   width: 40,
                   height: 40,
                   borderRadius: 10,
-                  backgroundColor: brand + '20',
+                    backgroundColor: Colors.alpha + '20',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
@@ -296,7 +296,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                 <Text style={{ 
                   fontSize: 16, 
                   fontWeight: '600',
-                  color: isDark ? '#fafafa' : '#212529'
+                  color: isDark ? Colors.light : Colors.beta
                 }}>
                   {day ? format(new Date(day), 'EEEE, MMMM d, yyyy') : 'Select date'}
                 </Text>
@@ -305,7 +305,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                 width: 8,
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: showDayPicker ? brand : 'transparent',
+                backgroundColor: showDayPicker ? Colors.alpha : 'transparent',
               }} />
             </Pressable>
             {showDayPicker && (
@@ -332,10 +332,10 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                     paddingHorizontal: 24,
                     paddingVertical: 10,
                     borderRadius: 8,
-                    backgroundColor: brand,
+                    backgroundColor: Colors.alpha,
                   }}
                 >
-                  <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>Done</Text>
+                  <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
                 </Pressable>
               </View>
             )}
@@ -350,12 +350,12 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                 borderRadius: 12,
                 padding: 16,
                 borderWidth: 2,
-                borderColor: showStartPicker ? brand : (isDark ? '#374151' : '#D1D5DB'),
-                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderColor: showStartPicker ? Colors.alpha : Colors.dark_gray,
+                backgroundColor: isDark ? Colors.dark_gray : Colors.light,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                shadowColor: showStartPicker ? brand : 'transparent',
+                shadowColor: showStartPicker ? Colors.alpha : 'transparent',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: showStartPicker ? 0.3 : 0,
                 shadowRadius: 4,
@@ -367,7 +367,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                   width: 40,
                   height: 40,
                   borderRadius: 10,
-                  backgroundColor: brand + '20',
+                    backgroundColor: Colors.alpha + '20',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
@@ -376,7 +376,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                 <Text style={{ 
                   fontSize: 16, 
                   fontWeight: '600',
-                  color: isDark ? '#fafafa' : '#212529'
+                  color: isDark ? Colors.light : Colors.beta
                 }}>
                   {startTime ? format(startTime, 'HH:mm') : 'Select start time'}
                 </Text>
@@ -385,7 +385,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                 width: 8,
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: showStartPicker ? brand : 'transparent',
+                backgroundColor: showStartPicker ? Colors.alpha : 'transparent',
               }} />
             </Pressable>
             {showStartPicker && (
@@ -412,10 +412,10 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                     paddingHorizontal: 24,
                     paddingVertical: 10,
                     borderRadius: 8,
-                    backgroundColor: brand,
+                    backgroundColor: Colors.alpha,
                   }}
                 >
-                  <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>Done</Text>
+                  <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
                 </Pressable>
               </View>
             )}
@@ -430,12 +430,12 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                 borderRadius: 12,
                 padding: 16,
                 borderWidth: 2,
-                borderColor: showEndPicker ? brand : (isDark ? '#374151' : '#D1D5DB'),
-                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                borderColor: showEndPicker ? Colors.alpha : Colors.dark_gray,
+                backgroundColor: isDark ? Colors.dark_gray : Colors.light,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                shadowColor: showEndPicker ? brand : 'transparent',
+                shadowColor: showEndPicker ? Colors.alpha : 'transparent',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: showEndPicker ? 0.3 : 0,
                 shadowRadius: 4,
@@ -447,7 +447,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                   width: 40,
                   height: 40,
                   borderRadius: 10,
-                  backgroundColor: brand + '20',
+                    backgroundColor: Colors.alpha + '20',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
@@ -456,7 +456,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                 <Text style={{ 
                   fontSize: 16, 
                   fontWeight: '600',
-                  color: isDark ? '#fafafa' : '#212529'
+                  color: isDark ? Colors.light : Colors.beta
                 }}>
                   {endTime ? format(endTime, 'HH:mm') : 'Select end time'}
                 </Text>
@@ -465,7 +465,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                 width: 8,
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: showEndPicker ? brand : 'transparent',
+                backgroundColor: showEndPicker ? Colors.alpha : 'transparent',
               }} />
             </Pressable>
             {showEndPicker && (
@@ -492,10 +492,10 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
                     paddingHorizontal: 24,
                     paddingVertical: 10,
                     borderRadius: 8,
-                    backgroundColor: brand,
+                    backgroundColor: Colors.alpha,
                   }}
                 >
-                  <Text style={{ color: '#FFFFFF', fontWeight: '600', fontSize: 14 }}>Done</Text>
+                  <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
                 </Pressable>
               </View>
             )}

@@ -1,10 +1,11 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, RefreshControl, ScrollView, Modal } from 'react-native';
+import { View, Text, Pressable, RefreshControl, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import AppLayout from '@/components/layout/AppLayout';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAppContext } from '@/context';
 import API from '@/api';
+import { Colors } from '@/constants/Colors';
 import { format, startOfMonth, endOfMonth, addMonths, eachDayOfInterval, startOfWeek, endOfWeek, addDays } from 'date-fns';
 import NewReservation from './reserve';
 import NewCoworkReservation from './reserveCowork';
@@ -15,11 +16,11 @@ export default function DayView() {
   const colorScheme = useColorScheme();
   const { token } = useAppContext();
   const isDark = colorScheme === 'dark';
-  const brand = '#ffc801';
 
   // ---- Parse received reservations ----
   const [reservations, setReservations] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [day, setDay] = useState(
     typeof date === 'string' && date.length >= 10
       ? date
@@ -77,6 +78,7 @@ export default function DayView() {
 
   // Optimized parsing - parse reservations from params
   useEffect(() => {
+    setIsLoading(true);
     try {
       let parsed = null;
       if (reservationsParam) {
@@ -87,9 +89,12 @@ export default function DayView() {
       if (parsed) {
         setReservations(Array.isArray(parsed) ? parsed : []);
       }
+      // Small delay to show loading state
+      setTimeout(() => setIsLoading(false), 300);
     } catch (e) {
       console.warn('Error parsing reservations param', e);
       setReservations([]);
+      setIsLoading(false);
     }
   }, [reservationsParam, reservationsCoworkParam]);
 
@@ -123,7 +128,7 @@ export default function DayView() {
         title: r.title || 'Reservation',
         summary: r.location || '',
         type: r.type,
-        color: r.canceled ? (isDark ? '#4B5563' : '#9CA3AF') : brand,
+        color: r.canceled ? Colors.dark_gray : Colors.alpha,
         rawStart: r.start,
         rawEnd: r.end || r.start,
         canceled: !!r.canceled,
@@ -281,10 +286,45 @@ export default function DayView() {
     }
   }, [tab, navigationData, router]);
 
+  // Show loading state while parsing reservations
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <View style={{ 
+          flex: 1, 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          backgroundColor: isDark ? Colors.dark : Colors.light,
+        }}>
+          <ActivityIndicator size="large" color={Colors.alpha} />
+          <Text style={{ 
+            marginTop: 16, 
+            fontSize: 16, 
+            fontWeight: '600',
+            color: isDark ? Colors.light : Colors.beta 
+          }}>
+            Loading reservations...
+          </Text>
+        </View>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       {/* ===== Month Navigation Bar ===== */}
-      <View className={`${isDark ? 'bg-dark_gray' : 'bg-gray-100'}`} style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: isDark ? '#1F2937' : '#E5E7EB' }}>
+      <View style={{ 
+        paddingHorizontal: 20, 
+        paddingVertical: 16, 
+        borderBottomWidth: 1, 
+        borderBottomColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
+        backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+        shadowColor: Colors.dark,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+      }}>
         <View className="flex-row items-center justify-between">
           {/* <Pressable
             onPress={goToPrevMonth}
@@ -298,8 +338,8 @@ export default function DayView() {
               backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
             }}
           >
-            <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#fafafa' : '#212529' }}>‹</Text>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: isDark ? '#fafafa' : '#212529' }}>
+            <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? Colors.light : Colors.beta }}>‹</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: isDark ? Colors.light : Colors.beta }}>
               {format(addMonths(currentMonthDate, -1), 'LLLL')}
             </Text>
           </Pressable> */}
@@ -312,13 +352,25 @@ export default function DayView() {
                 setCurrentMonthDate(new Date());
               }}
               style={{
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 12,
-                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                paddingHorizontal: 18,
+                paddingVertical: 10,
+                borderRadius: 14,
+                backgroundColor: isDark ? Colors.dark : Colors.light,
+                borderWidth: 1,
+                borderColor: isDark ? Colors.dark_gray : Colors.dark_gray + '20',
+                shadowColor: Colors.dark,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.1,
+                shadowRadius: 3,
+                elevation: 2,
               }}
             >
-              <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#fafafa' : '#212529' }}>
+              <Text style={{ 
+                fontSize: 17, 
+                fontWeight: '700', 
+                color: isDark ? Colors.light : Colors.beta,
+                letterSpacing: 0.3,
+              }}>
                 {format(currentMonthDate, 'LLLL yyyy')}
               </Text>
             </Pressable>
@@ -336,45 +388,63 @@ export default function DayView() {
                 paddingHorizontal: 12,
                 paddingVertical: 8,
                 borderRadius: 12,
-                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                backgroundColor: isDark ? Colors.dark_gray : Colors.light,
               }}
             >
-              <Text style={{ fontSize: 16, fontWeight: '600', color: isDark ? '#fafafa' : '#212529' }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: isDark ? Colors.light : Colors.beta }}>
                 {format(addMonths(currentMonthDate, 1), 'LLLL')}
               </Text>
-              <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? '#fafafa' : '#212529' }}>›</Text>
+              <Text style={{ fontSize: 18, fontWeight: '600', color: isDark ? Colors.light : Colors.beta }}>›</Text>
             </Pressable> */}
 
             <Pressable
               style={{
-                padding: 8,
-                borderRadius: 8,
-                backgroundColor: isDark ? '#1F2937' : '#FFFFFF',
+                padding: 10,
+                borderRadius: 12,
+                backgroundColor: isDark ? Colors.dark : Colors.light,
+                borderWidth: 1,
+                borderColor: isDark ? Colors.dark_gray : Colors.dark_gray + '20',
+                shadowColor: Colors.dark,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.1,
+                shadowRadius: 3,
+                elevation: 2,
               }}
             >
-              <Text style={{ fontSize: 18, color: isDark ? '#fafafa' : '#212529' }}>🔍</Text>
+              <Text style={{ fontSize: 18, color: isDark ? Colors.light : Colors.beta }}>🔍</Text>
             </Pressable>
             <Pressable
               onPress={() => setShowNewReservation(true)}
               style={{
-                padding: 10,
-                borderRadius: 12,
-                backgroundColor: brand,
-                shadowColor: brand,
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 4,
-                elevation: 4,
+                padding: 12,
+                borderRadius: 14,
+                backgroundColor: Colors.alpha,
+                shadowColor: Colors.alpha,
+                shadowOffset: { width: 0, height: 3 },
+                shadowOpacity: 0.35,
+                shadowRadius: 6,
+                elevation: 5,
+                minWidth: 44,
+                minHeight: 44,
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <Text style={{ fontSize: 20, fontWeight: '700', color: '#FFFFFF' }}>＋</Text>
+              <Text style={{ fontSize: 22, fontWeight: '700', color: Colors.dark }}>＋</Text>
             </Pressable>
           </View>
         </View>
       </View>
 
       {/* ===== Date Selector ===== */}
-      <View className={`${isDark ? 'bg-dark' : 'bg-white'}`} style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
+      <View style={{ 
+        paddingHorizontal: 20, 
+        paddingTop: 20, 
+        paddingBottom: 16,
+        backgroundColor: isDark ? Colors.dark : Colors.light,
+        borderBottomWidth: 1,
+        borderBottomColor: isDark ? Colors.dark_gray : Colors.dark_gray + '20',
+      }}>
         {/* Weekday Labels */}
         <View className="flex-row justify-between" style={{ marginBottom: 8, paddingHorizontal: 4 }}>
           {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
@@ -382,7 +452,7 @@ export default function DayView() {
               <Text style={{
                 fontSize: 11,
                 fontWeight: '600',
-                color: isDark ? '#9CA3AF' : '#6B7280',
+                color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
               }}>
                 {d}
               </Text>
@@ -415,20 +485,25 @@ export default function DayView() {
                   }
                 }}
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: isSelected ? '#FFFFFF' : 'transparent',
-                  borderWidth: isToday && !isSelected ? 1.5 : 0,
-                  borderColor: brand,
+                  backgroundColor: isSelected ? Colors.alpha : 'transparent',
+                  borderWidth: isToday && !isSelected ? 2 : 0,
+                  borderColor: Colors.alpha,
+                  shadowColor: isSelected ? Colors.alpha : 'transparent',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: isSelected ? 0.25 : 0,
+                  shadowRadius: 4,
+                  elevation: isSelected ? 3 : 0,
                 }}
               >
                 <Text style={{
-                  fontWeight: isSelected ? '700' : (isToday ? '600' : '500'),
-                  fontSize: 14,
-                  color: isSelected ? '#000000' : (isDark ? '#fafafa' : '#212529')
+                  fontWeight: isSelected ? '800' : (isToday ? '700' : '600'),
+                  fontSize: 15,
+                  color: isSelected ? Colors.dark : (isDark ? Colors.light : Colors.beta)
                 }}>
                   {num}
                 </Text>
@@ -436,11 +511,16 @@ export default function DayView() {
                   <View
                     style={{
                       position: 'absolute',
-                      bottom: 4,
-                      width: 4,
-                      height: 4,
-                      borderRadius: 2,
-                      backgroundColor: brand
+                      bottom: 5,
+                      width: 5,
+                      height: 5,
+                      borderRadius: 2.5,
+                      backgroundColor: Colors.alpha,
+                      shadowColor: Colors.alpha,
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.5,
+                      shadowRadius: 2,
+                      elevation: 2,
                     }}
                   />
                 )}
@@ -463,10 +543,10 @@ export default function DayView() {
       </View>
 
       {/* ===== Timeline Scroll ===== */}
-      <View className="flex-1" style={{ backgroundColor: isDark ? '#000000' : '#FFFFFF' }}>
+      <View className="flex-1" style={{ backgroundColor: isDark ? Colors.dark : Colors.light }}>
         <ScrollView
           ref={timelineScrollRef}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={brand} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.alpha} />}
           showsVerticalScrollIndicator
           contentContainerStyle={{
             // paddingBottom: 5, // Increased padding to ensure all reservations are accessible
@@ -475,7 +555,7 @@ export default function DayView() {
         >
           <View style={{ height: TOTAL_HEIGHT, flexDirection: 'row', minHeight: TOTAL_HEIGHT }}>
             {/* Hour Labels - From 7:30 to 18:30 */}
-            <View style={{ width: 60, paddingRight: 12, paddingLeft: 8 }}>
+            <View style={{ width: 60, paddingRight: 8, paddingLeft: 8 }}>
               {Array.from({ length: Math.ceil(END_MINUTES / 60) - Math.floor(START_MINUTES / 60) + 1 }).map((_, idx) => {
                 const hr = Math.floor(START_MINUTES / 60) + idx;
                 const top = toY(hr * 60);
@@ -484,7 +564,7 @@ export default function DayView() {
                     <Text style={{
                       fontSize: 12,
                       fontWeight: '500',
-                      color: isDark ? '#6B7280' : '#9CA3AF'
+                      color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC'
                     }}>
                       {String(hr).padStart(2, '0')}:00
                     </Text>
@@ -503,7 +583,7 @@ export default function DayView() {
                     left: 0,
                     right: 0,
                     height: 30,
-                    backgroundColor: 'rgba(255,200,1,0.3)',
+                    backgroundColor: Colors.alpha + '4D',
                     borderRadius: 4,
                     zIndex: 3,
                   }}
@@ -539,13 +619,20 @@ export default function DayView() {
                 const hr = Math.floor(START_MINUTES / 60) + idx;
                 const top = toY(hr * 60);
                 return (
-                  <View key={hr} style={{ position: 'absolute', top, left: 60, right: 0, height: 1, backgroundColor: isDark ? '#1F2937' : '#E5E7EB' }} />
+                  <View key={hr} style={{ 
+                    position: 'absolute', 
+                    top, 
+                    left: 52, 
+                    right: 0, 
+                    height: 1, 
+                    backgroundColor: isDark ? Colors.dark_gray : Colors.dark_gray + '40'
+                  }} />
                 );
               })}
 
               {positioned.map((e, i) => {
                 // Event color - orange-brown like the reference
-                const eventColor = e.canceled ? (isDark ? '#374151' : '#E5E7EB') : '#D97706'; // Orange-brown color
+                const eventColor = e.canceled ? Colors.dark_gray : Colors.alpha;
 
                 // Display all events as lines - they can overlap
                 return (
@@ -555,7 +642,7 @@ export default function DayView() {
                     style={{
                       position: 'absolute',
                       top: e.top,
-                      left: 60,
+                      left: 52,
                       right: 12,
                       height: Math.max(e.height, 36), // Minimum height for better visibility
                       flexDirection: 'row',
@@ -574,21 +661,21 @@ export default function DayView() {
                     {/* Icon on left edge */}
                     <View style={{
                       marginLeft: 10,
-                      width: 22,
-                      height: 22,
-                      borderRadius: 11,
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
                       backgroundColor: eventColor,
                       alignItems: 'center',
                       justifyContent: 'center',
                       position: 'absolute',
                       left: 2,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.2,
-                      shadowRadius: 2,
-                      elevation: 2,
+                      shadowColor: Colors.dark,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 3,
+                      elevation: 3,
                     }}>
-                      <Text style={{ fontSize: 11, color: '#FFFFFF' }}>🕐</Text>
+                      <Text style={{ fontSize: 12, color: Colors.light }}>🕐</Text>
                     </View>
 
                     {/* Event content */}
@@ -598,22 +685,24 @@ export default function DayView() {
                       paddingVertical: 6,
                       paddingRight: 8,
                     }}>
-                      <Text style={{
-                        fontWeight: '600',
-                        fontSize: 13,
-                        color: '#FFFFFF',
-                        lineHeight: 18,
-                      }} numberOfLines={2}>
-                        {e.title}
-                      </Text>
-                      <Text style={{
-                        marginTop: 3,
-                        fontSize: 11,
-                        color: 'rgba(255,255,255,0.85)',
-                        fontWeight: '500',
-                      }} numberOfLines={1}>
-                        {e.rawStart} - {e.rawEnd}
-                      </Text>
+                    <Text style={{
+                      fontWeight: '700',
+                      fontSize: 14,
+                      color: Colors.light,
+                      lineHeight: 20,
+                      letterSpacing: 0.2,
+                    }} numberOfLines={2}>
+                      {e.title}
+                    </Text>
+                    <Text style={{
+                      marginTop: 4,
+                      fontSize: 12,
+                      color: Colors.light + 'E6',
+                      fontWeight: '600',
+                      letterSpacing: 0.3,
+                    }} numberOfLines={1}>
+                      {e.rawStart} - {e.rawEnd}
+                    </Text>
                     </View>
 
                     {/* Background bar */}
@@ -624,14 +713,14 @@ export default function DayView() {
                       top: 0,
                       bottom: 0,
                       backgroundColor: eventColor,
-                      opacity: e.canceled ? 0.5 : 0.95,
-                      borderRadius: 6,
+                      opacity: e.canceled ? 0.5 : 0.98,
+                      borderRadius: 8,
                       zIndex: -1,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 3,
-                      elevation: 2,
+                      shadowColor: Colors.dark,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.2,
+                      shadowRadius: 4,
+                      elevation: 3,
                     }} />
                   </Pressable>
                 );
@@ -644,8 +733,19 @@ export default function DayView() {
       {/* Modal New Reservation - Show different modal based on tab */}
       {showNewReservation && (
         <Modal visible={showNewReservation} animationType="slide" transparent onRequestClose={() => setShowNewReservation(false)}>
-          <View className="flex-1 justify-center" style={{ backgroundColor: isDark ? 'rgba(0,0,0,0.9)' : 'rgba(0,0,0,0.5)', padding: 16 }}>
-            <View className={`${isDark ? 'bg-dark' : 'bg-white'}`} style={{ flex: 1, maxHeight: '90%', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 }}>
+          <View className="flex-1 justify-center" style={{ backgroundColor: isDark ? Colors.dark + 'E6' : Colors.dark + '80', padding: 16 }}>
+            <View style={{ 
+              flex: 1, 
+              maxHeight: '90%', 
+              borderRadius: 20, 
+              overflow: 'hidden', 
+              backgroundColor: isDark ? Colors.dark : Colors.light,
+              shadowColor: Colors.dark, 
+              shadowOffset: { width: 0, height: 4 }, 
+              shadowOpacity: 0.3, 
+              shadowRadius: 12, 
+              elevation: 8 
+            }}>
               {tab === 'cowork' ? (
                 <NewCoworkReservation selectedDate={day} prefillTime={selectedTimeRange} onClose={() => setShowNewReservation(false)} />
               ) : (
@@ -655,10 +755,25 @@ export default function DayView() {
 
             <Pressable
               onPress={() => setShowNewReservation(false)}
-              className="bg-alpha"
-              style={{ position: 'absolute', top: 50, right: 20, padding: 12, borderRadius: 24, minWidth: 48, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 5 }}
+              style={{ 
+                position: 'absolute', 
+                top: 50, 
+                right: 20, 
+                padding: 14, 
+                borderRadius: 28, 
+                minWidth: 52, 
+                minHeight: 52,
+                alignItems: 'center', 
+                justifyContent: 'center',
+                backgroundColor: Colors.alpha,
+                shadowColor: Colors.alpha,
+                shadowOffset: { width: 0, height: 3 }, 
+                shadowOpacity: 0.35, 
+                shadowRadius: 6, 
+                elevation: 6 
+              }}
             >
-              <Text className="text-white" style={{ fontWeight: '700', fontSize: 18 }}>✕</Text>
+              <Text style={{ fontWeight: '700', fontSize: 20, color: Colors.dark }}>✕</Text>
             </Pressable>
           </View>
         </Modal>
