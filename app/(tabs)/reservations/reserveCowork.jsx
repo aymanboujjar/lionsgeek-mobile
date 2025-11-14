@@ -15,6 +15,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import API from '@/api';
 import { Colors } from '@/constants/Colors';
 import { format } from 'date-fns';
+import * as CalendarAPI from 'expo-calendar';
 
 export default function NewCoworkReservation({ selectedDate, prefillTime, onClose }) {
   const { user, token } = useAppContext();
@@ -37,6 +38,7 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
   const [loadingTables, setLoadingTables] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [createdReservation, setCreatedReservation] = useState(null);
 
   // Prefill times if provided
   useEffect(() => {
@@ -127,6 +129,17 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
 
     try {
       const response = await API.postWithAuth('cowork/reserve', payload, token);
+      // Store the created reservation data for calendar
+      const selectedTable = tables.find(t => t.id === parseInt(table));
+      setCreatedReservation({
+        title: `Cowork Reservation - ${selectedTable?.name || `Table ${table}`}`,
+        day: day,
+        start: format(startTime, 'HH:mm'),
+        end: format(endTime, 'HH:mm'),
+        location: selectedTable?.name || `Table ${table}`,
+        seats: seats,
+        ...(response.data?.reservation || {}),
+      });
       setShowModal(true);
     } catch (error) {
       console.error('Error creating cowork reservation:', error);
@@ -142,6 +155,61 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
   const handleCancel = () => {
     if (onClose) {
       onClose();
+    }
+  };
+
+  // Calendar functions - Use default phone calendar
+  const ensureCalendarExists = async () => {
+    const { status } = await CalendarAPI.requestCalendarPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant calendar access to add events.');
+      return null;
+    }
+
+    const calendars = await CalendarAPI.getCalendarsAsync(CalendarAPI.EntityTypes.EVENT);
+    const modifiable = calendars.filter((cal) => cal.allowsModifications);
+    
+    if (modifiable.length === 0) {
+      Alert.alert('No Calendar', 'No modifiable calendar found.');
+      return null;
+    }
+
+    // Find default calendar (usually the first one or one marked as default)
+    // Prefer native/local calendars over synced ones
+    const defaultCalendar = modifiable.find(cal => 
+      cal.isPrimary || 
+      cal.source?.type === 'local' ||
+      cal.source?.title?.toLowerCase().includes('default')
+    ) || modifiable[0]; // Fallback to first available
+
+    return defaultCalendar.id;
+  };
+
+  const addToDeviceCalendar = async () => {
+    if (!createdReservation) return;
+
+    try {
+      const calendarId = await ensureCalendarExists();
+      if (!calendarId) return;
+
+      const startDateTime = new Date(`${createdReservation.day} ${createdReservation.start}`);
+      const endDateTime = new Date(`${createdReservation.day} ${createdReservation.end}`);
+
+      const event = {
+        title: createdReservation.title || 'Cowork Reservation',
+        startDate: startDateTime,
+        endDate: endDateTime,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        location: createdReservation.location || '',
+        notes: `Seats: ${createdReservation.seats || 'N/A'}`,
+        alarms: [{ relativeOffset: -15, method: CalendarAPI.AlarmMethod.ALERT }],
+      };
+
+      const eventId = await CalendarAPI.createEventAsync(calendarId, event);
+      Alert.alert('✅ Added', 'Event added to your calendar successfully!');
+    } catch (err) {
+      console.error('Add to calendar error:', err);
+      Alert.alert('Error', 'Failed to add to calendar.');
     }
   };
 
@@ -514,22 +582,51 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
           backgroundColor: 'rgba(0,0,0,0.5)', 
           padding: 20 
         }}>
-          <View className={`${isDark ? 'bg-dark_gray' : 'bg-white'} items-center`} style={{ padding: 20, borderRadius: 12 }}>
-            <Text className={`${isDark ? 'text-light' : 'text-beta'}`} style={{ fontSize: 18, marginBottom: 16 }}>
+          <View className={`${isDark ? 'bg-dark_gray' : 'bg-white'}`} style={{ padding: 20, borderRadius: 12, minWidth: 280 }}>
+            <Text className={`${isDark ? 'text-light' : 'text-beta'}`} style={{ fontSize: 18, marginBottom: 20, textAlign: 'center', fontWeight: '700' }}>
               Reservation Created Successfully!
             </Text>
 
-            <Pressable
-              onPress={() => {
-                setShowModal(false);
-                if (onClose) onClose();
-                router.replace('/reservations/day');
-              }}
-              className="bg-alpha"
-              style={{ paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8 }}
-            >
-              <Text className="text-white" style={{ fontWeight: '600' }}>Close</Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center' }}>
+              <Pressable
+                onPress={addToDeviceCalendar}
+                style={{ 
+                  flex: 1,
+                  paddingVertical: 12, 
+                  paddingHorizontal: 16, 
+                  borderRadius: 8,
+                  backgroundColor: isDark ? Colors.dark : Colors.light,
+                  borderWidth: 1.5,
+                  borderColor: Colors.alpha,
+                }}
+              >
+                <Text style={{ 
+                  color: Colors.alpha, 
+                  fontWeight: '700', 
+                  fontSize: 14,
+                  textAlign: 'center',
+                }}>
+                  📅 Add to Calendar
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  setShowModal(false);
+                  if (onClose) onClose();
+                  // router.replace('/reservations/day');
+                }}
+                className="bg-alpha"
+                style={{ 
+                  flex: 1,
+                  paddingVertical: 12, 
+                  paddingHorizontal: 16, 
+                  borderRadius: 8 
+                }}
+              >
+                <Text className="text-white" style={{ fontWeight: '700', fontSize: 14, textAlign: 'center' }}>Close</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       )}

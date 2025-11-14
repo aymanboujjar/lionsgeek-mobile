@@ -12,12 +12,13 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAppContext } from '@/context';
-import { Modal } from 'react-native';
+import { Modal, Alert } from 'react-native';
 import { useRouter } from 'expo-router'
 import { useColorScheme } from '@/hooks/useColorScheme';
 import API from '@/api';
 import { Colors } from '@/constants/Colors';
 import { format } from 'date-fns';
+import * as CalendarAPI from 'expo-calendar';
 export default function NewReservation({ selectedDate, prefillTime, onClose }) {
   const { user, token } = useAppContext();
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
   const isDark = colorScheme === 'dark';
   const [step, setStep] = useState(1);
   const [showModal, setShowModal] = useState(false);
+  const [createdReservation, setCreatedReservation] = useState(null);
   useEffect(() => {
     if (prefillTime) {
       const toDate = (timeStr) => {
@@ -135,6 +137,16 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
     try {
       const response = await API.postWithAuth('reservations/store', payload, token);
       // console.log('Reservation created:', response.data);
+      // Store the created reservation data for calendar
+      setCreatedReservation({
+        title: `Studio Reservation - ${name}`,
+        description,
+        day: day,
+        start: startTime.toTimeString().slice(0, 5),
+        end: endTime.toTimeString().slice(0, 5),
+        location: places.find(p => p.id === studio)?.name || 'Studio',
+        ...(response.data?.reservation || {}),
+      });
       setShowModal(true);
     } catch (error) {
       console.error('Error creating reservation:', error);
@@ -149,12 +161,67 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
     }
   };
 
+  // Calendar functions - Use default phone calendar
+  const ensureCalendarExists = async () => {
+    const { status } = await CalendarAPI.requestCalendarPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant calendar access to add events.');
+      return null;
+    }
+
+    const calendars = await CalendarAPI.getCalendarsAsync(CalendarAPI.EntityTypes.EVENT);
+    const modifiable = calendars.filter((cal) => cal.allowsModifications);
+
+    if (modifiable.length === 0) {
+      Alert.alert('No Calendar', 'No modifiable calendar found.');
+      return null;
+    }
+
+    // Find default calendar (usually the first one or one marked as default)
+    // Prefer native/local calendars over synced ones
+    const defaultCalendar = modifiable.find(cal =>
+      cal.isPrimary ||
+      cal.source?.type === 'local' ||
+      cal.source?.title?.toLowerCase().includes('default')
+    ) || modifiable[0]; // Fallback to first available
+
+    return defaultCalendar.id;
+  };
+
+  const addToDeviceCalendar = async () => {
+    if (!createdReservation) return;
+
+    try {
+      const calendarId = await ensureCalendarExists();
+      if (!calendarId) return;
+
+      const startDateTime = new Date(`${createdReservation.day} ${createdReservation.start}`);
+      const endDateTime = new Date(`${createdReservation.day} ${createdReservation.end}`);
+
+      const event = {
+        title: createdReservation.title || 'Reservation',
+        startDate: startDateTime,
+        endDate: endDateTime,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        location: createdReservation.location || '',
+        notes: createdReservation.description || '',
+        alarms: [{ relativeOffset: -15, method: CalendarAPI.AlarmMethod.ALERT }],
+      };
+
+      const eventId = await CalendarAPI.createEventAsync(calendarId, event);
+      Alert.alert('✅ Added', 'Event added to your calendar successfully!');
+    } catch (err) {
+      console.error('Add to calendar error:', err);
+      Alert.alert('Error', 'Failed to add to calendar.');
+    }
+  };
+
   return (
     <View className={`${isDark ? 'bg-dark' : 'bg-light'}`} style={{ flex: 1, paddingTop: 60 }}>
       {/* Header */}
       <View className={`${isDark ? 'bg-dark_gray' : 'bg-white'} border-b ${isDark ? 'border-dark' : 'border-beta/20'}`} style={{ paddingHorizontal: 16, paddingVertical: 12, marginBottom: 6 }}>
         <View className="flex-row justify-between items-center">
-          <Pressable 
+          <Pressable
             onPress={step > 1 ? prevStep : handleCancel}
             className={`${isDark ? 'bg-dark' : 'bg-light'}`}
             style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
@@ -168,7 +235,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
             New Reservation
           </Text>
 
-          <Pressable 
+          <Pressable
             onPress={step === 3 ? submitReservation : nextStep}
             className="bg-alpha"
             style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
@@ -194,13 +261,13 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
               }}
             />
             {n < 3 && (
-              <View 
-                style={{ 
-                  width: 20, 
-                  height: 2, 
+              <View
+                style={{
+                  width: 20,
+                  height: 2,
                   backgroundColor: step > n ? Colors.alpha : Colors.dark_gray,
                   marginHorizontal: 4,
-                }} 
+                }}
               />
             )}
           </View>
@@ -256,61 +323,61 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                 Studio
               </Text>
 
-            {loadingPlaces ? (
-              <ActivityIndicator color={Colors.alpha} />
-            ) : (
-              <FlatList
-                data={places} // fetched studios
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 8, gap: 12 }}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => {
-                  const isSelected = studio === item.id;
-                  return (
-                    <Pressable
-                      onPress={() => setStudio(item.id)}
-                      style={{
-                        borderWidth: isSelected ? 3 : 1,
-                        borderColor: isSelected ? Colors.alpha : Colors.dark_gray,
-                        borderRadius: 16,
-                        overflow: 'hidden',
-                        alignItems: 'center',
-                        marginRight: 8,
-                        backgroundColor: isSelected ? (isDark ? Colors.dark_gray : Colors.light) : (isDark ? Colors.dark : Colors.light),
-                        shadowColor: isSelected ? Colors.alpha : 'transparent',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: isSelected ? 0.3 : 0,
-                        shadowRadius: 4,
-                        elevation: isSelected ? 4 : 0,
-                      }}
-                    >
-                      {item.image ? (
-                        <Image
-                          source={{ uri: item.image }}
-                          style={{ width: 100, height: 80, resizeMode: 'cover' }}
-                        />
-                      ) : (
-                        <View
-                          style={{
-                            width: 100,
-                            height: 80,
-                            backgroundColor: Colors.dark_gray,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <Text className={`${isDark ? 'text-light' : 'text-beta'}`}>No Image</Text>
-                        </View>
-                      )}
-                      <Text style={{ color: isDark ? Colors.light : Colors.dark, fontWeight: isSelected ? '600' : '400', padding: 4 }}>
-                        {item.name}
-                      </Text>
-                    </Pressable>
-                  );
-                }}
-              />
-            )}
+              {loadingPlaces ? (
+                <ActivityIndicator color={Colors.alpha} />
+              ) : (
+                <FlatList
+                  data={places} // fetched studios
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 8, gap: 12 }}
+                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={({ item }) => {
+                    const isSelected = studio === item.id;
+                    return (
+                      <Pressable
+                        onPress={() => setStudio(item.id)}
+                        style={{
+                          borderWidth: isSelected ? 3 : 1,
+                          borderColor: isSelected ? Colors.alpha : Colors.dark_gray,
+                          borderRadius: 16,
+                          overflow: 'hidden',
+                          alignItems: 'center',
+                          marginRight: 8,
+                          backgroundColor: isSelected ? (isDark ? Colors.dark_gray : Colors.light) : (isDark ? Colors.dark : Colors.light),
+                          shadowColor: isSelected ? Colors.alpha : 'transparent',
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: isSelected ? 0.3 : 0,
+                          shadowRadius: 4,
+                          elevation: isSelected ? 4 : 0,
+                        }}
+                      >
+                        {item.image ? (
+                          <Image
+                            source={{ uri: item.image }}
+                            style={{ width: 100, height: 80, resizeMode: 'cover' }}
+                          />
+                        ) : (
+                          <View
+                            style={{
+                              width: 100,
+                              height: 80,
+                              backgroundColor: Colors.dark_gray,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Text className={`${isDark ? 'text-light' : 'text-beta'}`}>No Image</Text>
+                          </View>
+                        )}
+                        <Text style={{ color: isDark ? Colors.light : Colors.dark, fontWeight: isSelected ? '600' : '400', padding: 4 }}>
+                          {item.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  }}
+                />
+              )}
             </View>
 
             {/* Date Selection */}
@@ -345,8 +412,8 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                   }}>
                     <Text style={{ fontSize: 20 }}>📅</Text>
                   </View>
-                  <Text style={{ 
-                    fontSize: 16, 
+                  <Text style={{
+                    fontSize: 16,
                     fontWeight: '600',
                     color: isDark ? Colors.light : Colors.beta
                   }}>
@@ -425,8 +492,8 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                   }}>
                     <Text style={{ fontSize: 20 }}>🕐</Text>
                   </View>
-                  <Text style={{ 
-                    fontSize: 16, 
+                  <Text style={{
+                    fontSize: 16,
                     fontWeight: '600',
                     color: isDark ? Colors.light : Colors.beta
                   }}>
@@ -505,8 +572,8 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                   }}>
                     <Text style={{ fontSize: 20 }}>🕐</Text>
                   </View>
-                  <Text style={{ 
-                    fontSize: 16, 
+                  <Text style={{
+                    fontSize: 16,
                     fontWeight: '600',
                     color: isDark ? Colors.light : Colors.beta
                   }}>
@@ -724,23 +791,52 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
         onRequestClose={() => setShowModal(false)}
       >
         <View className="justify-center items-center" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 }}>
-          <View className={`${isDark ? 'bg-dark_gray' : 'bg-white'} items-center`} style={{ padding: 20, borderRadius: 12 }}>
-            <Text className={`${isDark ? 'text-light' : 'text-beta'}`} style={{ fontSize: 18, marginBottom: 16 }}>
+          <View className={`${isDark ? 'bg-dark_gray' : 'bg-white'}`} style={{ padding: 20, borderRadius: 12, minWidth: 280 }}>
+            <Text className={`${isDark ? 'text-light' : 'text-beta'}`} style={{ fontSize: 18, marginBottom: 20, textAlign: 'center', fontWeight: '700' }}>
               Reservation Created Successfully!
             </Text>
 
-            <Pressable
-              onPress={() => {
-                setShowModal(false);           // optional, just hides modal quickly
-                router.replace('/reservations/day'); // replace current screen
-              }}
-              className="bg-alpha"
-              style={{ paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8 }}
-            >
-              <Text className="text-white" style={{ fontWeight: '600' }}>close</Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center' }}>
+              <Pressable
+                onPress={addToDeviceCalendar}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  backgroundColor: isDark ? Colors.dark : Colors.light,
+                  borderWidth: 1.5,
+                  borderColor: Colors.alpha,
+                }}
+              >
+                <Text style={{
+                  color: Colors.alpha,
+                  fontWeight: '700',
+                  fontSize: 14,
+                  textAlign: 'center',
+                }}>
+                 Calendar 📅  
+                </Text>
+              </Pressable>
 
-
+              <Pressable
+                onPress={() => {
+                  setShowModal(false);
+                  setShowModal(false);
+                  if (onClose) onClose();
+                  // router.replace('/reservations/day');
+                }}
+                className="bg-alpha"
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderRadius: 8
+                }}
+              >
+                <Text className="text-white" style={{ fontWeight: '700', fontSize: 14, textAlign: 'center' }}>Close</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
