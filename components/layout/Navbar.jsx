@@ -23,7 +23,7 @@ export default function Navbar() {
   };
 
   // Log user data for debugging
-  console.log('[NAVBAR] User data:', JSON.stringify(user, null, 2));
+  // console.log('[NAVBAR] User data:', JSON.stringify(user, null, 2));
 
   // Get avatar URL - prefer avatar, fallback to image path with correct format, then placeholder
   const getAvatarUrl = () => {

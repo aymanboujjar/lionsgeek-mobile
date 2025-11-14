@@ -20,7 +20,7 @@ export default function ReservationDetails() {
       try {
        
         const res = await API.getWithAuth(`mobile/reservations/${id}`, token);
-        console.log(res.data.reservation);
+        // console.log(res.data.reservation);
         
         setReservation(res.data.reservation);
       } catch (error) {
@@ -33,29 +33,43 @@ export default function ReservationDetails() {
     if (id) fetchReservation();
   }, [id]);
 
-  if (loading) return <AppLayout><ActivityIndicator size="large" /></AppLayout>;
+  if (loading) return (
+    <AppLayout>
+      <View className="flex-1 justify-center items-center">
+        <ActivityIndicator size="large" color="#ffc801" />
+      </View>
+    </AppLayout>
+  );
 
   if (!reservation) return (
     <AppLayout>
-      <Text className="text-center text-black dark:text-white mt-8">Reservation not found</Text>
+      <View className="flex-1 justify-center items-center px-4">
+        <Text className={`text-center text-lg ${isDark ? 'text-light' : 'text-beta'} mt-8`}>Reservation not found</Text>
+      </View>
     </AppLayout>
   );
 
   const getStatusStyles = (status) => {
     const normalized = String(status || '').toLowerCase();
     if (normalized.includes('approve')) {
-      return 'bg-emerald-100 text-emerald-800 dark:bg-black dark:text-white dark:border-white border-emerald-300/30';
+      return isDark 
+        ? 'bg-good/20 text-good border-good/30' 
+        : 'bg-good/10 text-good border-good';
     }
     if (normalized.includes('pending')) {
-      return 'bg-amber-100 text-amber-800 dark:bg-black dark:text-white dark:border-white border-amber-300/30';
+      return isDark 
+        ? 'bg-alpha/20 text-alpha border-alpha/30' 
+        : 'bg-alpha/10 text-alpha border-alpha';
     }
     if (normalized.includes('reject') || normalized.includes('cancel')) {
-      return 'bg-rose-100 text-rose-800 dark:bg-black dark:text-white dark:border-white border-rose-300/30';
+      return isDark 
+        ? 'bg-error/20 text-error border-error/30' 
+        : 'bg-error/10 text-error border-error';
     }
-    return 'bg-neutral-100 text-neutral-800 dark:bg-black dark:text-white dark:border-white border-neutral-300/30';
+    return isDark 
+      ? 'bg-dark_gray text-light border-dark_gray' 
+      : 'bg-light text-beta border-beta';
   };
-
-  const getStatusTextStyles = () => 'text-neutral-800 dark:text-white';
 
   const baseUrl = (API?.APP_URL || '').replace(/\/+$/, '');
 
@@ -122,54 +136,57 @@ export default function ReservationDetails() {
 
   return (
     <AppLayout>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      <ScrollView 
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Header */}
-        <View className="mb-4">
-          <Text className="text-2xl font-bold text-black dark:text-white mb-2">{reservation.title}</Text>
+        <View className="mb-6">
+          <Text className={`text-3xl font-bold ${isDark ? 'text-light' : 'text-beta'} mb-4`}>{reservation.title}</Text>
 
-          <View className="flex-row items-center gap-2">
-            <View className={`px-3 py-1 rounded-full border ${getStatusStyles(reservation.status)}`}>
-              <Text className={`text-xs font-semibold uppercase tracking-wide ${getStatusTextStyles(reservation.status)}`}>{reservation.status}</Text>
+          <View className="flex-row items-center gap-2 flex-wrap">
+            <View className={`px-4 py-2 rounded-full border ${getStatusStyles(reservation.status)}`}>
+              <Text className={`text-xs font-bold uppercase tracking-wide`}>{reservation.status}</Text>
             </View>
             {reservation.type ? (
-              <View className="px-3 py-1 rounded-full border bg-blue-100 text-blue-800 dark:bg-black dark:text-white dark:border-white border-blue-300/30">
-                <Text className="text-xs font-semibold uppercase tracking-wide text-blue-800 dark:text-white">{reservation.type}</Text>
+              <View className={`px-4 py-2 rounded-full border ${isDark ? 'bg-alpha/20 text-alpha border-alpha/30' : 'bg-alpha/10 text-alpha border-alpha'}`}>
+                <Text className="text-xs font-bold uppercase tracking-wide">{reservation.type}</Text>
               </View>
             ) : null}
           </View>
         </View>
 
         {/* Details Card */}
-        <View className="bg-white dark:bg-black rounded-2xl border border-neutral-200 dark:border-white shadow-sm p-4 mb-6">
-          <View className="flex-row justify-between mb-3">
-            <View className="flex-1 pr-2">
-              <Text className="text-neutral-500 dark:text-white text-xs">Date</Text>
-              <Text className="text-black dark:text-white text-base mt-0.5">{reservation.day}</Text>
+        <View className={`${isDark ? 'bg-dark_gray' : 'bg-light'} rounded-2xl border ${isDark ? 'border-dark' : 'border-beta/20'}`} style={{ padding: 20, marginBottom: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
+          <View className="flex-row justify-between mb-4">
+            <View className="flex-1 pr-3">
+              <Text className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-light/60' : 'text-beta/60'} mb-1`}>Date</Text>
+              <Text className={`${isDark ? 'text-light' : 'text-beta'} text-lg font-bold`}>{reservation.day}</Text>
             </View>
-            <View className="w-px bg-neutral-200 dark:bg-white" />
-            <View className="flex-1 px-2">
-              <Text className="text-neutral-500 dark:text-white text-xs">Start</Text>
-              <Text className="text-black dark:text-white text-base mt-0.5">{reservation.start}</Text>
+            <View className={`w-px ${isDark ? 'bg-dark' : 'bg-beta/20'}`} />
+            <View className="flex-1 px-3">
+              <Text className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-light/60' : 'text-beta/60'} mb-1`}>Start</Text>
+              <Text className={`${isDark ? 'text-light' : 'text-beta'} text-lg font-bold`}>{reservation.start}</Text>
             </View>
-            <View className="w-px bg-neutral-200 dark:bg-white" />
-            <View className="flex-1 pl-2">
-              <Text className="text-neutral-500 dark:text-white text-xs">End</Text>
-              <Text className="text-black dark:text-white text-base mt-0.5">{reservation.end}</Text>
+            <View className={`w-px ${isDark ? 'bg-dark' : 'bg-beta/20'}`} />
+            <View className="flex-1 pl-3">
+              <Text className={`text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-light/60' : 'text-beta/60'} mb-1`}>End</Text>
+              <Text className={`${isDark ? 'text-light' : 'text-beta'} text-lg font-bold`}>{reservation.end}</Text>
             </View>
           </View>
 
-          <View className="h-px bg-neutral-200 dark:bg-white my-3" />
+          <View className={`h-px ${isDark ? 'bg-dark' : 'bg-beta/20'} my-4`} />
 
           <View className="flex-row gap-3 flex-wrap">
             {reservation.studio_name ? (
-              <View className="px-3 py-2 rounded-xl bg-neutral-100 dark:bg-black border border-neutral-200 dark:border-white">
-                <Text className="text-xs text-neutral-700 dark:text-white">Studio</Text>
-                <Text className="text-sm font-medium text-black dark:text-white">{reservation.studio_name}</Text>
+              <View className={`px-4 py-3 rounded-xl ${isDark ? 'bg-dark border-dark' : 'bg-light border-beta/20'} border`}>
+                <Text className={`text-xs font-semibold ${isDark ? 'text-light/60' : 'text-beta/60'} mb-1`}>Studio</Text>
+                <Text className={`text-sm font-bold ${isDark ? 'text-light' : 'text-beta'}`}>{reservation.studio_name}</Text>
               </View>
             ) : null}
-            <View className="px-3 py-2 rounded-xl bg-neutral-100 dark:bg-black border border-neutral-200 dark:border-white">
-              <Text className="text-xs text-neutral-700 dark:text-white">Approved by</Text>
-              <Text className="text-sm font-medium text-black dark:text-white">
+            <View className={`px-4 py-3 rounded-xl ${isDark ? 'bg-dark border-dark' : 'bg-light border-beta/20'} border`}>
+              <Text className={`text-xs font-semibold ${isDark ? 'text-light/60' : 'text-beta/60'} mb-1`}>Approved by</Text>
+              <Text className={`text-sm font-bold ${isDark ? 'text-light' : 'text-beta'}`}>
                 {getApproverName(reservation) || (String(reservation.status || '').toLowerCase().includes('pending') ? 'Pending' : '—')}
               </Text>
             </View>
@@ -178,43 +195,45 @@ export default function ReservationDetails() {
 
         {/* Equipment */}
         <View className="mb-6">
-          <Text className="text-lg font-semibold text-black dark:text-white mb-3">Equipment</Text>
+          <Text className={`text-xl font-bold ${isDark ? 'text-light' : 'text-beta'} mb-4`}>Equipment</Text>
           {Array.isArray(reservation.equipments) && reservation.equipments.length > 0 ? (
-            <View className="bg-white dark:bg-black rounded-2xl border border-neutral-200 dark:border-white p-4 gap-2">
+            <View className={`${isDark ? 'bg-dark_gray' : 'bg-light'} rounded-2xl border ${isDark ? 'border-dark' : 'border-beta/20'}`} style={{ padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
               {reservation.equipments.map((eq, idx) => {
                 const thumb = getImageUri(eq?.image);
                 return (
-                  <View key={eq.id ?? idx} className="flex-row items-center justify-between py-2">
+                  <View key={eq.id ?? idx} className={`flex-row items-center justify-between py-3 border-b ${isDark ? 'border-dark' : 'border-beta/20'} last:border-b-0`}>
                     <View className="flex-row items-center gap-3 flex-1 pr-2">
-                      <Thumbnail uri={thumb} size={48} radius={10} />
-                      <Text className="text-sm text-black dark:text-white flex-1" numberOfLines={1}>
+                      <Thumbnail uri={thumb} size={56} radius={12} />
+                      <Text className={`text-base font-semibold ${isDark ? 'text-light' : 'text-beta'} flex-1`} numberOfLines={1}>
                         {eq.name}
                       </Text>
                     </View>
-                    <View className="px-2 py-1 rounded-md bg-neutral-100 dark:bg-black border border-neutral-200 dark:border-white">
-                      <Text className="text-xs text-neutral-700 dark:text-white">{eq.type_name}</Text>
+                    <View className={`px-3 py-1.5 rounded-lg ${isDark ? 'bg-dark border-dark' : 'bg-light border-beta/20'} border`}>
+                      <Text className={`text-xs font-semibold ${isDark ? 'text-light/80' : 'text-beta/80'}`}>{eq.type_name}</Text>
                     </View>
                   </View>
                 );
               })}
             </View>
           ) : (
-            <Text className="text-sm text-neutral-500 dark:text-white">No equipment listed</Text>
+            <View className={`${isDark ? 'bg-dark_gray' : 'bg-light'} rounded-xl p-6 items-center border ${isDark ? 'border-dark' : 'border-beta/20'}`}>
+              <Text className={`text-sm ${isDark ? 'text-light/60' : 'text-beta/60'}`}>No equipment listed</Text>
+            </View>
           )}
         </View>
 
         {/* Attachments / Images */}
         {Array.isArray(reservation.images) && reservation.images.length > 0 ? (
           <View className="mb-6">
-            <Text className="text-lg font-semibold text-black dark:text-white mb-3">Images</Text>
-            <View className="bg-white dark:bg-black rounded-2xl border border-neutral-200 dark:border-white p-4">
+            <Text className={`text-xl font-bold ${isDark ? 'text-light' : 'text-beta'} mb-4`}>Images</Text>
+            <View className={`${isDark ? 'bg-dark_gray' : 'bg-light'} rounded-2xl border ${isDark ? 'border-dark' : 'border-beta/20'}`} style={{ padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                 {reservation.images.map((img, idx) => {
                   const uri = getImageUri(img);
                   if (!uri) return null;
                   return (
-                    <View key={idx} className="rounded-xl overflow-hidden bg-neutral-200 dark:bg-black border border-neutral-300 dark:border-white" style={{ height: 160, width: 224 }}>
-                      <Thumbnail uri={uri} size={160} radius={12} />
+                    <View key={idx} className={`rounded-xl overflow-hidden ${isDark ? 'bg-dark border-dark' : 'bg-light border-beta/20'} border`} style={{ height: 180, width: 240, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 3 }}>
+                      <Thumbnail uri={uri} size={180} radius={12} />
                     </View>
                   );
                 })}
@@ -225,23 +244,25 @@ export default function ReservationDetails() {
 
         {/* Team Members */}
         <View className="mb-6">
-          <Text className="text-lg font-semibold text-black dark:text-white mb-3">Team Members</Text>
+          <Text className={`text-xl font-bold ${isDark ? 'text-light' : 'text-beta'} mb-4`}>Team Members</Text>
           {Array.isArray(reservation.members) && reservation.members.length > 0 ? (
-            <View className="bg-white dark:bg-black rounded-2xl border border-neutral-200 dark:border-white p-4">
+            <View className={`${isDark ? 'bg-dark_gray' : 'bg-light'} rounded-2xl border ${isDark ? 'border-dark' : 'border-beta/20'}`} style={{ padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 }}>
               {reservation.members.map((member, idx) => (
-                <View key={`${member.email}-${idx}`} className="flex-row items-center justify-between py-2">
+                <View key={`${member.email}-${idx}`} className={`flex-row items-center justify-between py-3 border-b ${isDark ? 'border-dark' : 'border-beta/20'} last:border-b-0`}>
                   <View className="flex-row items-center gap-3 flex-1 pr-2">
-                    <Thumbnail uri={member.avatar} size={40} radius={999} />
-                    <Text className="text-sm text-black dark:text-white flex-1" numberOfLines={1}>{member.name}</Text>
+                    <Thumbnail uri={member.avatar} size={48} radius={999} />
+                    <Text className={`text-base font-semibold ${isDark ? 'text-light' : 'text-beta'} flex-1`} numberOfLines={1}>{member.name}</Text>
                   </View>
-                  <View className="px-2 py-1 rounded-md bg-neutral-100 dark:bg-black border border-neutral-200 dark:border-white">
-                    <Text className="text-xs text-neutral-700 dark:text-white">{member.role}</Text>
+                  <View className={`px-3 py-1.5 rounded-lg ${isDark ? 'bg-dark border-dark' : 'bg-light border-beta/20'} border`}>
+                    <Text className={`text-xs font-semibold ${isDark ? 'text-light/80' : 'text-beta/80'}`}>{member.role}</Text>
                   </View>
                 </View>
               ))}
             </View>
           ) : (
-            <Text className="text-sm text-neutral-500 dark:text-white">No team members listed</Text>
+            <View className={`${isDark ? 'bg-dark_gray' : 'bg-light'} rounded-xl p-6 items-center border ${isDark ? 'border-dark' : 'border-beta/20'}`}>
+              <Text className={`text-sm ${isDark ? 'text-light/60' : 'text-beta/60'}`}>No team members listed</Text>
+            </View>
           )}
         </View>
 

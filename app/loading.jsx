@@ -38,7 +38,7 @@ export default function LoadingScreen() {
           if (response?.data) {
             // Token is valid, update user data from response
             const userData = response.data;
-            console.log('[LOADING] User data received:', JSON.stringify(userData, null, 2));
+            // console.log('[LOADING] User data received:', JSON.stringify(userData, null, 2));
             
             // Store full user data
             await saveAuth(token, userData);
@@ -50,7 +50,7 @@ export default function LoadingScreen() {
           }
         } catch (error) {
           // Token verification failed
-          console.log('[LOADING] Token verification failed:', error);
+          // console.log('[LOADING] Token verification failed:', error);
           await AsyncStorage.multiRemove(['auth_token', 'auth_user']);
           router.replace('/auth/login');
         }
