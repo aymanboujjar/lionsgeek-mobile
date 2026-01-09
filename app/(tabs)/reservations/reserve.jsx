@@ -19,18 +19,18 @@ import API from '@/api';
 import { Colors } from '@/constants/Colors';
 import { format } from 'date-fns';
 import * as CalendarAPI from 'expo-calendar';
-export default function NewReservation({ selectedDate: propSelectedDate, prefillTime, onClose }) {
+export default function NewReservation({ selectedDate: propSelectedDate, prefillTime, onClose, placeId: propPlaceId }) {
   const { user, token } = useAppContext();
   const router = useRouter();
   const params = useLocalSearchParams();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   
-  // Get placeId and selectedDate from route params or props
-  const routePlaceId = params.placeId;
+  // Get placeId and selectedDate from route params or props (props take priority)
+  const routePlaceId = propPlaceId || params.placeId;
   const routeSelectedDate = params.selectedDate || propSelectedDate;
   
-  const [step, setStep] = useState(routePlaceId ? 2 : 1); // Skip step 1 if place is pre-selected
+  const [step, setStep] = useState(1); // Always start at step 1 to show title, description, and time fields
   const [showModal, setShowModal] = useState(false);
   const [createdReservation, setCreatedReservation] = useState(null);
   useEffect(() => {
@@ -57,10 +57,11 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
     }
   }, [routeSelectedDate]);
 
-  // Set studio from route params
+  // Set studio from route params or props
   useEffect(() => {
     if (routePlaceId) {
-      setStudio(routePlaceId);
+      // Convert to string to match the studio state format
+      setStudio(String(routePlaceId));
     }
   }, [routePlaceId]);
 
@@ -92,8 +93,8 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
   useEffect(() => {
     if (!token) return;
 
-    // Fetch places 
-    if (step === 1 && places.length === 0) {
+    // Fetch places - always fetch if not loaded (needed for showing selected studio name)
+    if (places.length === 0) {
       setLoadingPlaces(true);
       API.getWithAuth('places', token)
         .then(res => setPlaces(res.data?.studios || []))
@@ -133,9 +134,27 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
   const submitReservation = async () => {
     if (!token) return;
 
+    // Validation
+    if (!name || !name.trim()) {
+      Alert.alert('Validation Error', 'Please enter a reservation name');
+      return;
+    }
+    if (!studio) {
+      Alert.alert('Validation Error', 'Please select a studio');
+      return;
+    }
+    if (!day) {
+      Alert.alert('Validation Error', 'Please select a date');
+      return;
+    }
+    if (!startTime || !endTime) {
+      Alert.alert('Validation Error', 'Please select start and end times');
+      return;
+    }
+
     const payload = {
-      title: name,
-      description,
+      title: name.trim(),
+      description: description?.trim() || '',
       studio_id: studio,
       day: day,
       start: startTime.toTimeString().slice(0, 5),
@@ -145,7 +164,7 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
       equipment: selectedEquipment,
     };
 
-    // console.log('Submitting reservation:', payload);
+    console.log('Submitting reservation:', payload);
 
     try {
       const response = await API.postWithAuth('reservations/store', payload, token);
@@ -329,68 +348,105 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
                 }}
               />
             </View>
-            {/* Studio */}
-            <View>
-              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-3`} style={{ fontSize: 16 }}>
-              Studio
-            </Text>
+            {/* Studio - Only show if not pre-selected */}
+            {!routePlaceId && (
+              <View>
+                <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-3`} style={{ fontSize: 16 }}>
+                Studio
+              </Text>
 
-            {loadingPlaces ? (
-                <ActivityIndicator color={Colors.alpha} />
-            ) : (
-              <FlatList
-                data={places} // fetched studios
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 8, gap: 12 }}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => {
-                  const isSelected = studio === item.id;
-                  return (
-                    <Pressable
-                      onPress={() => setStudio(item.id)}
-                      style={{
-                          borderWidth: isSelected ? 3 : 1,
-                          borderColor: isSelected ? Colors.alpha : Colors.dark_gray,
-                          borderRadius: 16,
-                        overflow: 'hidden',
-                        alignItems: 'center',
-                        marginRight: 8,
-                          backgroundColor: isSelected ? (isDark ? Colors.dark_gray : Colors.light) : (isDark ? Colors.dark : Colors.light),
-                          shadowColor: isSelected ? Colors.alpha : 'transparent',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: isSelected ? 0.3 : 0,
-                          shadowRadius: 4,
-                          elevation: isSelected ? 4 : 0,
-                      }}
-                    >
-                      {item.image ? (
-                        <Image
-                          source={{ uri: item.image }}
-                          style={{ width: 100, height: 80, resizeMode: 'cover' }}
-                        />
-                      ) : (
-                        <View
-                          style={{
-                            width: 100,
-                            height: 80,
-                              backgroundColor: Colors.dark_gray,
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}
-                        >
-                            <Text className={`${isDark ? 'text-light' : 'text-beta'}`}>No Image</Text>
-                        </View>
-                      )}
-                        <Text style={{ color: isDark ? Colors.light : Colors.dark, fontWeight: isSelected ? '600' : '400', padding: 4 }}>
-                        {item.name}
-                      </Text>
-                    </Pressable>
-                  );
-                }}
-              />
+              {loadingPlaces ? (
+                  <ActivityIndicator color={Colors.alpha} />
+              ) : (
+                <FlatList
+                  data={places} // fetched studios
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 8, gap: 12 }}
+                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={({ item }) => {
+                    const isSelected = String(studio) === String(item.id);
+                    return (
+                      <Pressable
+                        onPress={() => setStudio(String(item.id))}
+                        style={{
+                            borderWidth: isSelected ? 3 : 1,
+                            borderColor: isSelected ? Colors.alpha : Colors.dark_gray,
+                            borderRadius: 16,
+                          overflow: 'hidden',
+                          alignItems: 'center',
+                          marginRight: 8,
+                            backgroundColor: isSelected ? (isDark ? Colors.dark_gray : Colors.light) : (isDark ? Colors.dark : Colors.light),
+                            shadowColor: isSelected ? Colors.alpha : 'transparent',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: isSelected ? 0.3 : 0,
+                            shadowRadius: 4,
+                            elevation: isSelected ? 4 : 0,
+                        }}
+                      >
+                        {item.image ? (
+                          <Image
+                            source={{ uri: item.image }}
+                            style={{ width: 100, height: 80, resizeMode: 'cover' }}
+                          />
+                        ) : (
+                          <View
+                            style={{
+                              width: 100,
+                              height: 80,
+                                backgroundColor: Colors.dark_gray,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                            }}
+                          >
+                              <Text className={`${isDark ? 'text-light' : 'text-beta'}`}>No Image</Text>
+                          </View>
+                        )}
+                          <Text style={{ color: isDark ? Colors.light : Colors.dark, fontWeight: isSelected ? '600' : '400', padding: 4 }}>
+                          {item.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  }}
+                />
+              )}
+              </View>
             )}
-            </View>
+            {/* Show selected studio if pre-selected */}
+            {routePlaceId && studio && (
+              <View>
+                <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>Selected Studio</Text>
+                <View style={{
+                  borderRadius: 12,
+                  padding: 16,
+                  borderWidth: 2,
+                  borderColor: Colors.alpha,
+                  backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                }}>
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    backgroundColor: Colors.alpha + '20',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <Text style={{ fontSize: 20 }}>🏢</Text>
+                  </View>
+                  <Text style={{
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: isDark ? Colors.light : Colors.beta,
+                    flex: 1,
+                  }}>
+                    {places.find(p => String(p.id) === String(studio))?.name || 'Selected Studio'}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {/* Date Selection */}
             <View>

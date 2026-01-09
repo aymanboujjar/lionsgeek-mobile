@@ -83,118 +83,6 @@ const PlaceGridCard = memo(({ place, onPress, isDark }) => {
 
 PlaceGridCard.displayName = 'PlaceGridCard';
 
-// Memoized Place Calendar Component
-const PlaceCalendarView = memo(({ place, reservations, onDateSelect, onBack, isDark, calendarTheme }) => {
-  // Calculate marked dates for this specific place
-  const markedDates = useMemo(() => {
-    const marked = {};
-    // For cowork card, check all cowork reservations
-    if (place.id === 'cowork-all' && place.allCoworks) {
-      const coworkIds = place.allCoworks.map(c => c.id);
-      reservations
-        .filter(r => coworkIds.includes(r.place_id) || coworkIds.includes(r.cowork_id) || coworkIds.includes(r.table_id))
-        .forEach((r) => {
-          const date = r.day || r.date;
-          if (date) {
-            const dateStr = typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)
-              ? date
-              : new Date(date).toISOString().split('T')[0];
-            if (dateStr) {
-              const color = r.canceled ? Colors.dark_gray : Colors.alpha;
-              if (!marked[dateStr] || marked[dateStr].dotColor !== Colors.alpha) {
-                marked[dateStr] = { marked: true, dotColor: color };
-              }
-            }
-          }
-        });
-    } else {
-      // For regular places
-      reservations
-        .filter(r => r.studio_id === place.id || r.place_id === place.id)
-        .forEach((r) => {
-          const date = r.day || r.date;
-          if (date) {
-            const dateStr = typeof date === 'string' && date.match(/^\d{4}-\d{2}-\d{2}$/)
-              ? date
-              : new Date(date).toISOString().split('T')[0];
-            if (dateStr) {
-              const color = r.canceled ? Colors.dark_gray : Colors.alpha;
-              if (!marked[dateStr] || marked[dateStr].dotColor !== Colors.alpha) {
-                marked[dateStr] = { marked: true, dotColor: color };
-              }
-            }
-          }
-        });
-    }
-    return marked;
-  }, [place.id, place.allCoworks, reservations]);
-
-  const handleDayPress = useCallback((day) => {
-    onDateSelect(place.id, day.dateString, place.type);
-  }, [place.id, place.type, onDateSelect]);
-
-  const getImageUrl = () => {
-    if (place.image) {
-      if (place.image.startsWith('http')) return place.image;
-      return `${API.APP_URL || ''}/storage/${place.image}`;
-    }
-    return null;
-  };
-
-  return (
-    <View>
-      {/* Place Header with Back Button */}
-      <View style={styles.calendarHeader}>
-        <Pressable 
-          onPress={onBack} 
-          style={({ pressed }) => [
-            styles.backButton(isDark),
-            pressed && { opacity: 0.7 }
-          ]}
-        >
-          <Ionicons name="arrow-back" size={24} color={isDark ? Colors.light : Colors.beta} />
-        </Pressable>
-        <View style={styles.calendarHeaderInfo}>
-          {getImageUrl() ? (
-            <Image
-              source={{ uri: getImageUrl() }}
-              style={styles.calendarHeaderImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.calendarHeaderImagePlaceholder}>
-              <Ionicons name="business-outline" size={24} color={Colors.alpha} />
-            </View>
-          )}
-          <View style={styles.calendarHeaderText}>
-            <Text style={styles.calendarHeaderName(isDark)} numberOfLines={1}>
-              {place.name}
-            </Text>
-            <Text style={styles.calendarHeaderSubtitle(isDark)}>
-              Select a date to reserve
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Place Calendar */}
-      <View style={styles.placeCalendarCard(isDark)}>
-        <Calendar
-          markedDates={markedDates}
-          onDayPress={handleDayPress}
-          enableSwipeMonths
-          markingType="dot"
-          hideExtraDays
-          theme={calendarTheme}
-          style={styles.placeCalendar}
-          minDate={new Date().toISOString().split('T')[0]}
-        />
-      </View>
-    </View>
-  );
-});
-
-PlaceCalendarView.displayName = 'PlaceCalendarView';
 
 export default function Reservations() {
   const { token } = useAppContext();
@@ -209,7 +97,6 @@ export default function Reservations() {
   const [selectedDate, setSelectedDate] = useState('');
   const [markedDatesStudios, setMarkedDatesStudios] = useState({});
   const [markedDatesCowork, setMarkedDatesCowork] = useState({});
-  const [selectedPlace, setSelectedPlace] = useState(null);
   const router = useRouter();
 
   // Memoized helper functions
@@ -465,30 +352,16 @@ export default function Reservations() {
     });
   }, [reservations, reservationsCowork, router]);
 
-  // Handle place selection
+  // Handle place selection - navigate to calendar screen
   const handlePlacePress = useCallback((place) => {
-    setSelectedPlace(place);
-  }, []);
-
-  // Handle back from calendar
-  const handleBackFromCalendar = useCallback(() => {
-    setSelectedPlace(null);
-  }, []);
-
-  // Handle date selection from place calendar
-  const handlePlaceDateSelect = useCallback((placeId, date, placeType) => {
-    // For cowork card, don't pre-select a specific place (let user choose table)
-    const pathname = placeType === 'cowork' || placeType === 'meeting' 
-      ? '/reservations/reserveCowork' 
-      : '/reservations/reserve';
     router.push({
-      pathname,
+      pathname: '/reservations/place-calendar',
       params: {
-        ...(placeId !== 'cowork-all' && { placeId: placeId.toString() }),
-        selectedDate: date,
+        place: JSON.stringify(place),
       },
     });
   }, [router]);
+
 
   if (loading && allPlaces.length === 0) {
     return (
@@ -528,22 +401,12 @@ export default function Reservations() {
           </View>
         </View>
 
-        {/* Places List or Calendar View */}
+        {/* Places List */}
         {loadingPlaces ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={Colors.alpha} />
             <Text style={styles.loadingText(isDark)}>Loading places...</Text>
           </View>
-        ) : selectedPlace ? (
-          /* Show Calendar for Selected Place */
-          <PlaceCalendarView
-            place={selectedPlace}
-            reservations={selectedPlace.type === 'cowork' || selectedPlace.type === 'meeting' ? reservationsCowork : reservations}
-            onDateSelect={(placeId, date) => handlePlaceDateSelect(placeId, date, selectedPlace.type)}
-            onBack={handleBackFromCalendar}
-            isDark={isDark}
-            calendarTheme={calendarTheme}
-          />
         ) : (
           /* Show Places Grid */
           <>
@@ -795,71 +658,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.alpha,
   }),
-  calendarHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  backButton: (isDark) => ({
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: isDark ? Colors.dark_gray : Colors.light,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
-  }),
-  calendarHeaderInfo: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  calendarHeaderImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    marginRight: 12,
-  },
-  calendarHeaderImagePlaceholder: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    marginRight: 12,
-    backgroundColor: Colors.alpha + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  calendarHeaderText: {
-    flex: 1,
-  },
-  calendarHeaderName: (isDark) => ({
-    fontSize: 20,
-    fontWeight: '800',
-    color: isDark ? Colors.light : Colors.beta,
-    marginBottom: 4,
-  }),
-  calendarHeaderSubtitle: (isDark) => ({
-    fontSize: 14,
-    color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
-    fontWeight: '500',
-  }),
-  placeCalendarCard: (isDark) => ({
-    backgroundColor: isDark ? Colors.dark : Colors.light,
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: Colors.dark,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
-  }),
-  placeCalendar: {
-    borderRadius: 12,
-  },
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',

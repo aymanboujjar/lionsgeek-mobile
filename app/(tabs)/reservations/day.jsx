@@ -11,11 +11,22 @@ import NewReservation from './reserve';
 import NewCoworkReservation from './reserveCowork';
 
 export default function DayView() {
-  const { date, tab, reservations: reservationsParam, reservationsCowork: reservationsCoworkParam } = useLocalSearchParams();
+  const { date, tab, reservations: reservationsParam, reservationsCowork: reservationsCoworkParam, place: placeParam } = useLocalSearchParams();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const { token } = useAppContext();
   const isDark = colorScheme === 'dark';
+
+  // Parse place from params
+  const selectedPlace = useMemo(() => {
+    if (!placeParam) return null;
+    try {
+      return typeof placeParam === 'string' ? JSON.parse(placeParam) : placeParam;
+    } catch (e) {
+      console.error('[DAY VIEW] Error parsing place:', e);
+      return null;
+    }
+  }, [placeParam]);
 
   // ---- Parse received reservations ----
   const [reservations, setReservations] = useState([]);
@@ -747,9 +758,19 @@ export default function DayView() {
               elevation: 8 
             }}>
               {tab === 'cowork' ? (
-                <NewCoworkReservation selectedDate={day} prefillTime={selectedTimeRange} onClose={() => setShowNewReservation(false)} />
+                <NewCoworkReservation 
+                  selectedDate={day} 
+                  prefillTime={selectedTimeRange} 
+                  onClose={() => setShowNewReservation(false)}
+                  placeId={selectedPlace?.id === 'cowork-all' ? undefined : selectedPlace?.id}
+                />
               ) : (
-                <NewReservation selectedDate={day} prefillTime={selectedTimeRange} onClose={() => setShowNewReservation(false)} />
+                <NewReservation 
+                  selectedDate={day} 
+                  prefillTime={selectedTimeRange} 
+                  onClose={() => setShowNewReservation(false)}
+                  placeId={selectedPlace?.id}
+                />
               )}
             </View>
 

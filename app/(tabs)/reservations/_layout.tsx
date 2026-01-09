@@ -7,6 +7,15 @@ export default function ReservationsStack() {
       <Stack.Screen name="index" />
       {/* Day view */}
       <Stack.Screen name="day" />
+      {/* Place Calendar view */}
+      <Stack.Screen 
+        name="place-calendar" 
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          animation: 'slide_from_right',
+        }}
+      />
     </Stack>
   );
 }
