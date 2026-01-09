@@ -454,238 +454,181 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
               <Pressable
                 onPress={() => setShowDayPicker(true)}
                 style={{
-                  borderRadius: 12,
-                  padding: 16,
+                  borderRadius: 16,
+                  padding: 18,
                   borderWidth: 2,
-                  borderColor: showDayPicker ? Colors.alpha : Colors.dark_gray,
+                  borderColor: showDayPicker ? Colors.alpha : (isDark ? Colors.dark_gray : Colors.dark_gray + '40'),
                   backgroundColor: isDark ? Colors.dark_gray : Colors.light,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  shadowColor: showDayPicker ? Colors.alpha : 'transparent',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: showDayPicker ? 0.3 : 0,
-                  shadowRadius: 4,
-                  elevation: showDayPicker ? 4 : 0,
+                  shadowColor: showDayPicker ? Colors.alpha : Colors.dark,
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: showDayPicker ? 0.25 : 0.1,
+                  shadowRadius: 8,
+                  elevation: showDayPicker ? 5 : 2,
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 }}>
                   <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
+                    width: 48,
+                    height: 48,
+                    borderRadius: 12,
                     backgroundColor: Colors.alpha + '20',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: 20 }}>📅</Text>
+                    <Text style={{ fontSize: 24 }}>📅</Text>
                   </View>
-                  <Text style={{
-                    fontSize: 16,
-                    fontWeight: '600',
-                    color: isDark ? Colors.light : Colors.beta
-                  }}>
-                    {day ? format(new Date(day), 'EEEE, MMMM d, yyyy') : 'Select date'}
-                  </Text>
+                  <View style={{ flex: 1 }}>
+                    {day ? (
+                      <>
+                        <Text style={{
+                          fontSize: 15,
+                          fontWeight: '700',
+                          color: isDark ? Colors.light : Colors.beta,
+                          marginBottom: 2,
+                        }}>
+                          {format(new Date(day), 'EEEE')}
+                        </Text>
+                        <Text style={{
+                          fontSize: 13,
+                          fontWeight: '500',
+                          color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
+                        }}>
+                          {format(new Date(day), 'MMMM d, yyyy')}
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={{
+                        fontSize: 15,
+                        fontWeight: '600',
+                        color: isDark ? Colors.light + '80' : Colors.beta + '80'
+                      }}>
+                        Select date
+                      </Text>
+                    )}
+                  </View>
                 </View>
                 <View style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
                   backgroundColor: showDayPicker ? Colors.alpha : 'transparent',
+                  shadowColor: showDayPicker ? Colors.alpha : 'transparent',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.8,
+                  shadowRadius: 4,
                 }} />
               </Pressable>
-              {showDayPicker && (
-                <View style={{ marginTop: 12, alignItems: 'center' }}>
-                  <DateTimePicker
-                    value={new Date(day || new Date())}
-                    mode="date"
-                    display="spinner"
-                    minimumDate={new Date()}
-                    onChange={(event, selected) => {
-                      if (event.type === 'set' && selected) {
-                        setDay(format(selected, 'yyyy-MM-dd'));
-                      }
-                      if (event.type === 'dismissed') {
-                        setShowDayPicker(false);
-                      }
-                    }}
-                    style={{ width: '100%' }}
-                  />
-                  <Pressable
-                    onPress={() => setShowDayPicker(false)}
-                    style={{
-                      marginTop: 12,
-                      paddingHorizontal: 24,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      backgroundColor: Colors.alpha,
-                    }}
-                  >
-                    <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
-                  </Pressable>
-                </View>
-              )}
             </View>
 
             {/* Start Time */}
             <View>
               <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>Start Time *</Text>
-            <Pressable
-              onPress={() => setShowStartPicker(true)}
-              style={{
-                  borderRadius: 12,
-                  padding: 16,
+              <Pressable
+                onPress={() => setShowStartPicker(true)}
+                style={{
+                  borderRadius: 16,
+                  padding: 18,
                   borderWidth: 2,
-                  borderColor: showStartPicker ? Colors.alpha : Colors.dark_gray,
+                  borderColor: showStartPicker ? Colors.alpha : (isDark ? Colors.dark_gray : Colors.dark_gray + '40'),
                   backgroundColor: isDark ? Colors.dark_gray : Colors.light,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  shadowColor: showStartPicker ? Colors.alpha : 'transparent',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: showStartPicker ? 0.3 : 0,
-                  shadowRadius: 4,
-                  elevation: showStartPicker ? 4 : 0,
+                  shadowColor: showStartPicker ? Colors.alpha : Colors.dark,
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: showStartPicker ? 0.25 : 0.1,
+                  shadowRadius: 8,
+                  elevation: showStartPicker ? 5 : 2,
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 }}>
                   <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
+                    width: 48,
+                    height: 48,
+                    borderRadius: 12,
                     backgroundColor: Colors.alpha + '20',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: 20 }}>🕐</Text>
+                    <Text style={{ fontSize: 24 }}>🕐</Text>
                   </View>
                   <Text style={{
-                    fontSize: 16,
-                    fontWeight: '600',
-                    color: isDark ? Colors.light : Colors.beta
+                    fontSize: 18,
+                    fontWeight: '700',
+                    color: isDark ? Colors.light : Colors.beta,
+                    letterSpacing: 1,
                   }}>
-                    {startTime ? format(startTime, 'HH:mm') : 'Select start time'}
-              </Text>
+                    {startTime ? format(startTime, 'HH:mm') : '--:--'}
+                  </Text>
                 </View>
                 <View style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
                   backgroundColor: showStartPicker ? Colors.alpha : 'transparent',
+                  shadowColor: showStartPicker ? Colors.alpha : 'transparent',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.8,
+                  shadowRadius: 4,
                 }} />
-            </Pressable>
-            {showStartPicker && (
-                <View style={{ marginTop: 12, alignItems: 'center' }}>
-              <DateTimePicker
-                value={startTime}
-                mode="time"
-                is24Hour={true}
-                    display="spinner"
-                onChange={(event, selected) => {
-                      if (event.type === 'set' && selected) {
-                        setStartTime(selected);
-                      }
-                      if (event.type === 'dismissed') {
-                  setShowStartPicker(false);
-                      }
-                    }}
-                    style={{ width: '100%' }}
-                  />
-                  <Pressable
-                    onPress={() => setShowStartPicker(false)}
-                    style={{
-                      marginTop: 12,
-                      paddingHorizontal: 24,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      backgroundColor: Colors.alpha,
-                    }}
-                  >
-                    <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
-                  </Pressable>
-                </View>
-              )}
+              </Pressable>
             </View>
 
             {/* End Time */}
             <View>
               <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>End Time *</Text>
-            <Pressable
-              onPress={() => setShowEndPicker(true)}
-              style={{
-                  borderRadius: 12,
-                  padding: 16,
+              <Pressable
+                onPress={() => setShowEndPicker(true)}
+                style={{
+                  borderRadius: 16,
+                  padding: 18,
                   borderWidth: 2,
-                  borderColor: showEndPicker ? Colors.alpha : Colors.dark_gray,
+                  borderColor: showEndPicker ? Colors.alpha : (isDark ? Colors.dark_gray : Colors.dark_gray + '40'),
                   backgroundColor: isDark ? Colors.dark_gray : Colors.light,
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  shadowColor: showEndPicker ? Colors.alpha : 'transparent',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: showEndPicker ? 0.3 : 0,
-                  shadowRadius: 4,
-                  elevation: showEndPicker ? 4 : 0,
+                  shadowColor: showEndPicker ? Colors.alpha : Colors.dark,
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: showEndPicker ? 0.25 : 0.1,
+                  shadowRadius: 8,
+                  elevation: showEndPicker ? 5 : 2,
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 }}>
                   <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
+                    width: 48,
+                    height: 48,
+                    borderRadius: 12,
                     backgroundColor: Colors.alpha + '20',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
-                    <Text style={{ fontSize: 20 }}>🕐</Text>
+                    <Text style={{ fontSize: 24 }}>🕐</Text>
                   </View>
                   <Text style={{
-                    fontSize: 16,
-                    fontWeight: '600',
-                    color: isDark ? Colors.light : Colors.beta
+                    fontSize: 18,
+                    fontWeight: '700',
+                    color: isDark ? Colors.light : Colors.beta,
+                    letterSpacing: 1,
                   }}>
-                    {endTime ? format(endTime, 'HH:mm') : 'Select end time'}
-              </Text>
+                    {endTime ? format(endTime, 'HH:mm') : '--:--'}
+                  </Text>
                 </View>
                 <View style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
                   backgroundColor: showEndPicker ? Colors.alpha : 'transparent',
+                  shadowColor: showEndPicker ? Colors.alpha : 'transparent',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.8,
+                  shadowRadius: 4,
                 }} />
-            </Pressable>
-            {showEndPicker && (
-                <View style={{ marginTop: 12, alignItems: 'center' }}>
-              <DateTimePicker
-                value={endTime}
-                mode="time"
-                is24Hour={true}
-                    display="spinner"
-                onChange={(event, selected) => {
-                      if (event.type === 'set' && selected) {
-                        setEndTime(selected);
-                      }
-                      if (event.type === 'dismissed') {
-                  setShowEndPicker(false);
-                      }
-                    }}
-                    style={{ width: '100%' }}
-                  />
-                  <Pressable
-                    onPress={() => setShowEndPicker(false)}
-                    style={{
-                      marginTop: 12,
-                      paddingHorizontal: 24,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      backgroundColor: Colors.alpha,
-                    }}
-                  >
-                    <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
-                  </Pressable>
-                </View>
-              )}
+              </Pressable>
             </View>
           </View>
 
@@ -905,6 +848,306 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
                 <Text className="text-white" style={{ fontWeight: '700', fontSize: 14, textAlign: 'center' }}>Close</Text>
             </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Date Picker Modal */}
+      <Modal
+        visible={showDayPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDayPicker(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: isDark ? Colors.dark + 'E6' : Colors.dark + '80',
+          justifyContent: 'flex-end',
+        }}>
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setShowDayPicker(false)}
+          />
+          <View style={{
+            backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingTop: 20,
+            paddingBottom: 40,
+            paddingHorizontal: 20,
+            shadowColor: Colors.dark,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 12,
+            elevation: 10,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 24,
+            }}>
+              <Text style={{
+                fontSize: 20,
+                fontWeight: '800',
+                color: isDark ? Colors.light : Colors.beta,
+              }}>
+                Select Date
+              </Text>
+              <Pressable
+                onPress={() => setShowDayPicker(false)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 18, color: isDark ? Colors.light : Colors.beta }}>✕</Text>
+              </Pressable>
+            </View>
+            <DateTimePicker
+              value={new Date(day || new Date())}
+              mode="date"
+              display="spinner"
+              minimumDate={new Date()}
+              onChange={(event, selected) => {
+                if (event.type === 'set' && selected) {
+                  setDay(format(selected, 'yyyy-MM-dd'));
+                }
+                if (event.type === 'dismissed') {
+                  setShowDayPicker(false);
+                }
+              }}
+              style={{ width: '100%' }}
+              textColor={isDark ? Colors.light : Colors.beta}
+            />
+            <Pressable
+              onPress={() => setShowDayPicker(false)}
+              style={{
+                marginTop: 20,
+                paddingVertical: 16,
+                borderRadius: 14,
+                backgroundColor: Colors.alpha,
+                alignItems: 'center',
+                shadowColor: Colors.alpha,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 5,
+              }}
+            >
+              <Text style={{
+                color: Colors.dark,
+                fontWeight: '700',
+                fontSize: 16,
+                letterSpacing: 0.5,
+              }}>
+                Done
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Start Time Picker Modal */}
+      <Modal
+        visible={showStartPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStartPicker(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: isDark ? Colors.dark + 'E6' : Colors.dark + '80',
+          justifyContent: 'flex-end',
+        }}>
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setShowStartPicker(false)}
+          />
+          <View style={{
+            backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingTop: 20,
+            paddingBottom: 40,
+            paddingHorizontal: 20,
+            shadowColor: Colors.dark,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 12,
+            elevation: 10,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 24,
+            }}>
+              <Text style={{
+                fontSize: 20,
+                fontWeight: '800',
+                color: isDark ? Colors.light : Colors.beta,
+              }}>
+                Select Start Time
+              </Text>
+              <Pressable
+                onPress={() => setShowStartPicker(false)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 18, color: isDark ? Colors.light : Colors.beta }}>✕</Text>
+              </Pressable>
+            </View>
+            <DateTimePicker
+              value={startTime}
+              mode="time"
+              is24Hour={true}
+              display="spinner"
+              onChange={(event, selected) => {
+                if (event.type === 'set' && selected) {
+                  setStartTime(selected);
+                }
+                if (event.type === 'dismissed') {
+                  setShowStartPicker(false);
+                }
+              }}
+              style={{ width: '100%' }}
+              textColor={isDark ? Colors.light : Colors.beta}
+            />
+            <Pressable
+              onPress={() => setShowStartPicker(false)}
+              style={{
+                marginTop: 20,
+                paddingVertical: 16,
+                borderRadius: 14,
+                backgroundColor: Colors.alpha,
+                alignItems: 'center',
+                shadowColor: Colors.alpha,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 5,
+              }}
+            >
+              <Text style={{
+                color: Colors.dark,
+                fontWeight: '700',
+                fontSize: 16,
+                letterSpacing: 0.5,
+              }}>
+                Done
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* End Time Picker Modal */}
+      <Modal
+        visible={showEndPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEndPicker(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: isDark ? Colors.dark + 'E6' : Colors.dark + '80',
+          justifyContent: 'flex-end',
+        }}>
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setShowEndPicker(false)}
+          />
+          <View style={{
+            backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingTop: 20,
+            paddingBottom: 40,
+            paddingHorizontal: 20,
+            shadowColor: Colors.dark,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 12,
+            elevation: 10,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 24,
+            }}>
+              <Text style={{
+                fontSize: 20,
+                fontWeight: '800',
+                color: isDark ? Colors.light : Colors.beta,
+              }}>
+                Select End Time
+              </Text>
+              <Pressable
+                onPress={() => setShowEndPicker(false)}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 18, color: isDark ? Colors.light : Colors.beta }}>✕</Text>
+              </Pressable>
+            </View>
+            <DateTimePicker
+              value={endTime}
+              mode="time"
+              is24Hour={true}
+              display="spinner"
+              onChange={(event, selected) => {
+                if (event.type === 'set' && selected) {
+                  setEndTime(selected);
+                }
+                if (event.type === 'dismissed') {
+                  setShowEndPicker(false);
+                }
+              }}
+              style={{ width: '100%' }}
+              textColor={isDark ? Colors.light : Colors.beta}
+            />
+            <Pressable
+              onPress={() => setShowEndPicker(false)}
+              style={{
+                marginTop: 20,
+                paddingVertical: 16,
+                borderRadius: 14,
+                backgroundColor: Colors.alpha,
+                alignItems: 'center',
+                shadowColor: Colors.alpha,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 5,
+              }}
+            >
+              <Text style={{
+                color: Colors.dark,
+                fontWeight: '700',
+                fontSize: 16,
+                letterSpacing: 0.5,
+              }}>
+                Done
+              </Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
