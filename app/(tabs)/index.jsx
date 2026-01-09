@@ -56,7 +56,7 @@ export default function HomeScreen() {
     try {
       const response = await API.getWithAuth('mobile/feed', token);
       if (response?.data) {
-        const feedPosts = (response.data.feed || []).map(post => ({
+        const feedPosts = (response.data.posts || []).map(post => ({
           ...post,
           onRepost: handleRepost,
         }));
