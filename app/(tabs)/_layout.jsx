@@ -36,6 +36,7 @@ export default function TabLayout() {
     { route: "members", name: "Members", icon: "person.3.fill", showTab: isAdmin, roles: ['admin', 'coach'] },
     { route: "projects", name: "Projects", icon: "hammer.fill", showTab: true, roles: [] }, // 
     // tal 7ad  hna
+    { route: "home", name: "Home", icon: "house.fill", showTab: false }, // Hide duplicate home tab
     { route: "profile", name: "Profile", icon: "person.fill", showTab: false },
     { route: "search", name: "Search", icon: "magnifyingglass", showTab: false },
     { route: "notifications", name: "Notifications", icon: "bell.fill", showTab: false },
