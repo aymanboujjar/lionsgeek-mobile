@@ -10,23 +10,28 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAppContext } from '@/context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import API from '@/api';
 import { Colors } from '@/constants/Colors';
 import { format } from 'date-fns';
 import * as CalendarAPI from 'expo-calendar';
 
-export default function NewCoworkReservation({ selectedDate, prefillTime, onClose }) {
+export default function NewCoworkReservation({ selectedDate: propSelectedDate, prefillTime, onClose }) {
   const { user, token } = useAppContext();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
 
+  // Get placeId and selectedDate from route params or props
+  const routePlaceId = params.placeId;
+  const routeSelectedDate = params.selectedDate || propSelectedDate;
+
   // Form state
-  const [table, setTable] = useState('');
+  const [table, setTable] = useState(routePlaceId || '');
   const [seats, setSeats] = useState('');
-  const [day, setDay] = useState(selectedDate || format(new Date(), 'yyyy-MM-dd'));
+  const [day, setDay] = useState(routeSelectedDate || format(new Date(), 'yyyy-MM-dd'));
   const [startTime, setStartTime] = useState(new Date());
   const [endTime, setEndTime] = useState(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -58,12 +63,19 @@ export default function NewCoworkReservation({ selectedDate, prefillTime, onClos
     }
   }, [prefillTime]);
 
-  // Set day from selectedDate
+  // Set day from selectedDate (route param or prop)
   useEffect(() => {
-    if (selectedDate) {
-      setDay(selectedDate);
+    if (routeSelectedDate) {
+      setDay(routeSelectedDate);
     }
-  }, [selectedDate]);
+  }, [routeSelectedDate]);
+
+  // Set table from route params
+  useEffect(() => {
+    if (routePlaceId) {
+      setTable(routePlaceId);
+    }
+  }, [routePlaceId]);
 
   // Fetch tables from places
   useEffect(() => {

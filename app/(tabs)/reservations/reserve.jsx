@@ -13,18 +13,24 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAppContext } from '@/context';
 import { Modal, Alert } from 'react-native';
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useColorScheme } from '@/hooks/useColorScheme';
 import API from '@/api';
 import { Colors } from '@/constants/Colors';
 import { format } from 'date-fns';
 import * as CalendarAPI from 'expo-calendar';
-export default function NewReservation({ selectedDate, prefillTime, onClose }) {
+export default function NewReservation({ selectedDate: propSelectedDate, prefillTime, onClose }) {
   const { user, token } = useAppContext();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  const [step, setStep] = useState(1);
+  
+  // Get placeId and selectedDate from route params or props
+  const routePlaceId = params.placeId;
+  const routeSelectedDate = params.selectedDate || propSelectedDate;
+  
+  const [step, setStep] = useState(routePlaceId ? 2 : 1); // Skip step 1 if place is pre-selected
   const [showModal, setShowModal] = useState(false);
   const [createdReservation, setCreatedReservation] = useState(null);
   useEffect(() => {
@@ -44,12 +50,19 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
     }
   }, [prefillTime]);
 
-  // Set day from selectedDate
+  // Set day from selectedDate (route param or prop)
   useEffect(() => {
-    if (selectedDate) {
-      setDay(selectedDate);
+    if (routeSelectedDate) {
+      setDay(routeSelectedDate);
     }
-  }, [selectedDate]);
+  }, [routeSelectedDate]);
+
+  // Set studio from route params
+  useEffect(() => {
+    if (routePlaceId) {
+      setStudio(routePlaceId);
+    }
+  }, [routePlaceId]);
 
 
   const [name, setName] = useState('');
@@ -68,7 +81,7 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
   const [selectedEquipment, setSelectedEquipment] = useState([]);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
 
-  const [day, setDay] = useState(selectedDate || new Date().toISOString().split('T')[0]);
+  const [day, setDay] = useState(routeSelectedDate || new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState(new Date());
   const [endTime, setEndTime] = useState(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
@@ -316,7 +329,6 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
                 }}
               />
             </View>
-
             {/* Studio */}
             <View>
               <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-3`} style={{ fontSize: 16 }}>
