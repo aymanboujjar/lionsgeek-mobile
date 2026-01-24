@@ -7,7 +7,7 @@ import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { IconSymbol } from '@/components/ui/IconSymbol';
+import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
 import { router } from 'expo-router';
 
@@ -47,6 +47,23 @@ export default function TabLayout() {
   const userRoles = user?.roles || [];
   const isAdmin = userRoles.some(r => ['admin', 'coach'].includes(r?.toLowerCase?.() || r));
   const isStudent = userRoles.some(r => r?.toLowerCase?.() === 'student') || (!isAdmin && userRoles.length === 0);
+
+  // Map SF Symbols icon names to Ionicons names for cross-platform support
+  const getIconName = (sfSymbolName, focused = false) => {
+    const iconMap = {
+      "house.fill": focused ? "home" : "home-outline",
+      "calendar": focused ? "calendar" : "calendar-outline",
+      "chatbubbles.fill": focused ? "chatbubbles" : "chatbubbles-outline",
+      "trophy.fill": focused ? "trophy" : "trophy-outline",
+      "ellipsis": "ellipsis-horizontal",
+      "person.3.fill": focused ? "people" : "people-outline",
+      "hammer.fill": focused ? "hammer" : "hammer-outline",
+      "person.fill": focused ? "person" : "person-outline",
+      "magnifyingglass": focused ? "search" : "search-outline",
+      "bell.fill": focused ? "notifications" : "notifications-outline",
+    };
+    return iconMap[sfSymbolName] || sfSymbolName;
+  };
 
   const tabScreen = [
     { route: "index", name: "Home", icon: "house.fill", showTab: true, roles: [] }, // Everyone
@@ -102,8 +119,12 @@ export default function TabLayout() {
           options={{
             headerShown: false,
             title: screen.name,
-            tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name={screen.icon} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons 
+                size={28} 
+                name={getIconName(screen.icon, focused)} 
+                color={color}
+              />
             ),
             tabBarStyle: screen.showTab ? undefined : { display: 'none' },
           }}
@@ -120,8 +141,12 @@ export default function TabLayout() {
           options={{
             headerShown: false,
             title: screen.name,
-            tabBarIcon: ({ color }) => (
-              <IconSymbol size={28} name={screen.icon} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons 
+                size={28} 
+                name={getIconName(screen.icon, focused)} 
+                color={color}
+              />
             ),
             tabBarStyle: screen.showTab ? undefined : { display: 'none' },
             href: null,
