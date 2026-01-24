@@ -22,37 +22,151 @@ export default function NotificationsScreen() {
     }
   }, [token]);
 
+  // Map notification types to icons and colors
+  const getNotificationIcon = (type) => {
+    const iconMap = {
+      'discipline_change': 'warning',
+      'exercise_review': 'document-text',
+      'project_submission': 'folder',
+      'access_request': 'lock-closed',
+      'access_request_response': 'checkmark-circle',
+      'reservation': 'calendar',
+      'appointment': 'calendar',
+      'post_interaction': 'heart',
+      'follow': 'person-add',
+      'project_status': 'trophy',
+      'task_assignment': 'briefcase',
+      'project_message': 'chatbubbles',
+    };
+    return iconMap[type] || 'notifications';
+  };
+
+  const getNotificationColor = (type) => {
+    const colorMap = {
+      'discipline_change': '#f59e0b',
+      'exercise_review': '#3b82f6',
+      'project_submission': '#8b5cf6',
+      'access_request': '#ef4444',
+      'access_request_response': '#10b981',
+      'reservation': '#10b981',
+      'appointment': '#10b981',
+      'post_interaction': '#ef4444',
+      'follow': '#3b82f6',
+      'project_status': '#ffc801',
+      'task_assignment': '#f59e0b',
+      'project_message': '#3b82f6',
+    };
+    return colorMap[type] || '#6b7280';
+  };
+
+  const formatNotificationForMobile = (notif) => {
+    console.log('[NOTIFICATIONS] Formatting notification:', JSON.stringify(notif, null, 2));
+    
+    const icon = getNotificationIcon(notif.type);
+    const color = getNotificationColor(notif.type);
+    
+    // Build title and text based on notification type
+    let title = null;
+    // Handle both 'message' and 'message_notification' fields
+    let text = notif.message || notif.message_notification || '';
+    
+    switch (notif.type) {
+      case 'discipline_change':
+        title = 'Discipline Change';
+        break;
+      case 'exercise_review':
+        title = 'Exercise Review Request';
+        break;
+      case 'project_submission':
+        title = 'New Project Submission';
+        break;
+      case 'access_request':
+        title = 'Access Request';
+        break;
+      case 'access_request_response':
+        title = notif.status === 'approved' ? 'Access Approved' : 'Access Denied';
+        break;
+      case 'reservation':
+        title = 'Reservation';
+        break;
+      case 'appointment':
+        title = 'Appointment Request';
+        break;
+      case 'post_interaction':
+        title = 'Post Interaction';
+        break;
+      case 'follow':
+        title = 'New Follower';
+        break;
+      case 'project_status':
+        title = notif.status === 'approved' ? 'Project Approved' : 'Project Rejected';
+        break;
+      case 'task_assignment':
+        title = 'Task Assigned';
+        break;
+      case 'project_message':
+        title = 'Project Message';
+        break;
+    }
+
+    // Format avatar URL
+    let avatar = null;
+    if (notif.sender_image) {
+      if (notif.sender_image.startsWith('http')) {
+        avatar = notif.sender_image;
+      } else if (notif.sender_image.startsWith('/storage/')) {
+        avatar = `${API.APP_URL}${notif.sender_image}`;
+      } else {
+        avatar = `${API.APP_URL}/storage/${notif.sender_image}`;
+      }
+    }
+
+    return {
+      id: notif.id,
+      type: notif.type,
+      title,
+      text,
+      user: {
+        name: notif.sender_name || 'System',
+        avatar,
+      },
+      time: notif.created_at ? formatDistanceToNow(new Date(notif.created_at), { addSuffix: true }) : 'Recently',
+      read: !!notif.read_at,
+      icon,
+      color,
+      link: notif.link,
+      // Store original notification data for mark as read
+      notificationType: notif.type,
+      notificationId: notif.id,
+    };
+  };
+
   const fetchNotifications = async () => {
     if (!token) return;
     
     try {
       setLoading(true);
-      // Fetch studio reservations
-      const response = await API.getWithAuth('mobile/reservations', token);
+      // Fetch all notifications from API
+      const response = await API.getWithAuth('notifications', token);
       
-      if (response?.data?.reservations) {
-        const reservations = response.data.reservations
-          .filter(res => res.type === 'studio' && !res.canceled)
-          .map(res => ({
-            id: `res_${res.id}`,
-            type: 'reservation',
-            title: 'Studio Reservation',
-            text: `${res.title || 'Studio booking'} on ${res.day} from ${res.start} to ${res.end}`,
-            user: { 
-              name: user?.name || 'You', 
-              avatar: user?.image ? `${API.APP_URL}/storage/${user.image}` : null 
-            },
-            time: res.created_at ? formatDistanceToNow(new Date(res.created_at), { addSuffix: true }) : 'Recently',
-            read: false,
-            icon: 'calendar',
-            color: '#10b981',
-            reservationId: res.id,
-          }));
+      console.log('[NOTIFICATIONS] Full API response:', JSON.stringify(response?.data, null, 2));
+      
+      if (response?.data?.notifications) {
+        console.log('[NOTIFICATIONS] Raw notifications count:', response.data.notifications.length);
+        console.log('[NOTIFICATIONS] Raw notifications:', JSON.stringify(response.data.notifications, null, 2));
         
-        setNotifications(reservations);
+        const formattedNotifications = response.data.notifications.map(formatNotificationForMobile);
+        console.log('[NOTIFICATIONS] Formatted notifications count:', formattedNotifications.length);
+        console.log('[NOTIFICATIONS] Formatted notifications:', JSON.stringify(formattedNotifications, null, 2));
+        
+        setNotifications(formattedNotifications);
+      } else {
+        console.warn('[NOTIFICATIONS] No notifications in response. Response data:', response?.data);
+        setNotifications([]);
       }
     } catch (error) {
-      console.error('[NOTIFICATIONS] Error fetching reservations:', error);
+      console.error('[NOTIFICATIONS] Error fetching notifications:', error);
+      console.error('[NOTIFICATIONS] Error details:', error?.response?.data || error?.message);
       setNotifications([]);
     } finally {
       setLoading(false);
@@ -60,7 +174,7 @@ export default function NotificationsScreen() {
     }
   };
 
-  // Enhanced notifications with more types (fallback)
+  // Enhanced notifications with more types (fallback - not used anymore, kept for reference)
   const fallbackNotifications = [
     {
       id: 1,
@@ -133,14 +247,65 @@ export default function NotificationsScreen() {
     fetchNotifications();
   };
 
-  const getNotificationIcon = (type) => {
-    const notif = notifications.find(n => n.type === type);
-    return notif?.icon || 'notifications';
+  const markNotificationAsRead = async (notification) => {
+    if (!token || notification.read) return;
+    
+    try {
+      // Extract type and id from notification ID (format: 'type-id' or 'type-numeric-id')
+      const notificationId = notification.id || '';
+      const parts = notificationId.split('-');
+      
+      if (parts.length < 2) {
+        console.warn('[NOTIFICATIONS] Invalid notification ID format:', notificationId);
+        return;
+      }
+      
+      // Map notification ID prefix to API type format
+      const typeMap = {
+        'discipline': 'discipline_change',
+        'exercise-review': 'exercise-review',
+        'project-submission': 'project-submission',
+        'access-request': 'access_request',
+        'access-request-response': 'access_request_response',
+        'reservation': 'reservation',
+        'appointment': 'appointment',
+        'post': 'post',
+        'follow': 'follow',
+        'project-status': 'project-status',
+        'task-assignment': 'task-assignment',
+        'project-message': 'project-message',
+      };
+      
+      const prefix = parts.slice(0, -1).join('-'); // Get all parts except the last one
+      const type = typeMap[prefix] || prefix;
+      const id = parts[parts.length - 1]; // Last part is the numeric ID
+      
+      if (type && id) {
+        await API.postWithAuth(`api/notifications/${type}/${id}/read`, {}, token);
+        
+        // Update local state
+        setNotifications(prev => 
+          prev.map(n => 
+            n.id === notification.id ? { ...n, read: true } : n
+          )
+        );
+      }
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Error marking as read:', error);
+    }
   };
 
-  const getNotificationColor = (type) => {
-    const notif = notifications.find(n => n.type === type);
-    return notif?.color || '#6b7280';
+  const markAllAsRead = async () => {
+    if (!token) return;
+    
+    try {
+      await API.postWithAuth('notifications/mark-all-read', {}, token);
+      
+      // Update local state
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Error marking all as read:', error);
+    }
   };
 
   const getAvatar = (notification) => {
@@ -151,17 +316,42 @@ export default function NotificationsScreen() {
     return 'https://via.placeholder.com/40';
   };
 
-  const handleNotificationPress = (notification) => {
-    // Navigate based on notification type
-    if (notification.type === 'like' || notification.type === 'comment') {
-      // Navigate to post
-    } else if (notification.type === 'project') {
-      router.push('/(tabs)/projects');
-    } else if (notification.type === 'reminder' || notification.type === 'reservation') {
-      if (notification.reservationId) {
-        router.push(`/(tabs)/reservations/${notification.reservationId}`);
-      } else {
+  const handleNotificationPress = async (notification) => {
+    // Mark as read when pressed
+    if (!notification.read) {
+      await markNotificationAsRead(notification);
+    }
+    
+    // Navigate based on notification type and link
+    if (notification.link) {
+      // Handle different link formats
+      if (notification.link.startsWith('/admin/')) {
+        // Admin links - might not be accessible in mobile, just show notification
+        console.log('Admin link:', notification.link);
+      } else if (notification.link.startsWith('/students/')) {
+        // Student profile or project links
+        const parts = notification.link.split('/');
+        if (parts.includes('project')) {
+          router.push('/(tabs)/projects');
+        }
+      } else if (notification.link.startsWith('/feed')) {
+        // Feed link
+        router.push('/(tabs)/index');
+      } else if (notification.link.includes('reservations')) {
         router.push('/(tabs)/reservations');
+      } else if (notification.type === 'reservation' || notification.type === 'appointment') {
+        router.push('/(tabs)/reservations');
+      } else if (notification.type === 'project_submission' || notification.type === 'project_status') {
+        router.push('/(tabs)/projects');
+      }
+    } else {
+      // Fallback navigation based on type
+      if (notification.type === 'reservation' || notification.type === 'appointment') {
+        router.push('/(tabs)/reservations');
+      } else if (notification.type === 'project_submission' || notification.type === 'project_status') {
+        router.push('/(tabs)/projects');
+      } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
+        router.push('/(tabs)/index');
       }
     }
   };
@@ -186,7 +376,10 @@ export default function NotificationsScreen() {
               </View>
             </View>
             {unreadCount > 0 && (
-              <TouchableOpacity className="bg-alpha/20 dark:bg-alpha/30 rounded-full px-4 py-2">
+              <TouchableOpacity 
+                onPress={markAllAsRead}
+                className="bg-alpha/20 dark:bg-alpha/30 rounded-full px-4 py-2"
+              >
                 <Text className="text-alpha text-sm font-bold">Mark all read</Text>
               </TouchableOpacity>
             )}
@@ -219,10 +412,11 @@ export default function NotificationsScreen() {
               </View>
             ) : (
               <>
-                {/* Today Section */}
-                <View className="mb-4">
-                  <Text className="text-sm font-bold text-black/50 dark:text-white/50 uppercase mb-3">Today</Text>
-                  {notifications.filter(n => !n.read).map((notification) => (
+                {/* Today Section (Unread) */}
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <View className="mb-4">
+                    <Text className="text-sm font-bold text-black/50 dark:text-white/50 uppercase mb-3">Today</Text>
+                    {notifications.filter(n => !n.read).map((notification) => (
                     <TouchableOpacity
                       key={notification.id}
                       onPress={() => handleNotificationPress(notification)}
@@ -239,9 +433,9 @@ export default function NotificationsScreen() {
                           ) : (
                             <View className="w-14 h-14 rounded-full bg-beta/20 dark:bg-beta/40 items-center justify-center border-2 border-beta/30">
                               <Ionicons
-                                name={getNotificationIcon(notification.type)}
+                                name={notification.icon || 'notifications'}
                                 size={24}
-                                color={getNotificationColor(notification.type)}
+                                color={notification.color || '#6b7280'}
                               />
                             </View>
                           )}
@@ -253,7 +447,7 @@ export default function NotificationsScreen() {
                             </Text>
                           )}
                           <Text className="text-sm text-black/80 dark:text-white/80 leading-5">
-                            {notification.user?.name && notification.type !== 'achievement' && notification.type !== 'reminder' && notification.type !== 'rank' && (
+                            {notification.user?.name && notification.type !== 'discipline_change' && notification.type !== 'access_request_response' && notification.type !== 'project_status' && (
                               <Text className="font-semibold">{notification.user.name} </Text>
                             )}
                             {notification.text}
@@ -275,17 +469,19 @@ export default function NotificationsScreen() {
                       </View>
                     </TouchableOpacity>
                   ))}
-                </View>
+                  </View>
+                )}
 
-                {/* Earlier Section */}
-                <View className="mt-4">
-                  <Text className="text-sm font-bold text-black/50 dark:text-white/50 uppercase mb-3">Earlier</Text>
-                  {notifications.filter(n => n.read).map((notification) => (
-                    <TouchableOpacity
-                      key={notification.id}
-                      onPress={() => handleNotificationPress(notification)}
-                      className="mb-3 p-4 rounded-2xl border bg-light dark:bg-dark border-light/20 dark:border-dark/20 active:opacity-70"
-                    >
+                {/* Earlier Section (Read) */}
+                {notifications.filter(n => n.read).length > 0 && (
+                  <View className="mt-4">
+                    <Text className="text-sm font-bold text-black/50 dark:text-white/50 uppercase mb-3">Earlier</Text>
+                    {notifications.filter(n => n.read).map((notification) => (
+                      <TouchableOpacity
+                        key={notification.id}
+                        onPress={() => handleNotificationPress(notification)}
+                        className="mb-3 p-4 rounded-2xl border bg-light dark:bg-dark border-light/20 dark:border-dark/20 active:opacity-70"
+                      >
                       <View className="flex-row items-start">
                         <View className="relative mr-4">
                           {notification.user?.avatar ? (
@@ -297,7 +493,7 @@ export default function NotificationsScreen() {
                           ) : (
                             <View className="w-14 h-14 rounded-full bg-beta/10 dark:bg-beta/20 items-center justify-center opacity-50">
                               <Ionicons
-                                name={getNotificationIcon(notification.type)}
+                                name={notification.icon || 'notifications'}
                                 size={24}
                                 color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
                               />
@@ -311,7 +507,7 @@ export default function NotificationsScreen() {
                             </Text>
                           )}
                           <Text className="text-sm text-black/60 dark:text-white/60 leading-5">
-                            {notification.user?.name && notification.type !== 'achievement' && notification.type !== 'reminder' && notification.type !== 'rank' && (
+                            {notification.user?.name && notification.type !== 'discipline_change' && notification.type !== 'access_request_response' && notification.type !== 'project_status' && (
                               <Text className="font-semibold">{notification.user.name} </Text>
                             )}
                             {notification.text}
@@ -330,7 +526,17 @@ export default function NotificationsScreen() {
                       </View>
                     </TouchableOpacity>
                   ))}
-                </View>
+                  </View>
+                )}
+                
+                {/* Show message if all notifications are read */}
+                {notifications.length > 0 && notifications.filter(n => !n.read).length === 0 && notifications.filter(n => n.read).length === 0 && (
+                  <View className="py-8 items-center">
+                    <Text className="text-center text-black/60 dark:text-white/60 text-sm">
+                      All notifications have been processed
+                    </Text>
+                  </View>
+                )}
               </>
             )}
           </View>

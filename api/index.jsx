@@ -37,7 +37,14 @@ const get = async (endpoint, Token) => {
         
         return response;
     } catch (error) {
-        console.log(`API ERROR\nMethod: GET\nEndpoint: ${endpoint}\nError: ${error?.response?.data || error?.message}`);
+        const errorData = error?.response?.data;
+        const errorMessage = typeof errorData === 'object' 
+            ? JSON.stringify(errorData, null, 2)
+            : (errorData || error?.message || 'Unknown error');
+        console.log(`API ERROR\nMethod: GET\nEndpoint: ${endpoint}\nError: ${errorMessage}`);
+        if (error?.response?.status) {
+            console.log(`Status: ${error.response.status}`);
+        }
         throw error;
     }
 };
