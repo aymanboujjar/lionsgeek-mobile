@@ -181,18 +181,24 @@ export default function ProfileScreen() {
 
               {/* Stats - LinkedIn style */}
               <View className="flex-row justify-around mb-4 py-4 border-t border-light/20 dark:border-dark/20">
-                <View className="items-center">
-                  <Text className="text-xl font-bold text-black dark:text-white">0</Text>
+                <TouchableOpacity className="items-center" onPress={() => {}}>
+                  <Text className="text-xl font-bold text-black dark:text-white">
+                    {profile?.posts_count ?? 0}
+                  </Text>
                   <Text className="text-xs text-black/60 dark:text-white/60 mt-1">Posts</Text>
-                </View>
-                <View className="items-center">
-                  <Text className="text-xl font-bold text-black dark:text-white">0</Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="items-center" onPress={() => {}}>
+                  <Text className="text-xl font-bold text-black dark:text-white">
+                    {profile?.followers_count ?? 0}
+                  </Text>
                   <Text className="text-xs text-black/60 dark:text-white/60 mt-1">Followers</Text>
-                </View>
-                <View className="items-center">
-                  <Text className="text-xl font-bold text-black dark:text-white">0</Text>
+                </TouchableOpacity>
+                <TouchableOpacity className="items-center" onPress={() => {}}>
+                  <Text className="text-xl font-bold text-black dark:text-white">
+                    {profile?.following_count ?? 0}
+                  </Text>
                   <Text className="text-xs text-black/60 dark:text-white/60 mt-1">Following</Text>
-                </View>
+                </TouchableOpacity>
               </View>
 
               {/* Action Buttons */}

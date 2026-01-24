@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -6,15 +6,62 @@ import { Ionicons } from '@expo/vector-icons';
 import AppLayout from '@/components/layout/AppLayout';
 import { router } from 'expo-router';
 import API from '@/api';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function NotificationsScreen() {
   const { user, token } = useAppContext();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [refreshing, setRefreshing] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Enhanced notifications with more types
-  const notifications = [
+  useEffect(() => {
+    if (token) {
+      fetchNotifications();
+    }
+  }, [token]);
+
+  const fetchNotifications = async () => {
+    if (!token) return;
+    
+    try {
+      setLoading(true);
+      // Fetch studio reservations
+      const response = await API.getWithAuth('mobile/reservations', token);
+      
+      if (response?.data?.reservations) {
+        const reservations = response.data.reservations
+          .filter(res => res.type === 'studio' && !res.canceled)
+          .map(res => ({
+            id: `res_${res.id}`,
+            type: 'reservation',
+            title: 'Studio Reservation',
+            text: `${res.title || 'Studio booking'} on ${res.day} from ${res.start} to ${res.end}`,
+            user: { 
+              name: user?.name || 'You', 
+              avatar: user?.image ? `${API.APP_URL}/storage/${user.image}` : null 
+            },
+            time: res.created_at ? formatDistanceToNow(new Date(res.created_at), { addSuffix: true }) : 'Recently',
+            read: false,
+            icon: 'calendar',
+            color: '#10b981',
+            reservationId: res.id,
+          }));
+        
+        setNotifications(reservations);
+      }
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Error fetching reservations:', error);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Enhanced notifications with more types (fallback)
+  const fallbackNotifications = [
     {
       id: 1,
       type: 'achievement',
@@ -83,8 +130,7 @@ export default function NotificationsScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    // Simulate fetching new notifications
-    setTimeout(() => setRefreshing(false), 1000);
+    fetchNotifications();
   };
 
   const getNotificationIcon = (type) => {
@@ -111,8 +157,12 @@ export default function NotificationsScreen() {
       // Navigate to post
     } else if (notification.type === 'project') {
       router.push('/(tabs)/projects');
-    } else if (notification.type === 'reminder') {
-      router.push('/(tabs)/reservations');
+    } else if (notification.type === 'reminder' || notification.type === 'reservation') {
+      if (notification.reservationId) {
+        router.push(`/(tabs)/reservations/${notification.reservationId}`);
+      } else {
+        router.push('/(tabs)/reservations');
+      }
     }
   };
 
@@ -152,7 +202,12 @@ export default function NotificationsScreen() {
           }
         >
           <View className="px-6 pt-4 pb-8">
-            {notifications.length === 0 ? (
+            {loading ? (
+              <View className="py-16 items-center">
+                <ActivityIndicator size="large" color="#ffc801" />
+                <Text className="text-black/60 dark:text-white/60 mt-4">Loading notifications...</Text>
+              </View>
+            ) : notifications.length === 0 ? (
               <View className="py-16 items-center">
                 <Ionicons name="notifications-outline" size={64} color={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'} />
                 <Text className="text-center text-black/60 dark:text-white/60 mt-4 text-base">

@@ -18,6 +18,7 @@ export default function LoadingScreen() {
         // Check onboarding
         const seen = await AsyncStorage.getItem('onboarding_seen');
         if (seen !== '1') {
+          console.log('[LOADING] Onboarding not seen, redirecting to onboarding');
           router.replace('/onboarding');
           return;
         }
@@ -26,7 +27,19 @@ export default function LoadingScreen() {
         const token = await AsyncStorage.getItem('auth_token');
         const storedUser = await AsyncStorage.getItem('auth_user');
         
-        if (!token) {
+        console.log('[LOADING] Token check:', { 
+          hasToken: !!token, 
+          tokenType: typeof token,
+          tokenValue: token ? `${token.substring(0, 20)}...` : 'null/empty',
+          tokenLength: token?.length,
+          isFalse: token === 'false' || token === false,
+          isEmpty: token?.trim() === '',
+          hasStoredUser: !!storedUser 
+        });
+        
+        if (!token || token === 'false' || token === 'null' || token.trim() === '') {
+          console.log('[LOADING] No valid token found, redirecting to login');
+          await AsyncStorage.multiRemove(['auth_token', 'auth_user']);
           router.replace('/auth/login');
           return;
         }
@@ -37,20 +50,28 @@ export default function LoadingScreen() {
           
           if (response?.data) {
             // Token is valid, update user data from response
-            const userData = response.data;
-            // console.log('[LOADING] User data received:', JSON.stringify(userData, null, 2));
+            // Handle different response formats: response.data or response.data.data or response.data.user
+            let userData = response.data;
+            if (response.data.data) {
+              userData = response.data.data;
+            } else if (response.data.user) {
+              userData = response.data.user;
+            }
+            
+            console.log('[LOADING] User data received:', JSON.stringify(userData, null, 2));
             
             // Store full user data
             await saveAuth(token, userData);
             router.replace('/(tabs)');
           } else {
             // Token invalid, clear and go to login
+            console.log('[LOADING] No data in response');
             await AsyncStorage.multiRemove(['auth_token', 'auth_user']);
             router.replace('/auth/login');
           }
         } catch (error) {
           // Token verification failed
-          // console.log('[LOADING] Token verification failed:', error);
+          console.log('[LOADING] Token verification failed:', error?.response?.data || error?.message);
           await AsyncStorage.multiRemove(['auth_token', 'auth_user']);
           router.replace('/auth/login');
         }

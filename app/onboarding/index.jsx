@@ -61,9 +61,9 @@ export default function Onboarding() {
   const complete = async () => {
     await requestPermissions();
     await AsyncStorage.setItem('onboarding_seen', '1');
-    // If logged in go to app, otherwise to login
+    // If logged in go to loading to verify, otherwise to login
     const token = await AsyncStorage.getItem('auth_token');
-    if (token) router.replace('/(tabs)'); else router.replace('/auth/login');
+    if (token) router.replace('/loading'); else router.replace('/auth/login');
   };
 
   const next = () => {

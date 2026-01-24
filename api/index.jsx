@@ -20,6 +20,21 @@ const get = async (endpoint, Token) => {
         };
 
         const response = await axios.get(`${APP_URL}/api/${endpoint}`, { headers });
+        
+        // Handle case where response.data is a string with HTML warnings + JSON
+        if (typeof response.data === 'string') {
+            // Extract JSON from string (find the JSON object)
+            const jsonMatch = response.data.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    response.data = JSON.parse(jsonMatch[0]);
+                } catch (parseError) {
+                    console.log(`API WARNING: Failed to parse JSON from response for ${endpoint}`);
+                    // Keep original response.data if parsing fails
+                }
+            }
+        }
+        
         return response;
     } catch (error) {
         console.log(`API ERROR\nMethod: GET\nEndpoint: ${endpoint}\nError: ${error?.response?.data || error?.message}`);
@@ -34,14 +49,45 @@ const post = async (endpoint, data, Token) => {
         // Token is REQUIRED for all API calls (except login/forgot-password)
         const headers = {
             'Accept': 'application/json',
-            'Content-Type': 'application/json',
         };
+
+        // Check if data is FormData (React Native FormData)
+        // In React Native, FormData is a global, so we check for it
+        const isFormData = data && (
+            (typeof FormData !== 'undefined' && data instanceof FormData) ||
+            (data.constructor && data.constructor.name === 'FormData') ||
+            (data._parts !== undefined) // React Native FormData has _parts
+        );
+
+        // Only set Content-Type for JSON, let axios set it automatically for FormData
+        if (!isFormData) {
+            headers['Content-Type'] = 'application/json';
+        }
 
         if (Token) {
             headers['Authorization'] = `Bearer ${Token}`;
         }
 
-        const response = await axios.post(`${APP_URL}/api/${endpoint}`, data, { headers });
+        const response = await axios.post(`${APP_URL}/api/${endpoint}`, data, { 
+            headers,
+            // Ensure axios handles FormData correctly
+            transformRequest: isFormData ? [(data) => data] : undefined,
+        });
+        
+        // Handle case where response.data is a string with HTML warnings + JSON
+        if (typeof response.data === 'string') {
+            // Extract JSON from string (find the JSON object)
+            const jsonMatch = response.data.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    response.data = JSON.parse(jsonMatch[0]);
+                } catch (parseError) {
+                    console.log(`API WARNING: Failed to parse JSON from response for ${endpoint}`);
+                    // Keep original response.data if parsing fails
+                }
+            }
+        }
+        
         return response;
     } catch (error) {
         console.log(`API ERROR\nMethod: POST\nEndpoint: ${endpoint}\nError: ${error?.response?.data || error?.message}`);

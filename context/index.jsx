@@ -14,28 +14,57 @@ const AppProvider = ({ children }) => {
         (async () => {
             const t = await AsyncStorage.getItem('auth_token');
             const u = await AsyncStorage.getItem('auth_user');
-            if (t) {
+            if (t && t !== 'false' && t !== 'null' && t.trim() !== '') {
                 setToken(t);
-                // console.log('[CONTEXT] Token loaded from storage');
+                console.log('[CONTEXT] Token loaded from storage');
             }
             if (u) {
-                const parsedUser = JSON.parse(u);
-                setUser(parsedUser);
-                // console.log('[CONTEXT] User data loaded from storage:', JSON.stringify(parsedUser, null, 2));
+                try {
+                    const parsedUser = JSON.parse(u);
+                    setUser(parsedUser);
+                    console.log('[CONTEXT] User data loaded from storage');
+                } catch (e) {
+                    console.error('[CONTEXT] Failed to parse user data:', e);
+                }
             }
         })();
     }, []);
 
     const saveAuth = async (nextToken, nextUser) => {
-        // console.log('[CONTEXT] Saving auth data:', { hasToken: !!nextToken, hasUser: !!nextUser });
-        if (nextUser) {
-            // console.log('[CONTEXT] User data to save:', JSON.stringify(nextUser, null, 2));
+        console.log('[CONTEXT] Saving auth data:', { 
+            hasToken: !!nextToken, 
+            tokenType: typeof nextToken,
+            tokenValue: nextToken ? `${String(nextToken).substring(0, 20)}...` : 'null/empty',
+            hasUser: !!nextUser 
+        });
+        
+        // Validate token
+        if (!nextToken) {
+            console.error('[CONTEXT] Invalid token: token is null/undefined');
+            throw new Error('Invalid token: token is required');
         }
-        setToken(nextToken);
+        
+        const tokenStr = String(nextToken).trim();
+        if (!tokenStr || tokenStr === 'false' || tokenStr === 'null' || tokenStr === 'undefined') {
+            console.error('[CONTEXT] Invalid token value:', tokenStr);
+            throw new Error(`Invalid token: cannot be "${tokenStr}"`);
+        }
+        
+        // Update state
+        setToken(tokenStr);
         setUser(nextUser);
-        await AsyncStorage.setItem('auth_token', nextToken ?? "");
+        
+        // Save to AsyncStorage
+        await AsyncStorage.setItem('auth_token', tokenStr);
         await AsyncStorage.setItem('auth_user', JSON.stringify(nextUser ?? null));
-        // console.log('[CONTEXT] Auth data saved to AsyncStorage');
+        
+        // Verify it was saved
+        const savedToken = await AsyncStorage.getItem('auth_token');
+        console.log('[CONTEXT] Auth data saved. Verification:', {
+            saved: !!savedToken,
+            matches: savedToken === tokenStr,
+            savedLength: savedToken?.length
+        });
     };
 
     const signOut = async () => {

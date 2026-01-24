@@ -1,0 +1,191 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Pressable, Image, ScrollView, TextInput, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { format } from 'date-fns';
+import { useAppContext } from '@/context';
+import API from '@/api';
+
+export default function ChatWindow({ conversation, onBack }) {
+    const { user, token } = useAppContext();
+    const currentUser = user;
+    const router = useRouter();
+    const [messages, setMessages] = useState(conversation.messages || []);
+    const [newMessage, setNewMessage] = useState('');
+    const [sending, setSending] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const messagesEndRef = useRef(null);
+
+    useEffect(() => {
+        fetchMessages();
+        // Poll for new messages every 5 seconds
+        const interval = setInterval(fetchMessages, 5000);
+        return () => clearInterval(interval);
+    }, [conversation.id]);
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    const fetchMessages = async () => {
+        try {
+            setLoading(true);
+            const response = await API.getWithAuth(`mobile/chat/conversation/${conversation.id}/messages`, token);
+            if (response && response.data) {
+                setMessages(response.data.messages || []);
+                
+                // Mark as read
+                await API.postWithAuth(`mobile/chat/conversation/${conversation.id}/read`, {}, token);
+            }
+        } catch (error) {
+            console.error('Failed to fetch messages:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const scrollToBottom = () => {
+        // In React Native, we'll use scrollToEnd on ScrollView
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollToEnd({ animated: true });
+        }
+    };
+
+    const handleSendMessage = async () => {
+        if (!newMessage.trim() || sending) return;
+
+        const messageBody = newMessage.trim();
+        setNewMessage('');
+        setSending(true);
+
+        try {
+            const response = await API.postWithAuth(
+                `mobile/chat/conversation/${conversation.id}/send`,
+                { body: messageBody },
+                token
+            );
+
+            if (response && response.data) {
+                setMessages(prev => [...prev, response.data.message]);
+                setTimeout(() => fetchMessages(), 500);
+            } else {
+                setNewMessage(messageBody);
+                alert('Failed to send message. Please try again.');
+            }
+        } catch (error) {
+            console.error('Failed to send message:', error);
+            setNewMessage(messageBody);
+            alert('Failed to send message. Please try again.');
+        } finally {
+            setSending(false);
+        }
+    };
+
+    const isCurrentUserMessage = (senderId) => {
+        return String(senderId) === String(currentUser.id);
+    };
+
+    return (
+        <View className="flex-col h-full">
+            {/* Header */}
+            <View className="flex-row items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-800">
+                <Pressable onPress={onBack} className="h-8 w-8 items-center justify-center">
+                    <Ionicons name="arrow-back" size={20} color="#000" />
+                </Pressable>
+                {conversation.other_user?.image ? (
+                    <Image
+                        source={{ uri: `${API.APP_URL}/storage/img/profile/${conversation.other_user.image}` }}
+                        className="h-10 w-10 rounded-full"
+                        resizeMode="cover"
+                    />
+                ) : (
+                    <View className="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-700 items-center justify-center">
+                        <Ionicons name="person" size={20} color="#666" />
+                    </View>
+                )}
+                <View className="flex-1">
+                    <Text className="font-semibold text-black dark:text-white" numberOfLines={1}>
+                        {conversation.other_user?.name || 'User'}
+                    </Text>
+                    <Text className="text-xs text-gray-500 dark:text-gray-400" numberOfLines={1}>
+                        {conversation.other_user?.email || ''}
+                    </Text>
+                </View>
+            </View>
+
+            {/* Messages */}
+            <ScrollView 
+                ref={messagesEndRef}
+                className="flex-1 p-4"
+                contentContainerStyle={{ flexGrow: 1 }}
+            >
+                {loading && messages.length === 0 ? (
+                    <View className="items-center justify-center h-full">
+                        <ActivityIndicator size="large" color="#ffc801" />
+                    </View>
+                ) : messages.length === 0 ? (
+                    <View className="items-center justify-center h-full">
+                        <Text className="text-gray-500 dark:text-gray-400">No messages yet. Start the conversation!</Text>
+                    </View>
+                ) : (
+                    <View className="gap-4">
+                        {messages.map((message, index) => {
+                            const isCurrentUser = isCurrentUserMessage(message.sender_id);
+                            const showDate = index === 0 || 
+                                new Date(message.created_at).toDateString() !== 
+                                new Date(messages[index - 1].created_at).toDateString();
+
+                            return (
+                                <View key={message.id}>
+                                    {showDate && (
+                                        <View className="items-center my-4">
+                                            <Text className="text-xs text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-800 px-2 py-1 rounded">
+                                                {format(new Date(message.created_at), 'MMMM d, yyyy')}
+                                            </Text>
+                                        </View>
+                                    )}
+                                    <View className={`flex-row ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                                        <View className={`max-w-[70%] rounded-lg px-4 py-2 ${isCurrentUser 
+                                            ? 'bg-yellow-500' 
+                                            : 'bg-gray-200 dark:bg-gray-800'
+                                        }`}>
+                                            <Text className={`text-sm ${isCurrentUser ? 'text-black' : 'text-black dark:text-white'}`}>
+                                                {message.body}
+                                            </Text>
+                                            <Text className={`text-xs mt-1 ${isCurrentUser ? 'text-black/70' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                {format(new Date(message.created_at), 'h:mm a')}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                )}
+            </ScrollView>
+
+            {/* Message Input */}
+            <View className="p-4 border-t border-gray-200 dark:border-gray-800 flex-row gap-2">
+                <TextInput
+                    value={newMessage}
+                    onChangeText={setNewMessage}
+                    placeholder="Type a message..."
+                    placeholderTextColor="#999"
+                    className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-2 text-black dark:text-white"
+                    editable={!sending}
+                />
+                <Pressable 
+                    onPress={handleSendMessage}
+                    disabled={sending || !newMessage.trim()}
+                    className={`h-11 px-4 items-center justify-center rounded-lg ${sending || !newMessage.trim() ? 'bg-gray-300 dark:bg-gray-700 opacity-50' : 'bg-yellow-500'}`}
+                >
+                    {sending ? (
+                        <ActivityIndicator color="#000" />
+                    ) : (
+                        <Ionicons name="send" size={16} color="#000" />
+                    )}
+                </Pressable>
+            </View>
+        </View>
+    );
+}

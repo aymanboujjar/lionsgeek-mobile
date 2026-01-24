@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
@@ -13,10 +14,33 @@ import { router } from 'expo-router';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { token } = useAppContext();
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  // Check if token exists in storage (in case context hasn't loaded yet)
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const storedToken = await AsyncStorage.getItem('auth_token');
+        if (!storedToken && !token) {
+          // No token in storage and no token in context - redirect to login
+          router.replace('/auth/login');
+        }
+      } catch (error) {
+        console.error('[TABS] Error checking auth:', error);
+      } finally {
+        setIsCheckingAuth(false);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   useEffect(() => {
-    if (!token) router.replace('/auth/login');
-  }, [token]);
+    // Only redirect if we've finished checking and there's no token
+    if (!isCheckingAuth && !token) {
+      router.replace('/auth/login');
+    }
+  }, [token, isCheckingAuth]);
 
 
   const { user } = useAppContext();
@@ -27,6 +51,7 @@ export default function TabLayout() {
   const tabScreen = [
     { route: "index", name: "Home", icon: "house.fill", showTab: true, roles: [] }, // Everyone
     { route: "reservations", name: "Reservations", icon: "calendar", showTab: true, roles: [] }, // Everyone
+    { route: "chat", name: "Chat", icon: "chatbubbles.fill", showTab: true, roles: [] }, // Everyone
     { route: "leaderboard", name: "Leaderboard", icon: "trophy.fill", showTab: true, roles: [] },
     { route: "more", name: "More", icon: "ellipsis", showTab: true, roles: [] }, // Everyone
   ].filter(screen => screen.showTab)

@@ -7,6 +7,7 @@ import { router, Link } from 'expo-router';
 import { Home as LogoIcon } from '@/components/logo';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input } from '@/components/ui';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
@@ -28,19 +29,70 @@ export default function LoginScreen() {
       console.log('[LOGIN] Response received', { status: response?.status, hasData: !!response?.data });
       
       if (response?.data) {
-        console.log('[LOGIN] Response data:', JSON.stringify(response.data, null, 2));
-        console.log('[LOGIN] User data:', JSON.stringify(response.data.user, null, 2));
+        let responseData = response.data;
+        
+        // Handle case where response.data is a string (contains HTML warnings + JSON)
+        if (typeof responseData === 'string') {
+          // Extract JSON from string (find the JSON object)
+          const jsonMatch = responseData.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              responseData = JSON.parse(jsonMatch[0]);
+            } catch (parseError) {
+              console.error('[LOGIN] Failed to parse JSON:', parseError);
+              throw new Error('Invalid response format');
+            }
+          } else {
+            throw new Error('No JSON found in response');
+          }
+        }
+        
+        console.log('[LOGIN] Parsed response data:', JSON.stringify(responseData, null, 2));
+        console.log('[LOGIN] User data:', JSON.stringify(responseData.user, null, 2));
+        console.log('[LOGIN] Token check:', {
+          hasToken: !!responseData.token,
+          tokenType: typeof responseData.token,
+          tokenValue: responseData.token ? `${String(responseData.token).substring(0, 20)}...` : 'null/empty',
+          tokenLength: responseData.token?.length,
+          isFalse: responseData.token === 'false' || responseData.token === false
+        });
+        
+        if (!responseData.token || responseData.token === 'false' || responseData.token === false) {
+          console.error('[LOGIN] Invalid token received:', responseData.token);
+          throw new Error('Invalid token received from server');
+        }
+        
+        if (!responseData.user) {
+          throw new Error('Missing user data');
+        }
         
         // Store full user data
-        await saveAuth(response.data.token, response.data.user);
+        console.log('[LOGIN] Calling saveAuth with token and user');
+        await saveAuth(responseData.token, responseData.user);
         console.log('[LOGIN] Auth data saved successfully');
-        router.replace('/(tabs)');
+        
+        // Verify token was saved before redirecting
+        const savedToken = await AsyncStorage.getItem('auth_token');
+        console.log('[LOGIN] Token verification after save:', {
+          saved: !!savedToken,
+          matches: savedToken === String(responseData.token),
+          savedLength: savedToken?.length,
+          savedValue: savedToken ? `${savedToken.substring(0, 20)}...` : 'null/empty'
+        });
+        
+        if (!savedToken || savedToken === 'false') {
+          console.error('[LOGIN] Token was not saved correctly!');
+          throw new Error('Failed to save authentication token');
+        }
+        
+        // Redirect to loading page to verify token and check onboarding
+        router.replace('/loading');
       } else {
         throw new Error('No data received');
       }
     } catch (e) {
       console.error('[LOGIN] Login failed', e);
-      setError('Invalid credentials');
+      setError(e?.response?.data?.message || e?.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
