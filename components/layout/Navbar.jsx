@@ -27,6 +27,7 @@ export default function Navbar() {
 
   // Get avatar URL - prefer avatar, fallback to image path with correct format, then placeholder
   const getAvatarUrl = () => {
+    if (!user) return 'https://via.placeholder.com/40';
     if (user?.avatar) return user.avatar;
     if (user?.image) {
       // Check if it's already a full path or just filename
@@ -39,6 +40,24 @@ export default function Navbar() {
     return 'https://via.placeholder.com/40';
   };
 
+  // Early return if user is not loaded yet
+  if (!user) {
+    return (
+      <View className={`bg-light dark:bg-dark border-b border-light/20 dark:border-dark/20 px-6 pt-12 pb-4`}>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row items-center flex-1">
+            <View className="w-10 h-10 rounded-full mr-3 bg-gray-300 dark:bg-gray-700" />
+            <View className="flex-1">
+              <Text className="text-base font-semibold text-black dark:text-white" numberOfLines={1}>
+                Loading...
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View className={`bg-light dark:bg-dark border-b border-light/20 dark:border-dark/20 px-6 pt-12 pb-4`}>
       <View className="flex-row items-center justify-between">
@@ -47,7 +66,7 @@ export default function Navbar() {
           className="flex-row items-center flex-1"
         >
           <Image
-            source={{ uri:API.APP_URL+"/storage/img/profile/"+user.image }}
+            source={{ uri: getAvatarUrl() }}
             className="w-10 h-10 rounded-full mr-3"
             defaultSource={require('@/assets/images/icon.png')}
           />

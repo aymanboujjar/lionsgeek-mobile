@@ -44,26 +44,46 @@ export default function HomeScreen() {
   ];
 
   useEffect(() => {
-    setPosts(hardcodedPosts);
-    setLoading(false);
+    if (token) {
+      fetchFeed();
+    } else {
+      setPosts(hardcodedPosts);
+      setLoading(false);
+    }
     // Simulate stats
     setStats({ totalHours: 127, streak: 7, rank: 5 });
-  }, []);
+  }, [token]);
 
   const fetchFeed = async () => {
-    if (!token) return;
+    if (!token) {
+      setPosts(hardcodedPosts);
+      setLoading(false);
+      return;
+    }
     
     try {
+      console.log('[HOME] Fetching feed...');
       const response = await API.getWithAuth('mobile/feed', token);
+      console.log('[HOME] Feed response:', JSON.stringify(response?.data, null, 2));
+      
       if (response?.data) {
-        const feedPosts = (response.data.feed || []).map(post => ({
+        // API returns { feed: [...] }, not { posts: [...] }
+        const feedData = response.data.feed || response.data.posts || [];
+        console.log('[HOME] Feed items found:', feedData.length);
+        
+        const feedPosts = feedData.map(post => ({
           ...post,
           onRepost: handleRepost,
         }));
         setPosts(feedPosts);
+      } else {
+        // Fallback to hardcoded posts if no data
+        setPosts(hardcodedPosts);
       }
     } catch (error) {
       console.error('[HOME] Error fetching feed:', error);
+      // Fallback to hardcoded posts on error
+      setPosts(hardcodedPosts);
     } finally {
       setLoading(false);
       setRefreshing(false);

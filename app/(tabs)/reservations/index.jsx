@@ -1,13 +1,88 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, RefreshControl, Pressable, Alert, Button } from 'react-native';
+import { useEffect, useState, useMemo, useCallback, memo } from 'react';
+import { View, Text, ScrollView, RefreshControl, Pressable, ActivityIndicator, StyleSheet, Image } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import * as CalendarAPI from 'expo-calendar';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useAppContext } from '@/context';
 import API from '@/api';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import AppLayout from '@/components/layout/AppLayout';
 import { Colors } from '@/constants/Colors';
+import { Ionicons } from '@expo/vector-icons';
+
+
+// Memoized Place Grid Card Component
+const PlaceGridCard = memo(({ place, onPress, isDark }) => {
+  const getImageUrl = () => {
+    if (place.image) {
+      if (place.image.startsWith('http')) return place.image;
+      return `${API.APP_URL || ''}/storage/${place.image}`;
+    }
+    return null;
+  };
+
+  // Generate mini description if not provided
+  const getDescription = () => {
+    if (place.description) return place.description;
+    // Generate based on place name or type
+    if (place.name?.toLowerCase().includes('studio')) {
+      return 'Professional recording space';
+    }
+    if (place.name?.toLowerCase().includes('cowork')) {
+      return 'Collaborative workspace';
+    }
+    if (place.name?.toLowerCase().includes('meeting')) {
+      return 'Private meeting room';
+    }
+    return 'Available space for booking';
+  };
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.placeGridCard(isDark),
+        pressed && styles.placeGridCardPressed,
+      ]}
+    >
+      {/* Image Section */}
+      <View style={styles.placeGridImageContainer}>
+        {getImageUrl() ? (
+          <Image
+            source={{ uri: getImageUrl() }}
+            style={styles.placeGridImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.placeGridImagePlaceholder}>
+            <Ionicons name="business-outline" size={40} color={Colors.alpha} />
+          </View>
+        )}
+        {/* Overlay gradient */}
+        <View style={styles.placeGridOverlay} />
+      </View>
+
+      {/* Content Section */}
+      <View style={styles.placeGridContent}>
+        <Text style={styles.placeGridName(isDark)} numberOfLines={1}>
+          {place.name}
+        </Text>
+        <Text style={styles.placeGridDescription(isDark)} numberOfLines={2}>
+          {getDescription()}
+        </Text>
+        <View style={styles.placeGridFooter}>
+          <View style={styles.placeGridBadge(isDark)}>
+            <Ionicons name="calendar-outline" size={14} color={Colors.alpha} />
+            <Text style={styles.placeGridBadgeText(isDark)}>View Calendar</Text>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+});
+
+PlaceGridCard.displayName = 'PlaceGridCard';
+
 
 export default function Reservations() {
   const { token } = useAppContext();
@@ -15,125 +90,35 @@ export default function Reservations() {
   const isDark = colorScheme === 'dark';
   const [reservations, setReservations] = useState([]);
   const [reservationsCowork, setReservationsCowork] = useState([]);
+  const [allPlaces, setAllPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPlaces, setLoadingPlaces] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState('');
   const [markedDatesStudios, setMarkedDatesStudios] = useState({});
   const [markedDatesCowork, setMarkedDatesCowork] = useState({});
-  const [tab, setTab] = useState('studios'); // 'studios' | 'cowork'
   const router = useRouter();
 
-  // 🔹 Fetch reservations
-  const fetchReservations = async () => {
-    if (!token) return;
-    try {
-      const response = await API.getWithAuth('mobile/reservations', token);
-      if (response?.data) {
-        const data = response.data.reservations || [];
-        setReservations(data);
-
-        // mark all dates with reservations
-        const marked = {};
-        data.forEach((r) => {
-          const date = getReservationDate(r);
-          if (date) {
-            const color = r.canceled ? Colors.dark_gray : Colors.alpha;
-            const current = marked[date];
-            if (!current) {
-              marked[date] = { marked: true, dotColor: color };
-            } else if (current.dotColor !== Colors.alpha && color === Colors.alpha) {
-              marked[date] = { marked: true, dotColor: color };
-            }
-          }
-        });
-        setMarkedDatesStudios(marked);
-      }
-    } catch (error) {
-      console.error('[RESERVATIONS] Studios Error:', error);
-    }
-  };
-
-  const fetchReservationsCowork = async () => {
-    if (!token) return;
-    try {
-      const response = await API.getWithAuth('mobile/reservationsCowork', token);
-      console.log(response.data);
-      if (response?.data) {
-        const data = response.data.reservations || [];
-        setReservationsCowork(data);
-
-        // mark all dates with reservations
-        const marked = {};
-        data.forEach((r) => {
-          const date = getReservationDate(r);
-          if (date) {
-            const color = r.canceled ? Colors.dark_gray : Colors.alpha;
-            const current = marked[date];
-            if (!current) {
-              marked[date] = { marked: true, dotColor: color };
-            } else if (current.dotColor !== Colors.alpha && color === Colors.alpha) {
-              marked[date] = { marked: true, dotColor: color };
-            }
-          }
-        });
-        setMarkedDatesCowork(marked);
-      }
-    } catch (error) {
-      console.error('[RESERVATIONS] Cowork Error:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (token) {
-      fetchReservations();
-      if (tab === 'cowork') fetchReservationsCowork();
-      setLoading(false);
-    }
-  }, [token, tab]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchReservations();
-    if (tab === 'cowork') fetchReservationsCowork();
-    setRefreshing(false);
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return (
-      date.toLocaleDateString() +
-      ' ' +
-      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    );
-  };
-
-  const toDateOnly = (iso) => (iso ? iso.split('T')[0] : '');
-  const toDateOnlyFromSpace = (datetime) => {
+  // Memoized helper functions
+  const toDateOnly = useCallback((iso) => (iso ? iso.split('T')[0] : ''), []);
+  const toDateOnlyFromSpace = useCallback((datetime) => {
     if (!datetime) return '';
     const parts = String(datetime).split(' ');
     return parts[0] || '';
-  };
+  }, []);
 
-  // Get exact reservation date - prioritize day field (actual reservation date)
-  const getReservationDate = (r) => {
-    // First try the actual reservation day field
+  const getReservationDate = useCallback((r) => {
     if (r?.day) {
-      // If day is already in YYYY-MM-DD format, return it
       if (typeof r.day === 'string' && r.day.match(/^\d{4}-\d{2}-\d{2}$/)) {
         return r.day;
       }
-      // If day is a date string, extract YYYY-MM-DD
       try {
         const dayDate = new Date(r.day);
         if (!isNaN(dayDate.getTime())) {
           return dayDate.toISOString().split('T')[0];
         }
-      } catch (e) {
-        // Continue to next option
-      }
+      } catch (e) {}
     }
-    // Fallback to date field
     if (r?.date) {
       if (typeof r.date === 'string' && r.date.match(/^\d{4}-\d{2}-\d{2}$/)) {
         return r.date;
@@ -143,354 +128,559 @@ export default function Reservations() {
         if (!isNaN(dateDate.getTime())) {
           return dateDate.toISOString().split('T')[0];
         }
-      } catch (e) {
-        // Continue to next option
-      }
+      } catch (e) {}
     }
-    // Last resort: use created_at (but this should be avoided)
     return toDateOnlyFromSpace(r?.created_at);
-  };
+  }, [toDateOnlyFromSpace]);
 
-  // Exact time parsing - ensure precise time matching
-  const toDateTimeFromDateAndTime = (dateStr, timeStr) => {
+  // Memoized marked dates calculation
+  const calculateMarkedDates = useCallback((data) => {
+    const marked = {};
+    data.forEach((r) => {
+      const date = getReservationDate(r);
+      if (date) {
+        const color = r.canceled ? Colors.dark_gray : Colors.alpha;
+        const current = marked[date];
+        if (!current) {
+          marked[date] = { marked: true, dotColor: color };
+        } else if (current.dotColor !== Colors.alpha && color === Colors.alpha) {
+          marked[date] = { marked: true, dotColor: color };
+        }
+      }
+    });
+    return marked;
+  }, [getReservationDate]);
+
+  // Fetch reservations with error handling
+  const fetchReservations = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await API.getWithAuth('mobile/reservations', token);
+      if (response?.data) {
+        const data = response.data.reservations || [];
+        setReservations(data);
+        setMarkedDatesStudios(calculateMarkedDates(data));
+      }
+    } catch (error) {
+      console.error('[RESERVATIONS] Studios Error:', error);
+    }
+  }, [token, calculateMarkedDates]);
+
+  const fetchReservationsCowork = useCallback(async () => {
+    if (!token) return;
+    try {
+      const response = await API.getWithAuth('mobile/reservationsCowork', token);
+      if (response?.data) {
+        const data = response.data.reservations || [];
+        setReservationsCowork(data);
+        setMarkedDatesCowork(calculateMarkedDates(data));
+      }
+    } catch (error) {
+      console.error('[RESERVATIONS] Cowork Error:', error);
+    }
+  }, [token, calculateMarkedDates]);
+
+  // Fetch all places (studios, coworks, meeting rooms)
+  const fetchPlaces = useCallback(async () => {
+    if (!token) return;
+    setLoadingPlaces(true);
+    try {
+      const response = await API.getWithAuth('places', token);
+      if (response?.data) {
+        const studios = (response.data?.studios || []).map(s => ({ ...s, type: 'studio' }));
+        const coworks = response.data?.coworks || [];
+        const meetingRooms = (response.data?.meeting_rooms || response.data?.meetingRooms || []).map(m => ({ ...m, type: 'meeting' }));
+        
+        // Create a single "Cowork" card if there are any cowork spaces
+        const coworkCard = coworks.length > 0 ? [{
+          id: 'cowork-all',
+          name: 'Cowork',
+          description: 'Collaborative workspace with multiple tables',
+          type: 'cowork',
+          image: coworks[0]?.image || null, // Use first cowork image if available
+          allCoworks: coworks, // Store all coworks for later use
+        }] : [];
+        
+        // Combine all places into one array (studios + 1 cowork card + meeting rooms)
+        setAllPlaces([...studios, ...coworkCard, ...meetingRooms]);
+      }
+    } catch (error) {
+      console.error('[RESERVATIONS] Places Error:', error);
+    } finally {
+      setLoadingPlaces(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      setLoading(true);
+      Promise.all([
+        fetchReservations(),
+        fetchReservationsCowork(),
+        fetchPlaces(),
+      ]).finally(() => setLoading(false));
+    }
+  }, [token, fetchReservations, fetchReservationsCowork, fetchPlaces]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchReservations(),
+      fetchReservationsCowork(),
+      fetchPlaces(),
+    ]);
+    setRefreshing(false);
+  }, [fetchReservations, fetchReservationsCowork, fetchPlaces]);
+
+  const toDateTimeFromDateAndTime = useCallback((dateStr, timeStr) => {
     if (!dateStr) return '';
     if (!timeStr) return `${dateStr} 00:00`;
-
     const timeStrClean = String(timeStr).trim();
-    // Handle various time formats: "HH:MM", "HH:MM:SS", etc.
     const timeMatch = timeStrClean.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
     if (timeMatch) {
       const h = String(parseInt(timeMatch[1], 10)).padStart(2, '0');
       const m = String(parseInt(timeMatch[2], 10)).padStart(2, '0');
       return `${dateStr} ${h}:${m}`;
     }
-    // Fallback to original logic
     const [h = '00', m = '00'] = timeStrClean.split(':');
     return `${dateStr} ${String(parseInt(h, 10) || 0).padStart(2, '0')}:${String(parseInt(m, 10) || 0).padStart(2, '0')}`;
-  };
+  }, []);
 
-  // 🔹 Calendar permissions and add event
-  async function ensureCalendarExists() {
-    const { status } = await CalendarAPI.requestCalendarPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please grant calendar access to add events.');
-      return null;
-    }
+  // Memoized calendar theme
+  const calendarTheme = useMemo(() => ({
+    backgroundColor: isDark ? Colors.dark : Colors.light,
+    calendarBackground: isDark ? Colors.dark : Colors.light,
+    dayTextColor: isDark ? Colors.light : Colors.beta,
+    monthTextColor: isDark ? Colors.light : Colors.beta,
+    arrowColor: Colors.alpha,
+    todayTextColor: Colors.alpha,
+    selectedDayBackgroundColor: Colors.alpha,
+    selectedDayTextColor: isDark ? Colors.dark : Colors.light,
+    textDisabledColor: isDark ? Colors.dark_gray : Colors.dark_gray + '80',
+    textDayFontWeight: '600',
+    textMonthFontWeight: '700',
+    textDayHeaderFontWeight: '700',
+    textDayHeaderFontColor: isDark ? Colors.light : Colors.beta,
+    textMonthFontSize: 20,
+    textDayHeaderFontSize: 13,
+    'stylesheet.calendar.header': {
+      monthText: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: isDark ? Colors.light : Colors.beta,
+        marginTop: 6,
+        marginBottom: 10,
+      },
+      week: {
+        marginTop: 7,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingBottom: 7,
+      },
+      dayHeader: {
+        marginTop: 2,
+        marginBottom: 7,
+        textAlign: 'center',
+        fontSize: 13,
+        fontWeight: '700',
+        color: isDark ? Colors.light : Colors.beta,
+      },
+    },
+    'stylesheet.day.basic': {
+      base: {
+        width: 32,
+        height: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: isDark ? Colors.dark : 'transparent',
+      },
+      todayText: {
+        color: Colors.alpha,
+        fontWeight: '700',
+        fontSize: 16,
+      },
+      selected: {
+        backgroundColor: Colors.alpha,
+      },
+      selectedText: {
+        color: isDark ? Colors.dark : Colors.light,
+        fontWeight: '700',
+        fontSize: 16,
+      },
+      text: {
+        marginTop: 0,
+        fontSize: 16,
+        fontWeight: '600',
+        color: isDark ? Colors.light : Colors.beta,
+      },
+      disabledText: {
+        color: isDark ? Colors.dark_gray : Colors.dark_gray + '80',
+        opacity: 0.5,
+      },
+    },
+  }), [isDark]);
 
-    const calendars = await CalendarAPI.getCalendarsAsync(CalendarAPI.EntityTypes.EVENT);
-    const modifiable = calendars.find((cal) => cal.allowsModifications);
-    return modifiable ? modifiable.id : null;
-  }
-
-  async function addToDeviceCalendar(reservation) {
-    try {
-      const calendarId = await ensureCalendarExists();
-      if (!calendarId) return;
-
-      const event = {
-        title: reservation.title || 'Reservation',
-        startDate: new Date(toDateTimeFromDateAndTime(getReservationDate(reservation), reservation.start)),
-        endDate: new Date(toDateTimeFromDateAndTime(getReservationDate(reservation), reservation.end || reservation.start)),
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        location: reservation.location || '',
-        notes: `Reservation status: ${reservation.status}`,
-        alarms: [{ relativeOffset: -15, method: CalendarAPI.AlarmMethod.ALERT }],
+  // Memoized marked dates with selection (combined)
+  const markedDatesWithSelection = useMemo(() => {
+    const combined = { ...markedDatesStudios, ...markedDatesCowork };
+    if (selectedDate) {
+      combined[selectedDate] = {
+        selected: true,
+        selectedColor: Colors.alpha,
+        selectedTextColor: isDark ? Colors.dark : Colors.light,
+        ...(markedDatesStudios[selectedDate] || markedDatesCowork[selectedDate] || {}),
       };
-
-      const eventId = await CalendarAPI.createEventAsync(calendarId, event);
-      Alert.alert('✅ Added', 'Event added to your calendar successfully!');
-      // console.log('Event ID:', eventId);
-    } catch (err) {
-      console.error('Add to calendar error:', err);
-      Alert.alert('Error', 'Failed to add to calendar.');
     }
-  }
+    return combined;
+  }, [selectedDate, markedDatesStudios, markedDatesCowork, isDark]);
 
-  // 🔹 Determine current dataset and marked dates
-  const currentReservations = tab === 'cowork' ? reservationsCowork : reservations;
-  const currentMarkedDates = tab === 'cowork' ? markedDatesCowork : markedDatesStudios;
-  const currentDate = selectedDate || toDateOnly(new Date().toISOString());
-  const filtered = currentReservations.filter((r) => getReservationDate(r) === currentDate);
-
-  // Optimize navigation data preparation
+  // Optimized navigation data
   const navigationData = useMemo(() => {
-    if (tab === 'studios') {
-      return JSON.stringify(reservations);
-    } else {
-      return JSON.stringify(reservationsCowork);
-    }
-  }, [tab, reservations, reservationsCowork]);
+    return JSON.stringify([...reservations, ...reservationsCowork]);
+  }, [reservations, reservationsCowork]);
 
-  // Optimized navigation handler - immediate navigation for speed
+  // Optimized navigation handler
   const handleDayPress = useCallback((day) => {
     setSelectedDate(day.dateString);
+    router.push({
+      pathname: '/reservations/day',
+      params: {
+        date: day.dateString,
+        reservations: JSON.stringify(reservations),
+        reservationsCowork: JSON.stringify(reservationsCowork),
+      },
+    });
+  }, [reservations, reservationsCowork, router]);
 
-    // Immediate navigation for faster response
-    if (tab === 'studios') {
-      router.push({
-        pathname: '/reservations/day',
-        params: {
-          date: day.dateString,
-          tab,
-          reservations: navigationData,
-        },
-      });
-    } else if (tab === 'cowork') {
-      router.push({
-        pathname: '/reservations/day',
-        params: {
-          date: day.dateString,
-          tab,
-          reservationsCowork: navigationData,
-        },
-      });
-    }
-  }, [tab, navigationData, router]);
+  // Handle place selection - navigate to calendar screen
+  const handlePlacePress = useCallback((place) => {
+    router.push({
+      pathname: '/reservations/place-calendar',
+      params: {
+        place: JSON.stringify(place),
+      },
+    });
+  }, [router]);
 
-  const getStatusBadge = (reservation) => {
-    // console.log(reservation);
-    if (reservation.canceled) return { label: 'Canceled', bg: Colors.dark_gray, fg: Colors.light };
-    if (reservation.approved) return { label: 'Approved', bg: Colors.alpha + '33', fg: Colors.alpha };
-    return { label: 'Pending', bg: Colors.dark_gray, fg: Colors.light };
-  };
+
+  if (loading && allPlaces.length === 0) {
+    return (
+      <AppLayout>
+        <View className="flex-1 items-center justify-center bg-light dark:bg-dark">
+          <ActivityIndicator size="large" color={Colors.alpha} />
+          <Text className="text-black/60 dark:text-white/60 mt-4 text-base">
+            Loading reservations...
+          </Text>
+        </View>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
       <ScrollView
-        className="flex-1"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.alpha} />}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
-      >
-        <View className="mb-8">
-          <Text style={{ 
-            fontSize: 32, 
-            fontWeight: '800', 
-            color: isDark ? Colors.light : Colors.beta,
-            letterSpacing: -0.5,
-            marginBottom: 6,
-          }}>Reservations</Text>
-          <Text style={{ 
-            fontSize: 14, 
-            color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
-            fontWeight: '500',
-          }}>Manage your studio and cowork bookings</Text>
-        </View>
-
-        {/* 🔹 Studios/Cowork Tabs */}
-        <View style={{ 
-          flexDirection: 'row',
-          marginBottom: 20,
-          borderRadius: 16,
-          overflow: 'hidden',
-          backgroundColor: isDark ? Colors.dark_gray : Colors.light,
-          padding: 4,
-          shadowColor: Colors.dark,
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
-          elevation: 3,
-          borderWidth: 1,
-          borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
-        }}>
-          <Pressable
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              paddingVertical: 12,
-              borderRadius: 12,
-              backgroundColor: tab === 'studios' ? Colors.alpha : 'transparent',
-              shadowColor: tab === 'studios' ? Colors.alpha : 'transparent',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: tab === 'studios' ? 0.25 : 0,
-              shadowRadius: 6,
-              elevation: tab === 'studios' ? 4 : 0,
-            }}
-            onPress={() => setTab('studios')}
-          >
-            <Text style={{
-              fontWeight: '700',
-              fontSize: 15,
-              color: tab === 'studios' 
-                ? Colors.dark 
-                : (isDark ? Colors.light : Colors.beta)
-            }}>Studios</Text>
-          </Pressable>
-          <Pressable
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              paddingVertical: 12,
-              borderRadius: 12,
-              backgroundColor: tab === 'cowork' ? Colors.alpha : 'transparent',
-              shadowColor: tab === 'cowork' ? Colors.alpha : 'transparent',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: tab === 'cowork' ? 0.25 : 0,
-              shadowRadius: 6,
-              elevation: tab === 'cowork' ? 4 : 0,
-            }}
-            onPress={() => setTab('cowork')}
-          >
-            <Text style={{
-              fontWeight: '700',
-              fontSize: 15,
-              color: tab === 'cowork' 
-                ? Colors.dark 
-                : (isDark ? Colors.light : Colors.beta)
-            }}>Coworks</Text>
-          </Pressable>
-        </View>
-
-        {/* 🔹 Calendar */}
-        <View style={{
-          backgroundColor: isDark ? Colors.dark : Colors.light,
-          borderRadius: 20,
-          padding: 20,
-          marginBottom: 20,
-          shadowColor: Colors.dark,
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.12,
-          shadowRadius: 12,
-          elevation: 5,
-          borderWidth: 1,
-          borderColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
-        }}>
-          <Calendar
-            markedDates={{
-              ...currentMarkedDates,
-              ...(selectedDate ? { [selectedDate]: { selected: true, selectedColor: Colors.alpha, selectedTextColor: isDark ? Colors.dark : Colors.light } } : {}),
-            }}
-            onDayPress={handleDayPress}
-            enableSwipeMonths
-            markingType="dot"
-            hideExtraDays
-            theme={{
-              backgroundColor: isDark ? Colors.dark : Colors.light,
-              calendarBackground: isDark ? Colors.dark : Colors.light,
-              dayTextColor: isDark ? Colors.light : Colors.beta,
-              monthTextColor: isDark ? Colors.light : Colors.beta,
-              arrowColor: Colors.alpha,
-              todayTextColor: Colors.alpha,
-              selectedDayBackgroundColor: Colors.alpha,
-              selectedDayTextColor: isDark ? Colors.dark : Colors.light,
-              textDisabledColor: isDark ? Colors.dark_gray : Colors.dark_gray + '80',
-              textDayFontWeight: '600',
-              textMonthFontWeight: '700',
-              textDayHeaderFontWeight: '700',
-              textDayHeaderFontColor: isDark ? Colors.light : Colors.beta,
-              textMonthFontSize: 20,
-              textDayHeaderFontSize: 13,
-              'stylesheet.calendar.header': {
-                monthText: {
-                  fontSize: 20,
-                  fontWeight: '700',
-                  color: isDark ? Colors.light : Colors.beta,
-                  marginTop: 6,
-                  marginBottom: 10,
-                },
-                week: {
-                  marginTop: 7,
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  paddingBottom: 7,
-                },
-                dayHeader: {
-                  marginTop: 2,
-                  marginBottom: 7,
-                  textAlign: 'center',
-                  fontSize: 13,
-                  fontWeight: '700',
-                  color: isDark ? Colors.light : Colors.beta,
-                },
-              },
-              'stylesheet.day.basic': {
-                base: {
-                  width: 32,
-                  height: 32,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: isDark ? Colors.dark : 'transparent',
-                },
-            
-                todayText: {
-                  color: Colors.alpha,
-                  fontWeight: '700',
-                  fontSize: 16,
-                },
-                selected: {
-                  backgroundColor: Colors.alpha,
-                },
-                selectedText: {
-                  color: isDark ? Colors.dark : Colors.light,
-                  fontWeight: '700',
-                  fontSize: 16,
-                },
-                text: {
-                  marginTop: 0,
-                  fontSize: 16,
-                  fontWeight: '600',
-                  color: isDark ? Colors.light : Colors.beta,
-                },
-                disabledText: {
-                  color: isDark ? Colors.dark_gray : Colors.dark_gray + '80',
-                  opacity: 0.5,
-                },
-              },
-            }}
-            style={{
-              borderRadius: 12,
-              backgroundColor: isDark ? Colors.dark : Colors.light,
-            }}
+        className="flex-1 bg-light dark:bg-dark"
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.alpha}
+            colors={[Colors.alpha]}
           />
+        }
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Header Section */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle(isDark)}>Reservations</Text>
+            <Text style={styles.headerSubtitle(isDark)}>
+              Book studios, coworks, and meeting rooms
+            </Text>
+          </View>
         </View>
 
-        {/* 🔹 Today Quick Jump */}
-        {/* <View className="items-start mt-2">
-          <Pressable onPress={() => setSelectedDate(toDateOnly(new Date().toISOString()))} className="px-4 py-2 rounded-full bg-black/10 dark:bg-white/10">
-            <Text className="text-black dark:text-white">Today</Text>
-          </Pressable>
-        </View> */}
-
-        {/* 🔹 Reservation List */}
-        {/* hadi hadik li kayna ltaht majatch zweena */}
-        {/* {filtered.map((reservation) => (
-          <Pressable
-            key={reservation.id}
-            onPress={() =>
-              router.push({
-                pathname: '/reservations/[id]',
-                params: { id: reservation.id },
-              })
-            }
-            className="mb-4 rounded-xl p-4"
-            style={{
-              backgroundColor: isDark ? Colors.dark : Colors.light,
-              borderWidth: 1,
-              borderColor: isDark ? Colors.dark_gray : Colors.dark_gray,
-            }}
-          >
-            <View className="flex-row items-center justify-between mb-2">
-              <Text className="text-base font-semibold text-black dark:text-white capitalize">
-                {reservation.title || 'Reservation'}
+        {/* Places List */}
+        {loadingPlaces ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.alpha} />
+            <Text style={styles.loadingText(isDark)}>Loading places...</Text>
+          </View>
+        ) : (
+          /* Show Places Grid */
+          <>
+            {/* <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle(isDark)}>
+                Available Spaces
               </Text>
-              {(() => {
-                const badge = getStatusBadge(reservation);
-                return (
-                  <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: badge.bg }}>
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: badge.fg }}>{badge.label}</Text>
-                  </View>
-                );
-              })()}
+              <Text style={styles.sectionSubtitle(isDark)}>
+                Tap on a place to view its calendar
+              </Text>
+            </View> */}
+
+            {allPlaces.length === 0 ? (
+              <View style={styles.emptyContainer(isDark)}>
+                <Ionicons name="business-outline" size={48} color={isDark ? Colors.light + '50' : Colors.beta + '50'} />
+                <Text style={styles.emptyText(isDark)}>
+                  No places available
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.placesGrid}>
+                {allPlaces.map((place) => (
+                  <PlaceGridCard
+                    key={`${place.type}-${place.id}`}
+                    place={place}
+                    onPress={() => handlePlacePress(place)}
+                    isDark={isDark}
+                  />
+                ))}
+              </View>
+            )}
+          </>
+        )}
+
+        {/* Quick Stats */}
+        {/* <View style={styles.statsContainer(isDark)}>
+          <View style={styles.statCard(isDark)}>
+            <Ionicons name="calendar-outline" size={24} color={Colors.alpha} />
+            <View style={styles.statContent}>
+              <Text style={styles.statValue(isDark)}>
+                {reservations.length + reservationsCowork.length}
+              </Text>
+              <Text style={styles.statLabel(isDark)}>Total Reservations</Text>
             </View>
-
-            <Text className="text-sm text-black/60 dark:text-white/60 mb-1">Date: {reservation.day}</Text>
-            <Text className="text-sm text-black/60 dark:text-white/60 mb-1">Start: {reservation.start?.includes(':') ? reservation.start : formatDate(reservation.start)}</Text>
-            <Text className="text-sm text-black/60 dark:text-white/60 mb-2">End: {reservation.end?.includes(':') ? reservation.end : formatDate(reservation.end)}</Text>
-
-            <Button title="Add to phone calendar" onPress={() => addToDeviceCalendar(reservation)} />
-          </Pressable>
-        ))} */}
-
+          </View>
+          <View style={styles.statCard(isDark)}>
+            <Ionicons name="checkmark-circle-outline" size={24} color={Colors.good} />
+            <View style={styles.statContent}>
+              <Text style={styles.statValue(isDark)}>
+                {[...reservations, ...reservationsCowork].filter(r => r.approved && !r.canceled).length}
+              </Text>
+              <Text style={styles.statLabel(isDark)}>Approved</Text>
+            </View>
+          </View>
+        </View> */}
       </ScrollView>
     </AppLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 32,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
+  headerTitle: (isDark) => ({
+    fontSize: 34,
+    fontWeight: '800',
+    color: isDark ? Colors.light : Colors.beta,
+    letterSpacing: -0.8,
+    marginBottom: 4,
+  }),
+  headerSubtitle: (isDark) => ({
+    fontSize: 15,
+    color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
+    fontWeight: '500',
+  }),
+  addButton: (isDark) => ({
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.alpha,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.alpha,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  }),
+  addButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.95 }],
+  },
+  calendarCard: (isDark) => ({
+    backgroundColor: isDark ? Colors.dark : Colors.light,
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: Colors.dark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
+  }),
+  calendar: {
+    borderRadius: 12,
+  },
+  statsContainer: (isDark) => ({
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  }),
+  statCard: (isDark) => ({
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+    shadowColor: Colors.dark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  }),
+  statContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  statValue: (isDark) => ({
+    fontSize: 24,
+    fontWeight: '800',
+    color: isDark ? Colors.light : Colors.beta,
+    marginBottom: 2,
+  }),
+  statLabel: (isDark) => ({
+    fontSize: 12,
+    fontWeight: '600',
+    color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  }),
+  sectionHeader: {
+    marginBottom: 20,
+  },
+  sectionTitle: (isDark) => ({
+    fontSize: 22,
+    fontWeight: '800',
+    color: isDark ? Colors.light : Colors.beta,
+    marginBottom: 4,
+  }),
+  sectionSubtitle: (isDark) => ({
+    fontSize: 14,
+    color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
+    fontWeight: '500',
+  }),
+  placesGrid: {
+    flexDirection: 'column',
+    marginTop: 8,
+    width: '100%',
+  },
+  placeGridCard: (isDark) => ({
+    width: '100%',
+    height: 220,
+    backgroundColor: isDark ? Colors.dark : Colors.light,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 16,
+    shadowColor: Colors.dark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: isDark ? Colors.dark_gray : Colors.dark_gray + '20',
+  }),
+  placeGridCardPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.97 }],
+  },
+  placeGridImageContainer: {
+    width: '100%',
+    height: 120,
+    position: 'relative',
+  },
+  placeGridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  placeGridImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.alpha + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeGridOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  placeGridContent: {
+    padding: 12,
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  placeGridName: (isDark) => ({
+    fontSize: 16,
+    fontWeight: '800',
+    color: isDark ? Colors.light : Colors.beta,
+    marginBottom: 6,
+  }),
+  placeGridDescription: (isDark) => ({
+    fontSize: 12,
+    color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
+    lineHeight: 16,
+    marginBottom: 10,
+  }),
+  placeGridFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  placeGridBadge: (isDark) => ({
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: isDark ? Colors.dark_gray : Colors.alpha + '15',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  }),
+  placeGridBadgeText: (isDark) => ({
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.alpha,
+  }),
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: (isDark) => ({
+    marginTop: 12,
+    fontSize: 14,
+    color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
+  }),
+  emptyContainer: (isDark) => ({
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+  }),
+  emptyText: (isDark) => ({
+    marginTop: 16,
+    fontSize: 16,
+    color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
+    fontWeight: '500',
+  }),
+});

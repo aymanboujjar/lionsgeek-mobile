@@ -6,27 +6,35 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
-  Switch,
   Image,
   FlatList
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAppContext } from '@/context';
 import { Modal, Alert } from 'react-native';
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useColorScheme } from '@/hooks/useColorScheme';
 import API from '@/api';
 import { Colors } from '@/constants/Colors';
 import { format } from 'date-fns';
 import * as CalendarAPI from 'expo-calendar';
-export default function NewReservation({ selectedDate, prefillTime, onClose }) {
+import { Ionicons } from '@expo/vector-icons';
+
+export default function NewReservation({ selectedDate: propSelectedDate, prefillTime, onClose, placeId: propPlaceId }) {
   const { user, token } = useAppContext();
   const router = useRouter();
+  const params = useLocalSearchParams();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  
+  // Get placeId and selectedDate from route params or props (props take priority)
+  const routePlaceId = propPlaceId || params.placeId;
+  const routeSelectedDate = params.selectedDate || propSelectedDate;
+  
   const [step, setStep] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [createdReservation, setCreatedReservation] = useState(null);
+  
   useEffect(() => {
     if (prefillTime) {
       const toDate = (timeStr) => {
@@ -38,57 +46,50 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
         d.setMilliseconds(0);
         return d;
       };
-
       setStartTime(toDate(prefillTime.start));
       setEndTime(toDate(prefillTime.end));
     }
   }, [prefillTime]);
 
-  // Set day from selectedDate
   useEffect(() => {
-    if (selectedDate) {
-      setDay(selectedDate);
+    if (routeSelectedDate) {
+      setDay(routeSelectedDate);
     }
-  }, [selectedDate]);
+  }, [routeSelectedDate]);
 
+  useEffect(() => {
+    if (routePlaceId) {
+      setStudio(String(routePlaceId));
+    }
+  }, [routePlaceId]);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [studio, setStudio] = useState('');
   const [places, setPlaces] = useState([]);
   const [loadingPlaces, setLoadingPlaces] = useState(false);
-
-
   const [users, setUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-
-
   const [equipment, setEquipment] = useState([]);
   const [selectedEquipment, setSelectedEquipment] = useState([]);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
-
-  const [day, setDay] = useState(selectedDate || new Date().toISOString().split('T')[0]);
+  const [day, setDay] = useState(routeSelectedDate || new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState(new Date());
   const [endTime, setEndTime] = useState(new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [showDayPicker, setShowDayPicker] = useState(false);
 
-
   useEffect(() => {
     if (!token) return;
-
-    // Fetch places 
-    if (step === 1 && places.length === 0) {
+    if (places.length === 0) {
       setLoadingPlaces(true);
       API.getWithAuth('places', token)
         .then(res => setPlaces(res.data?.studios || []))
         .catch(err => console.error('Places fetch error', err))
         .finally(() => setLoadingPlaces(false));
     }
-
-    // Fetch users 
     if (step === 2 && users.length === 0) {
       setLoadingUsers(true);
       API.getWithAuth('users', token)
@@ -96,8 +97,6 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
         .catch(err => console.error('Users fetch error', err))
         .finally(() => setLoadingUsers(false));
     }
-
-    // Fetch equipment 
     if (step === 3 && equipment.length === 0) {
       setLoadingEquipment(true);
       API.getWithAuth('equipment', token)
@@ -105,7 +104,6 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
         .catch(err => console.error('Equipment fetch error', err))
         .finally(() => setLoadingEquipment(false));
     }
-
   }, [step, token]);
 
   const toggleUser = (id) =>
@@ -119,10 +117,26 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
 
   const submitReservation = async () => {
     if (!token) return;
+    if (!name || !name.trim()) {
+      Alert.alert('Validation Error', 'Please enter a reservation name');
+      return;
+    }
+    if (!studio) {
+      Alert.alert('Validation Error', 'Please select a studio');
+      return;
+    }
+    if (!day) {
+      Alert.alert('Validation Error', 'Please select a date');
+      return;
+    }
+    if (!startTime || !endTime) {
+      Alert.alert('Validation Error', 'Please select start and end times');
+      return;
+    }
 
     const payload = {
-      title: name,
-      description,
+      title: name.trim(),
+      description: description?.trim() || '',
       studio_id: studio,
       day: day,
       start: startTime.toTimeString().slice(0, 5),
@@ -132,12 +146,8 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
       equipment: selectedEquipment,
     };
 
-    // console.log('Submitting reservation:', payload);
-
     try {
       const response = await API.postWithAuth('reservations/store', payload, token);
-      // console.log('Reservation created:', response.data);
-      // Store the created reservation data for calendar
       setCreatedReservation({
         title: `Studio Reservation - ${name}`,
         description,
@@ -161,43 +171,33 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
     }
   };
 
-  // Calendar functions - Use default phone calendar
   const ensureCalendarExists = async () => {
     const { status } = await CalendarAPI.requestCalendarPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please grant calendar access to add events.');
       return null;
     }
-
     const calendars = await CalendarAPI.getCalendarsAsync(CalendarAPI.EntityTypes.EVENT);
     const modifiable = calendars.filter((cal) => cal.allowsModifications);
-
     if (modifiable.length === 0) {
       Alert.alert('No Calendar', 'No modifiable calendar found.');
       return null;
     }
-
-    // Find default calendar (usually the first one or one marked as default)
-    // Prefer native/local calendars over synced ones
     const defaultCalendar = modifiable.find(cal =>
       cal.isPrimary ||
       cal.source?.type === 'local' ||
       cal.source?.title?.toLowerCase().includes('default')
-    ) || modifiable[0]; // Fallback to first available
-
+    ) || modifiable[0];
     return defaultCalendar.id;
   };
 
   const addToDeviceCalendar = async () => {
     if (!createdReservation) return;
-
     try {
       const calendarId = await ensureCalendarExists();
       if (!calendarId) return;
-
       const startDateTime = new Date(`${createdReservation.day} ${createdReservation.start}`);
       const endDateTime = new Date(`${createdReservation.day} ${createdReservation.end}`);
-
       const event = {
         title: createdReservation.title || 'Reservation',
         startDate: startDateTime,
@@ -207,7 +207,6 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
         notes: createdReservation.description || '',
         alarms: [{ relativeOffset: -15, method: CalendarAPI.AlarmMethod.ALERT }],
       };
-
       const eventId = await CalendarAPI.createEventAsync(calendarId, event);
       Alert.alert('✅ Added', 'Event added to your calendar successfully!');
     } catch (err) {
@@ -217,630 +216,1157 @@ export default function NewReservation({ selectedDate, prefillTime, onClose }) {
   };
 
   return (
-    <View className={`${isDark ? 'bg-dark' : 'bg-light'}`} style={{ flex: 1, paddingTop: 60 }}>
-      {/* Header */}
-      <View className={`${isDark ? 'bg-dark_gray' : 'bg-white'} border-b ${isDark ? 'border-dark' : 'border-beta/20'}`} style={{ paddingHorizontal: 16, paddingVertical: 12, marginBottom: 6 }}>
-        <View className="flex-row justify-between items-center">
+    <View className={`${isDark ? 'bg-dark' : 'bg-light'}`} style={{ flex: 1 }}>
+      {/* Modern Header with Gradient Effect */}
+      <View style={{
+        backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+        paddingTop: 60,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+        shadowColor: Colors.dark,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
           <Pressable
             onPress={step > 1 ? prevStep : handleCancel}
-            className={`${isDark ? 'bg-dark' : 'bg-light'}`}
-            style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: isDark ? Colors.dark : Colors.light,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: isDark ? Colors.dark_gray : Colors.dark_gray + '20',
+            }}
           >
-            <Text className="text-alpha font-semibold" style={{ fontSize: 14 }}>
-              {step > 1 ? '← Back' : 'Cancel'}
-          </Text>
-        </Pressable>
+            <Ionicons name={step > 1 ? "arrow-back" : "close"} size={22} color={isDark ? Colors.light : Colors.beta} />
+          </Pressable>
 
-          <Text className={`${isDark ? 'text-light' : 'text-beta'} font-bold`} style={{ fontSize: 18 }}>
-          New Reservation
-        </Text>
+          <View style={{ alignItems: 'center', flex: 1 }}>
+            <Text style={{
+              fontSize: 22,
+              fontWeight: '800',
+              color: isDark ? Colors.light : Colors.beta,
+              letterSpacing: 0.5,
+            }}>
+              New Reservation
+            </Text>
+            <Text style={{
+              fontSize: 12,
+              color: isDark ? Colors.light + '80' : Colors.beta + '80',
+              marginTop: 4,
+            }}>
+              Step {step} of 3
+            </Text>
+          </View>
 
           <Pressable
             onPress={step === 3 ? submitReservation : nextStep}
-            className="bg-alpha"
-            style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }}
+            disabled={step === 3 && (!name || !studio || !day)}
+            style={{
+              minWidth: 80,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: Colors.alpha,
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingHorizontal: 16,
+              opacity: (step === 3 && (!name || !studio || !day)) ? 0.5 : 1,
+              shadowColor: Colors.alpha,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 5,
+            }}
           >
-            <Text className="text-white font-bold" style={{ fontSize: 14 }}>
-              {step === 3 ? 'Done ✓' : 'Next →'}
-          </Text>
-        </Pressable>
+            <Text style={{ color: Colors.dark, fontWeight: '700', fontSize: 14 }}>
+              {step === 3 ? 'Submit' : 'Next'}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Modern Step Indicator */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          {[1, 2, 3].map((n) => (
+            <View key={n} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{
+                width: step >= n ? 32 : 12,
+                height: 12,
+                borderRadius: 6,
+                backgroundColor: step >= n ? Colors.alpha : (isDark ? Colors.dark : Colors.dark_gray + '40'),
+                transition: 'width 0.3s',
+              }} />
+              {n < 3 && (
+                <View style={{
+                  width: 24,
+                  height: 3,
+                  borderRadius: 2,
+                  backgroundColor: step > n ? Colors.alpha : (isDark ? Colors.dark : Colors.dark_gray + '40'),
+                  marginHorizontal: 6,
+                }} />
+              )}
+            </View>
+          ))}
         </View>
       </View>
 
-      {/* Step indicator */}
-      <View className="flex-row justify-center items-center" style={{ gap: 8, marginBottom: 12, paddingHorizontal: 16 }}>
-        {[1, 2, 3].map((n) => (
-          <View key={n} className="flex-row items-center">
-      <View
-        style={{
-                width: step >= n ? 40 : 12,
-                height: 12,
-                borderRadius: 6,
-                backgroundColor: step >= n ? Colors.alpha : Colors.dark_gray,
-                transition: 'width 0.3s',
-              }}
-            />
-            {n < 3 && (
-          <View
-            style={{
-                  width: 20,
-                  height: 2,
-                  backgroundColor: step > n ? Colors.alpha : Colors.dark_gray,
-                  marginHorizontal: 4,
-                }}
-              />
-            )}
-          </View>
-        ))}
-      </View>
-
-      {/* Steps */}
-      <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      {/* Content */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {step === 1 && (
-          <View style={{ gap: 14 }}>
-            {/* Name field */}
-            <View>
-              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-1.5`} style={{ fontSize: 14 }}>Name</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Reservation name"
-                placeholderTextColor={Colors.dark_gray}
-                className={`${isDark ? 'bg-dark_gray text-light' : 'bg-white text-beta'} border ${isDark ? 'border-dark' : 'border-beta/20'}`}
-              style={{
-                borderRadius: 10,
-                padding: 12,
-                  fontSize: 14,
+          <View style={{ gap: 20 }}>
+            {/* Name Card */}
+            <View style={{
+              backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+              borderRadius: 20,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+              shadowColor: Colors.dark,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 2,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: Colors.alpha + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}>
+                  <Ionicons name="create-outline" size={20} color={Colors.alpha} />
+                </View>
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '700',
+                  color: isDark ? Colors.light : Colors.beta,
+                }}>
+                  Reservation Name
+                </Text>
+              </View>
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter reservation name..."
+                placeholderTextColor={Colors.dark_gray + '80'}
+                style={{
+                  backgroundColor: isDark ? Colors.dark : Colors.light,
+                  borderRadius: 12,
+                  padding: 16,
+                  fontSize: 16,
+                  color: isDark ? Colors.light : Colors.beta,
                   borderWidth: 1,
-              }}
-            />
-            </View>
-
-            {/* Description */}
-            <View>
-              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-1.5`} style={{ fontSize: 14 }}>Description</Text>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Add a description..."
-                placeholderTextColor={Colors.dark_gray}
-              multiline
-                className={`${isDark ? 'bg-dark_gray text-light' : 'bg-white text-beta'} border ${isDark ? 'border-dark' : 'border-beta/20'}`}
-              style={{
-                borderRadius: 10,
-                padding: 12,
-                  height: 90,
-                  fontSize: 14,
-                  borderWidth: 1,
-                  textAlignVertical: 'top',
+                  borderColor: isDark ? Colors.dark_gray : Colors.dark_gray + '20',
                 }}
               />
             </View>
 
-            {/* Studio */}
-            <View>
-              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-3`} style={{ fontSize: 16 }}>
-              Studio
-            </Text>
+            {/* Description Card */}
+            <View style={{
+              backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+              borderRadius: 20,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+              shadowColor: Colors.dark,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 2,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: Colors.alpha + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}>
+                  <Ionicons name="document-text-outline" size={20} color={Colors.alpha} />
+                </View>
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '700',
+                  color: isDark ? Colors.light : Colors.beta,
+                }}>
+                  Description
+                </Text>
+              </View>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Add a description (optional)..."
+                placeholderTextColor={Colors.dark_gray + '80'}
+                multiline
+                numberOfLines={4}
+                style={{
+                  backgroundColor: isDark ? Colors.dark : Colors.light,
+                  borderRadius: 12,
+                  padding: 16,
+                  fontSize: 16,
+                  color: isDark ? Colors.light : Colors.beta,
+                  borderWidth: 1,
+                  borderColor: isDark ? Colors.dark_gray : Colors.dark_gray + '20',
+                  textAlignVertical: 'top',
+                  minHeight: 100,
+                }}
+              />
+            </View>
 
-            {loadingPlaces ? (
-                <ActivityIndicator color={Colors.alpha} />
-            ) : (
-              <FlatList
-                data={places} // fetched studios
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 8, gap: 12 }}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => {
-                  const isSelected = studio === item.id;
-                  return (
-                    <Pressable
-                      onPress={() => setStudio(item.id)}
-                      style={{
-                          borderWidth: isSelected ? 3 : 1,
-                          borderColor: isSelected ? Colors.alpha : Colors.dark_gray,
-                          borderRadius: 16,
-                        overflow: 'hidden',
-                        alignItems: 'center',
-                        marginRight: 8,
-                          backgroundColor: isSelected ? (isDark ? Colors.dark_gray : Colors.light) : (isDark ? Colors.dark : Colors.light),
-                          shadowColor: isSelected ? Colors.alpha : 'transparent',
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: isSelected ? 0.3 : 0,
-                          shadowRadius: 4,
-                          elevation: isSelected ? 4 : 0,
-                      }}
-                    >
-                      {item.image ? (
-                        <Image
-                          source={{ uri: item.image }}
-                          style={{ width: 100, height: 80, resizeMode: 'cover' }}
-                        />
-                      ) : (
-                        <View
+            {/* Studio Selection Card */}
+            {!routePlaceId && (
+              <View style={{
+                backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+                borderRadius: 20,
+                padding: 20,
+                borderWidth: 1,
+                borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+                shadowColor: Colors.dark,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 8,
+                elevation: 2,
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    backgroundColor: Colors.alpha + '20',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 12,
+                  }}>
+                    <Ionicons name="business-outline" size={20} color={Colors.alpha} />
+                  </View>
+                  <Text style={{
+                    fontSize: 16,
+                    fontWeight: '700',
+                    color: isDark ? Colors.light : Colors.beta,
+                  }}>
+                    Select Studio
+                  </Text>
+                </View>
+                {loadingPlaces ? (
+                  <ActivityIndicator color={Colors.alpha} size="large" />
+                ) : (
+                  <FlatList
+                    data={places}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 4, gap: 12 }}
+                    keyExtractor={(item) => item.id.toString()}
+                    renderItem={({ item }) => {
+                      const isSelected = String(studio) === String(item.id);
+                      return (
+                        <Pressable
+                          onPress={() => setStudio(String(item.id))}
                           style={{
-                            width: 100,
-                            height: 80,
-                              backgroundColor: Colors.dark_gray,
-                            justifyContent: 'center',
-                            alignItems: 'center',
+                            width: 140,
+                            borderRadius: 16,
+                            overflow: 'hidden',
+                            borderWidth: isSelected ? 3 : 1,
+                            borderColor: isSelected ? Colors.alpha : (isDark ? Colors.dark : Colors.dark_gray + '40'),
+                            backgroundColor: isDark ? Colors.dark : Colors.light,
+                            shadowColor: isSelected ? Colors.alpha : 'transparent',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: isSelected ? 0.3 : 0,
+                            shadowRadius: 8,
+                            elevation: isSelected ? 6 : 2,
                           }}
                         >
-                            <Text className={`${isDark ? 'text-light' : 'text-beta'}`}>No Image</Text>
-                        </View>
-                      )}
-                        <Text style={{ color: isDark ? Colors.light : Colors.dark, fontWeight: isSelected ? '600' : '400', padding: 4 }}>
-                        {item.name}
-                      </Text>
-                    </Pressable>
-                  );
-                }}
-              />
+                          {item.image ? (
+                            <Image
+                              source={{ uri: item.image }}
+                              style={{ width: '100%', height: 100, resizeMode: 'cover' }}
+                            />
+                          ) : (
+                            <View style={{
+                              width: '100%',
+                              height: 100,
+                              backgroundColor: Colors.dark_gray + '40',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}>
+                              <Ionicons name="business" size={40} color={Colors.alpha} />
+                            </View>
+                          )}
+                          <View style={{ padding: 12 }}>
+                            <Text style={{
+                              color: isSelected ? Colors.alpha : (isDark ? Colors.light : Colors.beta),
+                              fontWeight: isSelected ? '700' : '600',
+                              fontSize: 14,
+                              textAlign: 'center',
+                            }}>
+                              {item.name}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    }}
+                  />
+                )}
+              </View>
             )}
-            </View>
 
-            {/* Date Selection */}
-            <View>
-              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>Date *</Text>
+            {/* Selected Studio Display */}
+            {routePlaceId && studio && (
+              <View style={{
+                backgroundColor: Colors.alpha + '15',
+                borderRadius: 20,
+                padding: 20,
+                borderWidth: 2,
+                borderColor: Colors.alpha,
+                borderStyle: 'dashed',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: 14,
+                    backgroundColor: Colors.alpha + '30',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 16,
+                  }}>
+                    <Ionicons name="checkmark-circle" size={28} color={Colors.alpha} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      fontSize: 12,
+                      color: Colors.alpha,
+                      fontWeight: '600',
+                      marginBottom: 4,
+                    }}>
+                      SELECTED STUDIO
+                    </Text>
+                    <Text style={{
+                      fontSize: 18,
+                      fontWeight: '700',
+                      color: isDark ? Colors.light : Colors.beta,
+                    }}>
+                      {places.find(p => String(p.id) === String(studio))?.name || 'Selected Studio'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Date & Time Card */}
+            <View style={{
+              backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+              borderRadius: 20,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+              shadowColor: Colors.dark,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 8,
+              elevation: 2,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: Colors.alpha + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}>
+                  <Ionicons name="calendar-outline" size={20} color={Colors.alpha} />
+                </View>
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '700',
+                  color: isDark ? Colors.light : Colors.beta,
+                }}>
+                  Date & Time
+                </Text>
+              </View>
+
+              {/* Date Picker */}
               <Pressable
                 onPress={() => setShowDayPicker(true)}
                 style={{
-                  borderRadius: 12,
-                  padding: 16,
+                  backgroundColor: isDark ? Colors.dark : Colors.light,
+                  borderRadius: 16,
+                  padding: 18,
                   borderWidth: 2,
-                  borderColor: showDayPicker ? Colors.alpha : Colors.dark_gray,
-                  backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+                  borderColor: showDayPicker ? Colors.alpha : (isDark ? Colors.dark_gray : Colors.dark_gray + '40'),
+                  marginBottom: 16,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'space-between',
                   shadowColor: showDayPicker ? Colors.alpha : 'transparent',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: showDayPicker ? 0.3 : 0,
-                  shadowRadius: 4,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: showDayPicker ? 0.2 : 0,
+                  shadowRadius: 8,
                   elevation: showDayPicker ? 4 : 0,
                 }}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    backgroundColor: Colors.alpha + '20',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <Text style={{ fontSize: 20 }}>📅</Text>
-                  </View>
-                  <Text style={{
-                    fontSize: 16,
-                    fontWeight: '600',
-                    color: isDark ? Colors.light : Colors.beta
-                  }}>
-                    {day ? format(new Date(day), 'EEEE, MMMM d, yyyy') : 'Select date'}
-                  </Text>
-                </View>
                 <View style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: showDayPicker ? Colors.alpha : 'transparent',
-                }} />
+                  width: 50,
+                  height: 50,
+                  borderRadius: 14,
+                  backgroundColor: Colors.alpha + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 16,
+                }}>
+                  <Ionicons name="calendar" size={24} color={Colors.alpha} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  {day ? (
+                    <>
+                      <Text style={{
+                        fontSize: 16,
+                        fontWeight: '700',
+                        color: isDark ? Colors.light : Colors.beta,
+                        marginBottom: 4,
+                      }}>
+                        {format(new Date(day), 'EEEE')}
+                      </Text>
+                      <Text style={{
+                        fontSize: 14,
+                        fontWeight: '500',
+                        color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
+                      }}>
+                        {format(new Date(day), 'MMMM d, yyyy')}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text style={{
+                      fontSize: 16,
+                      fontWeight: '600',
+                      color: isDark ? Colors.light + '80' : Colors.beta + '80'
+                    }}>
+                      Select date
+                    </Text>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={isDark ? Colors.light + '60' : Colors.beta + '60'} />
               </Pressable>
-              {showDayPicker && (
-                <View style={{ marginTop: 12, alignItems: 'center' }}>
-                  <DateTimePicker
-                    value={new Date(day || new Date())}
-                    mode="date"
-                    display="spinner"
-                    minimumDate={new Date()}
-                    onChange={(event, selected) => {
-                      if (event.type === 'set' && selected) {
-                        setDay(format(selected, 'yyyy-MM-dd'));
-                      }
-                      if (event.type === 'dismissed') {
-                        setShowDayPicker(false);
-                      }
-                    }}
-                    style={{ width: '100%' }}
-                  />
-                  <Pressable
-                    onPress={() => setShowDayPicker(false)}
-                    style={{
-                      marginTop: 12,
-                      paddingHorizontal: 24,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      backgroundColor: Colors.alpha,
-                    }}
-                  >
-                    <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
 
-            {/* Start Time */}
-            <View>
-              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>Start Time *</Text>
-            <Pressable
-              onPress={() => setShowStartPicker(true)}
-              style={{
-                  borderRadius: 12,
-                  padding: 16,
-                  borderWidth: 2,
-                  borderColor: showStartPicker ? Colors.alpha : Colors.dark_gray,
-                  backgroundColor: isDark ? Colors.dark_gray : Colors.light,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  shadowColor: showStartPicker ? Colors.alpha : 'transparent',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: showStartPicker ? 0.3 : 0,
-                  shadowRadius: 4,
-                  elevation: showStartPicker ? 4 : 0,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    backgroundColor: Colors.alpha + '20',
+              {/* Time Pickers Row */}
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                {/* Start Time */}
+                <Pressable
+                  onPress={() => setShowStartPicker(true)}
+                  style={{
+                    flex: 1,
+                    backgroundColor: isDark ? Colors.dark : Colors.light,
+                    borderRadius: 16,
+                    padding: 18,
+                    borderWidth: 2,
+                    borderColor: showStartPicker ? Colors.alpha : (isDark ? Colors.dark_gray : Colors.dark_gray + '40'),
                     alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <Text style={{ fontSize: 20 }}>🕐</Text>
-                  </View>
+                    shadowColor: showStartPicker ? Colors.alpha : 'transparent',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: showStartPicker ? 0.2 : 0,
+                    shadowRadius: 8,
+                    elevation: showStartPicker ? 4 : 0,
+                  }}
+                >
+                  <Ionicons name="time-outline" size={24} color={Colors.alpha} style={{ marginBottom: 8 }} />
                   <Text style={{
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: '600',
-                    color: isDark ? Colors.light : Colors.beta
+                    color: isDark ? Colors.light + '80' : Colors.beta + '80',
+                    marginBottom: 4,
                   }}>
-                    {startTime ? format(startTime, 'HH:mm') : 'Select start time'}
-              </Text>
-                </View>
-                <View style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: showStartPicker ? Colors.alpha : 'transparent',
-                }} />
-            </Pressable>
-            {showStartPicker && (
-                <View style={{ marginTop: 12, alignItems: 'center' }}>
-              <DateTimePicker
-                value={startTime}
-                mode="time"
-                is24Hour={true}
-                    display="spinner"
-                onChange={(event, selected) => {
-                      if (event.type === 'set' && selected) {
-                        setStartTime(selected);
-                      }
-                      if (event.type === 'dismissed') {
-                  setShowStartPicker(false);
-                      }
-                    }}
-                    style={{ width: '100%' }}
-                  />
-                  <Pressable
-                    onPress={() => setShowStartPicker(false)}
-                    style={{
-                      marginTop: 12,
-                      paddingHorizontal: 24,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      backgroundColor: Colors.alpha,
-                    }}
-                  >
-                    <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
-                  </Pressable>
-                </View>
-              )}
-            </View>
+                    Start
+                  </Text>
+                  <Text style={{
+                    fontSize: 18,
+                    fontWeight: '700',
+                    color: isDark ? Colors.light : Colors.beta,
+                    letterSpacing: 1,
+                  }}>
+                    {startTime ? format(startTime, 'HH:mm') : '--:--'}
+                  </Text>
+                </Pressable>
 
-            {/* End Time */}
-            <View>
-              <Text className={`${isDark ? 'text-light' : 'text-beta'} font-semibold mb-2`} style={{ fontSize: 14 }}>End Time *</Text>
-            <Pressable
-              onPress={() => setShowEndPicker(true)}
-              style={{
-                  borderRadius: 12,
-                  padding: 16,
-                  borderWidth: 2,
-                  borderColor: showEndPicker ? Colors.alpha : Colors.dark_gray,
-                  backgroundColor: isDark ? Colors.dark_gray : Colors.light,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  shadowColor: showEndPicker ? Colors.alpha : 'transparent',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: showEndPicker ? 0.3 : 0,
-                  shadowRadius: 4,
-                  elevation: showEndPicker ? 4 : 0,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    backgroundColor: Colors.alpha + '20',
+                {/* End Time */}
+                <Pressable
+                  onPress={() => setShowEndPicker(true)}
+                  style={{
+                    flex: 1,
+                    backgroundColor: isDark ? Colors.dark : Colors.light,
+                    borderRadius: 16,
+                    padding: 18,
+                    borderWidth: 2,
+                    borderColor: showEndPicker ? Colors.alpha : (isDark ? Colors.dark_gray : Colors.dark_gray + '40'),
                     alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                    <Text style={{ fontSize: 20 }}>🕐</Text>
-                  </View>
+                    shadowColor: showEndPicker ? Colors.alpha : 'transparent',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: showEndPicker ? 0.2 : 0,
+                    shadowRadius: 8,
+                    elevation: showEndPicker ? 4 : 0,
+                  }}
+                >
+                  <Ionicons name="time" size={24} color={Colors.alpha} style={{ marginBottom: 8 }} />
                   <Text style={{
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: '600',
-                    color: isDark ? Colors.light : Colors.beta
+                    color: isDark ? Colors.light + '80' : Colors.beta + '80',
+                    marginBottom: 4,
                   }}>
-                    {endTime ? format(endTime, 'HH:mm') : 'Select end time'}
-              </Text>
-                </View>
-                <View style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: showEndPicker ? Colors.alpha : 'transparent',
-                }} />
-            </Pressable>
-            {showEndPicker && (
-                <View style={{ marginTop: 12, alignItems: 'center' }}>
-              <DateTimePicker
-                value={endTime}
-                mode="time"
-                is24Hour={true}
-                    display="spinner"
-                onChange={(event, selected) => {
-                      if (event.type === 'set' && selected) {
-                        setEndTime(selected);
-                      }
-                      if (event.type === 'dismissed') {
-                  setShowEndPicker(false);
-                      }
-                    }}
-                    style={{ width: '100%' }}
-                  />
-                  <Pressable
-                    onPress={() => setShowEndPicker(false)}
-                    style={{
-                      marginTop: 12,
-                      paddingHorizontal: 24,
-                      paddingVertical: 10,
-                      borderRadius: 8,
-                      backgroundColor: Colors.alpha,
-                    }}
-                  >
-                    <Text style={{ color: Colors.light, fontWeight: '600', fontSize: 14 }}>Done</Text>
-                  </Pressable>
-                </View>
-              )}
+                    End
+                  </Text>
+                  <Text style={{
+                    fontSize: 18,
+                    fontWeight: '700',
+                    color: isDark ? Colors.light : Colors.beta,
+                    letterSpacing: 1,
+                  }}>
+                    {endTime ? format(endTime, 'HH:mm') : '--:--'}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
           </View>
-
         )}
 
         {step === 2 && (
-          <View>
-            <Text
-              className={`${isDark ? 'text-light' : 'text-beta'} font-bold`}
-              style={{ fontSize: 18, marginBottom: 12 }}
-            >
-              Select Members
-            </Text>
-            {loadingUsers && <ActivityIndicator color={Colors.alpha} />}
-            {!loadingUsers &&
-              users.map((user) => {
+          <View style={{ gap: 16 }}>
+            <View style={{
+              backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+              borderRadius: 20,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: Colors.alpha + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}>
+                  <Ionicons name="people-outline" size={20} color={Colors.alpha} />
+                </View>
+                <Text style={{
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: isDark ? Colors.light : Colors.beta,
+                }}>
+                  Select Team Members
+                </Text>
+              </View>
+              {loadingUsers && <ActivityIndicator color={Colors.alpha} size="large" />}
+              {!loadingUsers && users.map((user) => {
                 const hasCustomImage = user.image && !user.image.includes('pdp.png');
-
-                // Get initials: e.g. "John Doe" → "JD"
                 const initials = user.name
-                  ? user.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')
-                    .slice(0, 2)
-                    .toUpperCase()
+                  ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
                   : '?';
+                const isSelected = selectedUsers.includes(user.id);
 
                 return (
                   <Pressable
                     key={user.id}
                     onPress={() => toggleUser(user.id)}
-                    className={`${isDark ? 'bg-dark_gray border-gray-800' : 'bg-white border-gray-200'} border rounded-xl mb-2`}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: 16,
-                      borderWidth: 1,
+                      marginBottom: 12,
+                      backgroundColor: isDark ? Colors.dark : Colors.light,
+                      borderRadius: 16,
+                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: isSelected ? Colors.alpha : (isDark ? Colors.dark_gray : Colors.dark_gray + '20'),
                     }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      {/* If user has a real image */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                       {hasCustomImage ? (
                         <Image
                           source={{
                             uri: user.image.startsWith('http')
                               ? user.image
-                              : `${API_URL}/${user.image}`,
+                              : `${API.APP_URL}/${user.image}`,
                           }}
                           style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 20,
-                            marginRight: 8,
+                            width: 48,
+                            height: 48,
+                            borderRadius: 24,
                           }}
                           resizeMode="cover"
                         />
                       ) : (
-                        // Otherwise show initials in a colored circle
-                        <View
-                          style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 20,
-                            backgroundColor: Colors.alpha + '33',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            marginRight: 8,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: Colors.alpha,
-                              fontWeight: '600',
-                              fontSize: 16,
-                            }}
-                          >
+                        <View style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 24,
+                          backgroundColor: Colors.alpha + '20',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}>
+                          <Text style={{
+                            color: Colors.alpha,
+                            fontWeight: '700',
+                            fontSize: 18,
+                          }}>
                             {initials}
                           </Text>
                         </View>
                       )}
-
-                      <Text className={`${isDark ? 'text-light' : 'text-beta'}`} style={{ fontSize: 16 }}>
+                      <Text style={{
+                        fontSize: 16,
+                        fontWeight: '600',
+                        color: isDark ? Colors.light : Colors.beta,
+                      }}>
                         {user.name || user.username}
                       </Text>
                     </View>
-
-                    <View
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: 10,
-                        borderWidth: 2,
-                        borderColor: Colors.alpha,
-                        backgroundColor: selectedUsers.includes(user.id)
-                          ? Colors.alpha
-                          : 'transparent',
-                      }}
-                    />
+                    <View style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor: Colors.alpha,
+                      backgroundColor: isSelected ? Colors.alpha : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      {isSelected && (
+                        <Ionicons name="checkmark" size={16} color={Colors.dark} />
+                      )}
+                    </View>
                   </Pressable>
                 );
               })}
-
+            </View>
           </View>
         )}
 
         {step === 3 && (
-          <View>
-            <Text
-              className={`${isDark ? 'text-light' : 'text-beta'} font-bold`}
-              style={{ fontSize: 18, marginBottom: 12 }}
-            >
-              Select Equipment
-            </Text>
-            {loadingEquipment && <ActivityIndicator color={Colors.alpha} />}
-            {!loadingEquipment &&
-              equipment.map((item) => (
-                <Pressable
-                  key={item.id}
-                  onPress={() => toggleEquipment(item.id)}
-                  className={`${isDark ? 'bg-dark_gray border-gray-800' : 'bg-white border-gray-200'} border rounded-xl mb-2`}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: 16,
-                    borderWidth: 1,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    {item.image && (
-                      <Image
-                        source={{ uri: item.image }}
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 8,
-                          marginRight: 8,
-                        }}
-                        resizeMode="cover"
-                      />
-                    )}
-                    <Text className={`${isDark ? 'text-light' : 'text-beta'}`} style={{ fontSize: 16, maxWidth: 200 }}>
-                      {item.mark}
-                    </Text>
-                  </View>
-
-                  <View
+          <View style={{ gap: 16 }}>
+            <View style={{
+              backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+              borderRadius: 20,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+                <View style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: Colors.alpha + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 12,
+                }}>
+                  <Ionicons name="hardware-chip-outline" size={20} color={Colors.alpha} />
+                </View>
+                <Text style={{
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: isDark ? Colors.light : Colors.beta,
+                }}>
+                  Select Equipment
+                </Text>
+              </View>
+              {loadingEquipment && <ActivityIndicator color={Colors.alpha} size="large" />}
+              {!loadingEquipment && equipment.map((item) => {
+                const isSelected = selectedEquipment.includes(item.id);
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => toggleEquipment(item.id)}
                     style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 16,
+                      marginBottom: 12,
+                      backgroundColor: isDark ? Colors.dark : Colors.light,
+                      borderRadius: 16,
+                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: isSelected ? Colors.alpha : (isDark ? Colors.dark_gray : Colors.dark_gray + '20'),
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      {item.image ? (
+                        <Image
+                          source={{ uri: item.image }}
+                          style={{
+                            width: 48,
+                            height: 48,
+                            borderRadius: 12,
+                          }}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 12,
+                          backgroundColor: Colors.alpha + '20',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                          <Ionicons name="cube-outline" size={24} color={Colors.alpha} />
+                        </View>
+                      )}
+                      <Text style={{
+                        fontSize: 16,
+                        fontWeight: '600',
+                        color: isDark ? Colors.light : Colors.beta,
+                        flex: 1,
+                      }}>
+                        {item.mark}
+                      </Text>
+                    </View>
+                    <View style={{
+                      width: 24,
+                      height: 24,
+                      borderRadius: 12,
                       borderWidth: 2,
                       borderColor: Colors.alpha,
-                      backgroundColor: selectedEquipment.includes(item.id)
-                        ? Colors.alpha
-                        : 'transparent',
-                    }}
-                  />
-                </Pressable>
-              ))}
+                      backgroundColor: isSelected ? Colors.alpha : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      {isSelected && (
+                        <Ionicons name="checkmark" size={16} color={Colors.dark} />
+                      )}
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         )}
       </ScrollView>
 
+      {/* Success Modal */}
       <Modal
         visible={showModal}
         transparent
         animationType="fade"
         onRequestClose={() => setShowModal(false)}
       >
-        <View className="justify-center items-center" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 }}>
-          <View className={`${isDark ? 'bg-dark_gray' : 'bg-white'}`} style={{ padding: 20, borderRadius: 12, minWidth: 280 }}>
-            <Text className={`${isDark ? 'text-light' : 'text-beta'}`} style={{ fontSize: 18, marginBottom: 20, textAlign: 'center', fontWeight: '700' }}>
-              Reservation Created Successfully!
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+        }}>
+          <View style={{
+            backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+            borderRadius: 24,
+            padding: 28,
+            width: '100%',
+            maxWidth: 400,
+            alignItems: 'center',
+            shadowColor: Colors.dark,
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.3,
+            shadowRadius: 16,
+            elevation: 10,
+          }}>
+            <View style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: Colors.alpha + '20',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 20,
+            }}>
+              <Ionicons name="checkmark-circle" size={60} color={Colors.alpha} />
+            </View>
+            <Text style={{
+              fontSize: 24,
+              fontWeight: '800',
+              color: isDark ? Colors.light : Colors.beta,
+              marginBottom: 12,
+              textAlign: 'center',
+            }}>
+              Success!
             </Text>
-
-            <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center' }}>
+            <Text style={{
+              fontSize: 16,
+              color: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
+              marginBottom: 28,
+              textAlign: 'center',
+            }}>
+              Reservation created successfully
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
               <Pressable
                 onPress={addToDeviceCalendar}
-          style={{
-            flex: 1,
-                  paddingVertical: 12,
-                  paddingHorizontal: 16,
-                  borderRadius: 8,
+                style={{
+                  flex: 1,
+                  paddingVertical: 16,
+                  borderRadius: 16,
                   backgroundColor: isDark ? Colors.dark : Colors.light,
-                  borderWidth: 1.5,
+                  borderWidth: 2,
                   borderColor: Colors.alpha,
+                  alignItems: 'center',
                 }}
               >
                 <Text style={{
                   color: Colors.alpha,
                   fontWeight: '700',
-                  fontSize: 14,
-                  textAlign: 'center',
+                  fontSize: 16,
                 }}>
-                 Calendar 📅  
-            </Text>
+                  📅 Add to Calendar
+                </Text>
               </Pressable>
-
-            <Pressable
-              onPress={() => {
-                  setShowModal(false);
+              <Pressable
+                onPress={() => {
                   setShowModal(false);
                   if (onClose) onClose();
-                  // router.replace('/reservations/day');
                 }}
-                className="bg-alpha"
-              style={{
+                style={{
                   flex: 1,
-                  paddingVertical: 12,
-                  paddingHorizontal: 16,
-                  borderRadius: 8
+                  paddingVertical: 16,
+                  borderRadius: 16,
+                  backgroundColor: Colors.alpha,
+                  alignItems: 'center',
+                  shadowColor: Colors.alpha,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 5,
                 }}
               >
-                <Text className="text-white" style={{ fontWeight: '700', fontSize: 14, textAlign: 'center' }}>Close</Text>
-            </Pressable>
+                <Text style={{
+                  color: Colors.dark,
+                  fontWeight: '700',
+                  fontSize: 16,
+                }}>
+                  Close
+                </Text>
+              </Pressable>
             </View>
           </View>
         </View>
       </Modal>
 
+      {/* Date Picker Modal */}
+      <Modal
+        visible={showDayPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDayPicker(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: isDark ? Colors.dark + 'E6' : Colors.dark + '80',
+          justifyContent: 'flex-end',
+        }}>
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setShowDayPicker(false)}
+          />
+          <View style={{
+            backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingTop: 24,
+            paddingBottom: 40,
+            paddingHorizontal: 24,
+            shadowColor: Colors.dark,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 16,
+            elevation: 12,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 24,
+            }}>
+              <Text style={{
+                fontSize: 22,
+                fontWeight: '800',
+                color: isDark ? Colors.light : Colors.beta,
+              }}>
+                Select Date
+              </Text>
+              <Pressable
+                onPress={() => setShowDayPicker(false)}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="close" size={24} color={isDark ? Colors.light : Colors.beta} />
+              </Pressable>
+            </View>
+            <DateTimePicker
+              value={new Date(day || new Date())}
+              mode="date"
+              display="spinner"
+              minimumDate={new Date()}
+              onChange={(event, selected) => {
+                if (event.type === 'set' && selected) {
+                  setDay(format(selected, 'yyyy-MM-dd'));
+                }
+                if (event.type === 'dismissed') {
+                  setShowDayPicker(false);
+                }
+              }}
+              style={{ width: '100%' }}
+              textColor={isDark ? Colors.light : Colors.beta}
+            />
+            <Pressable
+              onPress={() => setShowDayPicker(false)}
+              style={{
+                marginTop: 24,
+                paddingVertical: 18,
+                borderRadius: 16,
+                backgroundColor: Colors.alpha,
+                alignItems: 'center',
+                shadowColor: Colors.alpha,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 5,
+              }}
+            >
+              <Text style={{
+                color: Colors.dark,
+                fontWeight: '700',
+                fontSize: 16,
+                letterSpacing: 0.5,
+              }}>
+                Done
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Start Time Picker Modal */}
+      <Modal
+        visible={showStartPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStartPicker(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: isDark ? Colors.dark + 'E6' : Colors.dark + '80',
+          justifyContent: 'flex-end',
+        }}>
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setShowStartPicker(false)}
+          />
+          <View style={{
+            backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingTop: 24,
+            paddingBottom: 40,
+            paddingHorizontal: 24,
+            shadowColor: Colors.dark,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 16,
+            elevation: 12,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 24,
+            }}>
+              <Text style={{
+                fontSize: 22,
+                fontWeight: '800',
+                color: isDark ? Colors.light : Colors.beta,
+              }}>
+                Select Start Time
+              </Text>
+              <Pressable
+                onPress={() => setShowStartPicker(false)}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="close" size={24} color={isDark ? Colors.light : Colors.beta} />
+              </Pressable>
+            </View>
+            <DateTimePicker
+              value={startTime}
+              mode="time"
+              is24Hour={true}
+              display="spinner"
+              onChange={(event, selected) => {
+                if (event.type === 'set' && selected) {
+                  setStartTime(selected);
+                }
+                if (event.type === 'dismissed') {
+                  setShowStartPicker(false);
+                }
+              }}
+              style={{ width: '100%' }}
+              textColor={isDark ? Colors.light : Colors.beta}
+            />
+            <Pressable
+              onPress={() => setShowStartPicker(false)}
+              style={{
+                marginTop: 24,
+                paddingVertical: 18,
+                borderRadius: 16,
+                backgroundColor: Colors.alpha,
+                alignItems: 'center',
+                shadowColor: Colors.alpha,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 5,
+              }}
+            >
+              <Text style={{
+                color: Colors.dark,
+                fontWeight: '700',
+                fontSize: 16,
+                letterSpacing: 0.5,
+              }}>
+                Done
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* End Time Picker Modal */}
+      <Modal
+        visible={showEndPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowEndPicker(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: isDark ? Colors.dark + 'E6' : Colors.dark + '80',
+          justifyContent: 'flex-end',
+        }}>
+          <Pressable
+            style={{ flex: 1 }}
+            onPress={() => setShowEndPicker(false)}
+          />
+          <View style={{
+            backgroundColor: isDark ? Colors.dark_gray : Colors.light,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            paddingTop: 24,
+            paddingBottom: 40,
+            paddingHorizontal: 24,
+            shadowColor: Colors.dark,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 16,
+            elevation: 12,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 24,
+            }}>
+              <Text style={{
+                fontSize: 22,
+                fontWeight: '800',
+                color: isDark ? Colors.light : Colors.beta,
+              }}>
+                Select End Time
+              </Text>
+              <Pressable
+                onPress={() => setShowEndPicker(false)}
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 20,
+                  backgroundColor: isDark ? Colors.dark : Colors.dark_gray + '20',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="close" size={24} color={isDark ? Colors.light : Colors.beta} />
+              </Pressable>
+            </View>
+            <DateTimePicker
+              value={endTime}
+              mode="time"
+              is24Hour={true}
+              display="spinner"
+              onChange={(event, selected) => {
+                if (event.type === 'set' && selected) {
+                  setEndTime(selected);
+                }
+                if (event.type === 'dismissed') {
+                  setShowEndPicker(false);
+                }
+              }}
+              style={{ width: '100%' }}
+              textColor={isDark ? Colors.light : Colors.beta}
+            />
+            <Pressable
+              onPress={() => setShowEndPicker(false)}
+              style={{
+                marginTop: 24,
+                paddingVertical: 18,
+                borderRadius: 16,
+                backgroundColor: Colors.alpha,
+                alignItems: 'center',
+                shadowColor: Colors.alpha,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 5,
+              }}
+            >
+              <Text style={{
+                color: Colors.dark,
+                fontWeight: '700',
+                fontSize: 16,
+                letterSpacing: 0.5,
+              }}>
+                Done
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
