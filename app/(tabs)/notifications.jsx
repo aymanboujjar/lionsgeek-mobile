@@ -109,15 +109,23 @@ export default function NotificationsScreen() {
         break;
     }
 
-    // Format avatar URL
+    // Format avatar URL - match profile.jsx approach
     let avatar = null;
-    if (notif.sender_image) {
-      if (notif.sender_image.startsWith('http')) {
-        avatar = notif.sender_image;
-      } else if (notif.sender_image.startsWith('/storage/')) {
-        avatar = `${API.APP_URL}${notif.sender_image}`;
-      } else {
-        avatar = `${API.APP_URL}/storage/${notif.sender_image}`;
+    const senderImage = notif.sender_image || notif.senderImage || notif.user?.avatar || notif.user?.image;
+    
+    if (senderImage) {
+      // If it's already a full URL, return it
+      if (typeof senderImage === 'string' && (senderImage.startsWith('http://') || senderImage.startsWith('https://'))) {
+        avatar = senderImage;
+      } else if (typeof senderImage === 'string') {
+        // Check if it already includes storage path
+        if (senderImage.includes('storage/')) {
+          const cleanPath = senderImage.startsWith('/') ? senderImage : `/${senderImage}`;
+          avatar = `${API.APP_URL}${cleanPath}`;
+        } else {
+          // If it's just a filename, use storage/img/profile/ like profile.jsx does
+          avatar = `${API.APP_URL}/storage/img/profile/${senderImage}`;
+        }
       }
     }
 
@@ -127,9 +135,10 @@ export default function NotificationsScreen() {
       title,
       text,
       user: {
-        name: notif.sender_name || 'System',
+        name: notif.sender_name || notif.senderName || 'System',
         avatar,
       },
+      senderImage: avatar, // Also store as senderImage for compatibility
       time: notif.created_at ? formatDistanceToNow(new Date(notif.created_at), { addSuffix: true }) : 'Recently',
       read: !!notif.read_at,
       icon,
@@ -308,12 +317,32 @@ export default function NotificationsScreen() {
     }
   };
 
+  // Helper function to get avatar URL - match profile.jsx approach
   const getAvatar = (notification) => {
-    if (notification.user?.avatar) return notification.user.avatar;
-    if (notification.type === 'achievement' || notification.type === 'reminder' || notification.type === 'rank') {
-      return null;
+    try {
+      const avatar = notification.user?.avatar || notification.senderImage;
+      
+      if (!avatar) return null;
+      
+      // If it's already a full URL, return it
+      if (typeof avatar === 'string' && (avatar.startsWith('http://') || avatar.startsWith('https://'))) {
+        return avatar;
+      }
+      
+      if (typeof avatar === 'string') {
+        // Check if it already includes storage path
+        if (avatar.includes('storage/')) {
+          const cleanPath = avatar.startsWith('/') ? avatar : `/${avatar}`;
+          return `${API.APP_URL}${cleanPath}`;
+        } else {
+          // If it's just a filename, use storage/img/profile/ like profile.jsx does
+          return `${API.APP_URL}/storage/img/profile/${avatar}`;
+        }
+      }
+    } catch (error) {
+      console.log('[NOTIFICATIONS] Error getting avatar URL:', error);
     }
-    return 'https://via.placeholder.com/40';
+    return null;
   };
 
   const handleNotificationPress = async (notification) => {
@@ -424,11 +453,17 @@ export default function NotificationsScreen() {
                     >
                       <View className="flex-row items-start">
                         <View className="relative mr-4">
-                          {notification.user?.avatar ? (
+                          {getAvatar(notification) ? (
                             <Image
                               source={{ uri: getAvatar(notification) }}
                               className="w-14 h-14 rounded-full border-2 border-alpha/50"
-                              defaultSource={require('@/assets/images/icon.png')}
+                              placeholder={require('@/assets/images/icon.png')}
+                              contentFit="cover"
+                              transition={200}
+                              style={{ width: 56, height: 56, borderRadius: 28 }}
+                              onError={(error) => {
+                                console.log('[NOTIFICATIONS] Error loading avatar:', getAvatar(notification), error);
+                              }}
                             />
                           ) : (
                             <View className="w-14 h-14 rounded-full bg-beta/20 dark:bg-beta/40 items-center justify-center border-2 border-beta/30">
@@ -484,7 +519,7 @@ export default function NotificationsScreen() {
                       >
                       <View className="flex-row items-start">
                         <View className="relative mr-4">
-                          {notification.user?.avatar ? (
+                          {getAvatar(notification) ? (
                             <Image
                               source={{ uri: getAvatar(notification) }}
                               className="w-14 h-14 rounded-full opacity-70"
