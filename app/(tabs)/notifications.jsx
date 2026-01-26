@@ -385,6 +385,33 @@ export default function NotificationsScreen() {
     }
   };
 
+  const testPushNotification = async () => {
+    if (!token) {
+      alert('No authentication token found');
+      return;
+    }
+
+    try {
+      console.log('🧪 Testing push notification...');
+      const response = await API.postWithAuth('mobile/test-push', {
+        title: '🧪 Test Push Notification',
+        body: 'This is a test push notification! If you see this on your phone, push notifications are working! 🎉',
+      }, token);
+
+      console.log('✅ Test push response:', JSON.stringify(response?.data, null, 2));
+      
+      if (response?.data?.success) {
+        alert('✅ Test notification sent! Check your phone (make sure app is in background/closed).');
+      } else {
+        alert('❌ Failed to send test notification. Check console logs for details.');
+      }
+    } catch (error) {
+      console.error('❌ Test push error:', error);
+      console.error('Error details:', error?.response?.data || error?.message);
+      alert('❌ Error: ' + (error?.response?.data?.message || error?.message || 'Unknown error'));
+    }
+  };
+
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
@@ -404,14 +431,23 @@ export default function NotificationsScreen() {
                 )}
               </View>
             </View>
-            {unreadCount > 0 && (
+            <View className="flex-row items-center gap-2">
+              {/* Test Push Button */}
               <TouchableOpacity 
-                onPress={markAllAsRead}
-                className="bg-alpha/20 dark:bg-alpha/30 rounded-full px-4 py-2"
+                onPress={testPushNotification}
+                className="bg-green-500/20 dark:bg-green-500/30 rounded-full px-3 py-2 mr-2"
               >
-                <Text className="text-alpha text-sm font-bold">Mark all read</Text>
+                <Ionicons name="notifications" size={16} color="#10b981" />
               </TouchableOpacity>
-            )}
+              {unreadCount > 0 && (
+                <TouchableOpacity 
+                  onPress={markAllAsRead}
+                  className="bg-alpha/20 dark:bg-alpha/30 rounded-full px-4 py-2"
+                >
+                  <Text className="text-alpha text-sm font-bold">Mark all read</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </View>
 
