@@ -169,6 +169,20 @@ function handleNotificationNavigation(data) {
           }
           break;
         
+        case 'chat_message':
+          if (conversation_id) {
+            router.push('/(tabs)/chat');
+          }
+          break;
+        
+        case 'reservation':
+          router.push('/(tabs)/reservations');
+          break;
+        
+        case 'appointment':
+          router.push('/(tabs)/reservations');
+          break;
+        
         case 'access_request_response':
           router.push('/(tabs)/reservations');
           break;
