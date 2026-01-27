@@ -14,6 +14,15 @@ export default function TrainingStack() {
           animation: 'slide_from_right',
         }}
       />
+      {/* Attendance view */}
+      <Stack.Screen 
+        name="attendance" 
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          animation: 'slide_from_right',
+        }}
+      />
     </Stack>
   );
 }

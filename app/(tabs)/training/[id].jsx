@@ -194,6 +194,35 @@ export default function TrainingDetails() {
           </View>
         </View>
 
+        {/* Attendance Button */}
+        {training.users && training.users.length > 0 && (
+          <View className="mb-6">
+            <Pressable
+              onPress={() => router.push({ pathname: '/training/attendance', params: { id: training.id } })}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 12,
+                backgroundColor: Colors.alpha,
+                paddingVertical: 16,
+                paddingHorizontal: 20,
+                borderRadius: 16,
+                shadowColor: Colors.alpha,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 5,
+              }}
+            >
+              <Ionicons name="calendar-outline" size={24} color={Colors.light} />
+              <Text style={{ fontSize: 18, fontWeight: '700', color: Colors.light }}>
+                Take Attendance
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
         {/* Students */}
         <View className="mb-6">
           <Text className={`text-xl font-bold ${isDark ? 'text-light' : 'text-beta'} mb-4`}>
