@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.lionsgeek.lionsgeek-mobile",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "This app needs access to your camera to scan QR codes for attendance."
       }
     },
     "android": {
@@ -23,7 +24,8 @@
       "edgeToEdgeEnabled": true,
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA"
       ],
       "package": "com.lionsgeek_pro.lionsgeek"
     },
@@ -52,7 +54,13 @@
           "sounds": []
         }
       ],
-      "expo-media-library"
+      "expo-media-library",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to scan QR codes for attendance."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

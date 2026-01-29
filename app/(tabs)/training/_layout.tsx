@@ -23,6 +23,15 @@ export default function TrainingStack() {
           animation: 'slide_from_right',
         }}
       />
+      {/* QR Scanner view */}
+      <Stack.Screen 
+        name="qr-scanner" 
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          animation: 'slide_from_right',
+        }}
+      />
     </Stack>
   );
 }
