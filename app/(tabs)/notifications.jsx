@@ -10,6 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 import Skeleton from '@/components/ui/Skeleton';
 import useNotificationPreferences from '@/hooks/useNotificationPreferences';
 import { isNotificationTypeEnabledInPrefs } from '@/constants/notificationPreferences';
+import { Colors } from '@/constants/Colors';
 
 let Ably = null;
 try {
@@ -96,6 +97,7 @@ export default function NotificationsScreen() {
       'project_status': 'trophy',
       'task_assignment': 'briefcase',
       'project_message': 'chatbubbles',
+      'announcement': 'megaphone',
     };
     return iconMap[type] || 'notifications';
   };
@@ -115,6 +117,7 @@ export default function NotificationsScreen() {
       'project_status': '#ffc801',
       'task_assignment': '#f59e0b',
       'project_message': '#3b82f6',
+      'announcement': Colors.alpha,
     };
     return colorMap[type] || '#6b7280';
   };
@@ -169,6 +172,9 @@ export default function NotificationsScreen() {
         break;
       case 'project_message':
         title = 'Project Message';
+        break;
+      case 'announcement':
+        title = notif.sender_name || notif.senderName || 'Announcement';
         break;
     }
 
@@ -354,6 +360,7 @@ export default function NotificationsScreen() {
         'project-status': 'project-status',
         'task-assignment': 'task-assignment',
         'project-message': 'project-message',
+        'announcement': 'announcement',
       };
       
       const prefix = parts.slice(0, -1).join('-'); // Get all parts except the last one
@@ -420,6 +427,10 @@ export default function NotificationsScreen() {
     // Mark as read when pressed
     if (!notification.read) {
       await markNotificationAsRead(notification);
+    }
+
+    if (notification.type === 'announcement') {
+      return;
     }
     
     // Navigate based on notification type and link
@@ -624,11 +635,17 @@ export default function NotificationsScreen() {
                               }}
                             />
                           ) : (
-                            <View className="w-14 h-14 rounded-full bg-beta/20 dark:bg-beta/40 items-center justify-center border-2 border-beta/30">
+                            <View
+                              className={`w-14 h-14 rounded-full items-center justify-center border-2 ${
+                                notification.type === 'announcement'
+                                  ? 'bg-alpha/20 dark:bg-alpha/30 border-alpha/40'
+                                  : 'bg-beta/20 dark:bg-beta/40 border-beta/30'
+                              }`}
+                            >
                               <Ionicons
                                 name={notification.icon || 'notifications'}
                                 size={24}
-                                color={notification.color || '#6b7280'}
+                                color={notification.color || Colors.dark_gray}
                               />
                             </View>
                           )}
@@ -640,7 +657,7 @@ export default function NotificationsScreen() {
                             </Text>
                           )}
                           <Text className="text-sm text-black/80 dark:text-white/80 leading-5">
-                            {notification.user?.name && notification.type !== 'discipline_change' && notification.type !== 'access_request_response' && notification.type !== 'project_status' && (
+                            {notification.user?.name && notification.type !== 'discipline_change' && notification.type !== 'access_request_response' && notification.type !== 'project_status' && notification.type !== 'announcement' && (
                               <Text className="font-semibold">{notification.user.name} </Text>
                             )}
                             {notification.text}
@@ -684,11 +701,17 @@ export default function NotificationsScreen() {
                               defaultSource={require('@/assets/images/icon.png')}
                             />
                           ) : (
-                            <View className="w-14 h-14 rounded-full bg-beta/10 dark:bg-beta/20 items-center justify-center opacity-50">
+                            <View
+                              className={`w-14 h-14 rounded-full items-center justify-center opacity-50 ${
+                                notification.type === 'announcement'
+                                  ? 'bg-alpha/15 dark:bg-alpha/25'
+                                  : 'bg-beta/10 dark:bg-beta/20'
+                              }`}
+                            >
                               <Ionicons
                                 name={notification.icon || 'notifications'}
                                 size={24}
-                                color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
+                                color={isDark ? 'rgba(255,255,255,0.5)' : Colors.beta}
                               />
                             </View>
                           )}
@@ -700,7 +723,7 @@ export default function NotificationsScreen() {
                             </Text>
                           )}
                           <Text className="text-sm text-black/60 dark:text-white/60 leading-5">
-                            {notification.user?.name && notification.type !== 'discipline_change' && notification.type !== 'access_request_response' && notification.type !== 'project_status' && (
+                            {notification.user?.name && notification.type !== 'discipline_change' && notification.type !== 'access_request_response' && notification.type !== 'project_status' && notification.type !== 'announcement' && (
                               <Text className="font-semibold">{notification.user.name} </Text>
                             )}
                             {notification.text}
