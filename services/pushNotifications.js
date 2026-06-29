@@ -203,6 +203,10 @@ function handleNotificationNavigation(data) {
         case 'discipline_change':
           router.push('/(tabs)/profile');
           break;
+
+        case 'announcement':
+          router.push('/(tabs)/notifications');
+          break;
         
         default:
           if (link) {
