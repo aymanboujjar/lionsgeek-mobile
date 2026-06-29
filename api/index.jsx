@@ -15,6 +15,42 @@ const ensureAppUrl = () => {
 const IMAGE_URL = APP_URL ? `${APP_URL}/storage/images` : '';
 const VIDEO_URL = APP_URL ? `${APP_URL}/storage/videos` : '';
 
+const getPublic = async (endpoint) => {
+    try {
+        const baseUrl = ensureAppUrl();
+        const url = `${baseUrl}/api/${endpoint}`;
+        const response = await axios.get(url, {
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        if (typeof response.data === 'string') {
+            const jsonMatch = response.data.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    response.data = JSON.parse(jsonMatch[0]);
+                } catch (parseError) {
+                    console.log(`API WARNING: Failed to parse JSON from response for ${endpoint}`);
+                }
+            }
+        }
+
+        return response;
+    } catch (error) {
+        const baseUrl = (() => {
+            try { return ensureAppUrl(); } catch { return ''; }
+        })();
+        const url = baseUrl ? `${baseUrl}/api/${endpoint}` : `/api/${endpoint}`;
+        const errorData = error?.response?.data;
+        const errorMessage = typeof errorData === 'object'
+            ? JSON.stringify(errorData, null, 2)
+            : (errorData || error?.message || 'Unknown error');
+        console.log(`API ERROR\nMethod: GET (public)\nURL: ${url}\nEndpoint: ${endpoint}\nError: ${errorMessage}`);
+        throw error;
+    }
+};
+
 const get = async (endpoint, Token) => {
     try {
         const baseUrl = ensureAppUrl();
@@ -437,6 +473,7 @@ const getMusicCharts = async (token, { country = 'MA', limit = 50 } = {}) => {
 
 export default {
     get,
+    getPublic,
     put,
     post,
     remove,

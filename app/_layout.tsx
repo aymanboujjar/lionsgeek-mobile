@@ -14,6 +14,7 @@ import { setupNotificationListeners, removeNotificationListeners } from '@/servi
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Colors } from '@/constants/Colors';
 import Constants from 'expo-constants';
+import AppVersionGate from '@/components/AppVersionGate';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -187,7 +188,9 @@ function AppThemedShell() {
 
   return (
     <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-      <RootLayoutNav />
+      <AppVersionGate>
+        <RootLayoutNav />
+      </AppVersionGate>
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </ThemeProvider>
   );
