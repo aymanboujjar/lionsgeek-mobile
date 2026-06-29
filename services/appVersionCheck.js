@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import API from '@/api';
+import { resolveStoreUpdateUrl } from '@/utils/platform';
 
 const shouldSkipVersionCheck = () => {
     const testFlag = process.env.EXPO_PUBLIC_TEST_VERSION_CHECK === 'true';
@@ -19,12 +20,12 @@ export async function checkAppVersion() {
     const response = await API.getPublic('mobile/app-version');
     const payload = response?.data ?? {};
     const remoteVersion = String(payload.version ?? '').trim();
-    const updateUrl = String(payload.update_url ?? '').trim();
+    const updateUrl = resolveStoreUpdateUrl(payload);
 
     const updateRequired =
-        Boolean(updateUrl) &&
         Boolean(remoteVersion) &&
-        remoteVersion !== localVersion;
+        remoteVersion !== localVersion &&
+        Boolean(updateUrl);
 
     return { updateRequired, updateUrl, localVersion, remoteVersion };
 }
