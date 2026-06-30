@@ -5,7 +5,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import AudioRecorder from './AudioRecorder';
-import VoiceRecorder from '../VoiceRecorder';
+import VoiceRecorder from './VoiceRecorder';
 import Skeleton from '@/components/ui/Skeleton';
 
 // Conditionally import expo-image-picker

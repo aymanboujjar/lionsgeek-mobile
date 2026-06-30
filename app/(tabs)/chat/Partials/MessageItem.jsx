@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { format, isToday, isYesterday } from 'date-fns';
 import API from '@/api';
-import VoiceMessage from '../VoiceMessage';
+import VoiceMessage from './VoiceMessage';
 
 function tryParsePostShare(body) {
     if (!body || typeof body !== 'string') return null;

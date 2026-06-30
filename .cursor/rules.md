@@ -53,9 +53,9 @@ When adding new features or refactoring, **do not change these without updating 
   - All authenticated app screens **must** live under `app/(tabs)/` (as a tab root, hidden tab, or nested stack folder e.g. `(tabs)/chat/`, `(tabs)/reservations/`).
   - Do not create feature screens at `app/` root except `onboarding/` and `auth/`.
   - Nested stacks use a `_layout.tsx` inside the folder (see `(tabs)/chat/`, `(tabs)/stories/`, `(tabs)/posts/`).
-  - Feature-specific screen UI belongs in `app/(tabs)/<feature>/Partials/` (not in `components/`).
+  - Feature-specific screen UI belongs in `app/(tabs)/<feature>/Partials/` or `partials/` (profile uses lowercase `partials/`).
   - Shared widgets used by multiple tab screens (e.g. feed post cards) go in `app/(tabs)/_<name>/Partials/` — leading underscore = **no route** (see `_feed/`).
-- **`components/` is for reusable UI only** (`ui/`, `layout/`, `helpers/`, profile modals, gates, legal). No feature screens, no `chat/`, `feed/`, `stories/`, `more/`, or feature `Partials/` folders in `components/`.
+- **`components/` is for cross-feature reusable UI only** (`ui/`, `layout/`, `helpers/`, gates, legal). Profile modals live in `app/(tabs)/profile/components/`.
 
 ---
 
