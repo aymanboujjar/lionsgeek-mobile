@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useAppContext } from '@/context';
 import AppLayout from '@/components/layout/AppLayout';
-import ConversationsList from '@/components/chat/ConversationsList';
+import ConversationsList from './Partials/ConversationsList';
 
 export default function ChatListScreen() {
   const { token } = useAppContext();

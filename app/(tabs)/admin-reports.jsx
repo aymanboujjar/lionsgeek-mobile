@@ -1,6 +1,6 @@
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
-import MoreHubScreen from '@/components/more/MoreHubScreen';
+import MoreHubScreen from './more/Partials/MoreHubScreen';
 
 export default function AdminReportsScreen() {
   return (

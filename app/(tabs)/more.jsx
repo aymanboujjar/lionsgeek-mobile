@@ -18,7 +18,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import Skeleton from "@/components/ui/Skeleton";
 import EditProfileModal from "@/components/profile/EditProfileModal";
 import SmoothThemeToggle from "@/components/ui/SmoothThemeToggle";
-import GamerProfileStats from "@/components/more/GamerProfileStats";
+import GamerProfileStats from "./more/Partials/GamerProfileStats";
 import {
   resolveAvatarUrl,
   getUserRolesNormalized,
@@ -361,7 +361,7 @@ export default function More() {
             icon="key-outline"
             label="Reset password"
             sublabel="Current password required · then choose a new one"
-            onPress={() => router.push("/reset-password")}
+            onPress={() => router.push("/auth/reset-password")}
             right={chevron}
           />
           <RowDivider />
@@ -377,7 +377,7 @@ export default function More() {
             icon="notifications-outline"
             label="Notification preferences"
             sublabel="Inbox categories & system settings"
-            onPress={() => router.push("/notification-preferences")}
+            onPress={() => router.push("/(tabs)/notification-preferences")}
             right={
               <View className="flex-row items-center gap-2">
                 <NotificationBadge count={unreadNotifications} />
@@ -394,7 +394,7 @@ export default function More() {
             icon="bookmark-outline"
             label="Saved posts"
             sublabel="Bookmarks hub — sync when feed API is ready"
-            onPress={() => router.push("/saved-posts")}
+            onPress={() => router.push("/(tabs)/saved-posts")}
             right={chevron}
           />
           <RowDivider />
@@ -402,7 +402,7 @@ export default function More() {
             icon="time-outline"
             label="Recent activity"
             sublabel="Likes, comments, saves, bookings & follows — full trail (no chat)"
-            onPress={() => router.push("/activity")}
+            onPress={() => router.push("/(tabs)/activity")}
             right={chevron}
           />
         </SettingsCard>
@@ -414,7 +414,7 @@ export default function More() {
             icon="ribbon-outline"
             label="Achievements & badges"
             sublabel="Streaks, tiers & milestones"
-            onPress={() => router.push("/achievements")}
+            onPress={() => router.push("/(tabs)/achievements")}
             right={chevron}
             pill={<ProPill />}
           />
@@ -423,7 +423,7 @@ export default function More() {
             icon="school-outline"
             label="Learning journey"
             sublabel="Your process: modules, milestones & rhythm"
-            onPress={() => router.push("/learning-progress")}
+            onPress={() => router.push("/(tabs)/learning-progress")}
             right={chevron}
           />
           <RowDivider />
@@ -431,7 +431,7 @@ export default function More() {
             icon="map-outline"
             label="Study roadmap"
             sublabel="Visual path through your cohort curriculum"
-            onPress={() => router.push("/learning-progress")}
+            onPress={() => router.push("/(tabs)/learning-progress")}
             right={chevron}
             pill={<ProPill />}
           />
@@ -440,7 +440,7 @@ export default function More() {
             icon="medal-outline"
             label="Certificates vault"
             sublabel="Credentials & milestones (share-ready)"
-            onPress={() => router.push("/achievements")}
+            onPress={() => router.push("/(tabs)/achievements")}
             right={chevron}
             pill={<SoonPill />}
           />
@@ -453,7 +453,7 @@ export default function More() {
             icon="cube-outline"
             label="Projects hub"
             sublabel="Capstones, briefs & deliveries"
-            onPress={() => router.push("/projects-hub")}
+            onPress={() => router.push("/(tabs)/projects-hub")}
             right={chevron}
           />
           <RowDivider />
@@ -461,7 +461,7 @@ export default function More() {
             icon="clipboard-outline"
             label="Attendance history"
             sublabel="M · L · E by day for your training"
-            onPress={() => router.push("/attendance-history")}
+            onPress={() => router.push("/(tabs)/attendance-history")}
             right={chevron}
           />
           <RowDivider />
@@ -481,7 +481,7 @@ export default function More() {
             icon="calendar-outline"
             label="Studios history"
             sublabel="Only studio reservations you booked"
-            onPress={() => router.push("/reservation-history-studio")}
+            onPress={() => router.push("/(tabs)/reservation-history-studio")}
             right={chevron}
           />
           <RowDivider />
@@ -489,7 +489,7 @@ export default function More() {
             icon="desktop-outline"
             label="Coworking history"
             sublabel="Desks & cowork slots you’ve booked"
-            onPress={() => router.push("/reservation-history-cowork")}
+            onPress={() => router.push("/(tabs)/reservation-history-cowork")}
             right={chevron}
           />
         </SettingsCard>
@@ -501,7 +501,7 @@ export default function More() {
             icon="options-outline"
             label="Customize experience"
             sublabel="Density, alerts roadmap & themes"
-            onPress={() => router.push("/customization")}
+            onPress={() => router.push("/(tabs)/customization")}
             right={chevron}
           />
           <RowDivider />
@@ -509,7 +509,7 @@ export default function More() {
             icon="phone-portrait-outline"
             label="Appearance & layout"
             sublabel="Cards, spacing & hero style"
-            onPress={() => router.push("/customization")}
+            onPress={() => router.push("/(tabs)/customization")}
             right={chevron}
             pill={<ProPill />}
           />
@@ -601,7 +601,7 @@ export default function More() {
             icon="rocket-outline"
             label="Weekly goals"
             sublabel="Set focus targets — ties to Training"
-            onPress={() => router.push("/learning-progress")}
+            onPress={() => router.push("/(tabs)/learning-progress")}
             right={chevron}
             pill={<ProPill />}
           />
@@ -667,7 +667,7 @@ export default function More() {
                     ? "Attendance, engagement & escalations"
                     : "Team pulse, attendance & highlights"
                 }
-                onPress={() => router.push("/admin-reports")}
+                onPress={() => router.push("/(tabs)/admin-reports")}
                 right={chevron}
                 pill={<ProPill />}
               />
@@ -729,7 +729,7 @@ export default function More() {
             icon="chatbox-ellipses-outline"
             label="Send feedback"
             sublabel="Shape the next LionsGeek drop"
-            onPress={() => router.push("/support")}
+            onPress={() => router.push("/(tabs)/support")}
             right={chevron}
             pill={<ProPill />}
           />
@@ -738,7 +738,7 @@ export default function More() {
             icon="help-circle-outline"
             label="Support center"
             sublabel="FAQ & contact"
-            onPress={() => router.push("/support")}
+            onPress={() => router.push("/(tabs)/support")}
             right={chevron}
           />
           <RowDivider />
@@ -746,7 +746,7 @@ export default function More() {
             icon="document-text-outline"
             label="Terms & conditions"
             sublabel="Rules for using the app"
-            onPress={() => router.push("/terms")}
+            onPress={() => router.push("/(tabs)/terms")}
             right={chevron}
           />
           <RowDivider />
@@ -754,7 +754,7 @@ export default function More() {
             icon="shield-outline"
             label="Privacy policy"
             sublabel="How we handle your data"
-            onPress={() => router.push("/privacy")}
+            onPress={() => router.push("/(tabs)/privacy")}
             right={chevron}
           />
           <RowDivider />
@@ -762,7 +762,7 @@ export default function More() {
             icon="code-slash-outline"
             label="Open-source licenses"
             sublabel="Third-party software notices"
-            onPress={() => router.push("/licenses")}
+            onPress={() => router.push("/(tabs)/licenses")}
             right={chevron}
           />
         </SettingsCard>

@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import MoreHubScreen from '@/components/more/MoreHubScreen';
+import MoreHubScreen from './more/Partials/MoreHubScreen';
 
 export default function ProjectsHubScreen() {
   return (
@@ -14,7 +14,7 @@ export default function ProjectsHubScreen() {
         'Reserve demo rooms under Reservations.',
       ]}
       primaryAction={{ label: 'Training & modules', onPress: () => router.push('/(tabs)/training') }}
-      secondaryAction={{ label: 'Messages', onPress: () => router.push('/chat') }}
+      secondaryAction={{ label: 'Messages', onPress: () => router.push('/(tabs)/chat') }}
     />
   );
 }

@@ -3,13 +3,13 @@ import { View, Alert, AppState, Linking, KeyboardAvoidingView, Platform } from '
 import { format, isToday, isYesterday } from 'date-fns';
 import { useAppContext } from '@/context';
 import API from '@/api';
-import ChatHeader from './partials/ChatHeader';
-import MessageList from './partials/MessageList';
-import MessageInput from './partials/MessageInput';
-import PreviewPanel from './partials/PreviewPanel';
-import ChatToolbox from './partials/ChatToolbox';
-import TypingIndicator from './partials/TypingIndicator';
-import RecordingIndicator from './partials/RecordingIndicator';
+import ChatHeader from './ChatHeader';
+import MessageList from './MessageList';
+import MessageInput from './MessageInput';
+import PreviewPanel from './PreviewPanel';
+import ChatToolbox from './ChatToolbox';
+import TypingIndicator from './TypingIndicator';
+import RecordingIndicator from './RecordingIndicator';
 
 // Main ChatBox component - refactored b components so9or
 export default function ChatBox({ conversation, onBack, isExpanded, onExpand, suppressMessageListLoadingSkeleton }) {

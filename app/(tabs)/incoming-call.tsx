@@ -100,7 +100,7 @@ export default function IncomingCallScreen() {
             channelName: data.channel_name,
             token: data.token,
           });
-          router.replace("/call");
+          router.replace("/(tabs)/call");
         }
       }
     } catch (e) {

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import StoryItem from '@/components/feed/StoryItem';
+import StoryItem from './StoryItem';
 import Skeleton from '@/components/ui/Skeleton';
 import API from '@/api';
 
@@ -53,12 +53,12 @@ export default function StoriesTray({ refreshKey = 0 }) {
   const openViewer = (startUserId) => {
     if (!groups.length) return;
     router.push({
-      pathname: '/stories/viewer',
+      pathname: '/(tabs)/stories/viewer',
       params: { startUserId: String(startUserId) },
     });
   };
 
-  const openCreate = () => router.push('/stories/create');
+  const openCreate = () => router.push('/(tabs)/stories/create');
 
   return (
     <View style={{

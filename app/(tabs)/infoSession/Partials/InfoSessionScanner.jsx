@@ -5,10 +5,10 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import InfoSessionAPI from '@/api/infoSessionSection';
 import Skeleton from '@/components/ui/Skeleton';
-import ScanResultOverlay from '@/components/events/partials/ScanResultModal';
+import ScanResultOverlay from '../../events/Partials/ScanResultModal';
 import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { mapValidationMessage, validateInfoSessionQrScan } from '@/components/infoSession/helpers';
+import { mapValidationMessage, validateInfoSessionQrScan } from '../helpers';
 
 const DUPLICATE_SCAN_MS = 2500;
 const CORNER_SIZE = 36;

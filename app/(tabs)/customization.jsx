@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import MoreHubScreen from '@/components/more/MoreHubScreen';
+import MoreHubScreen from './more/Partials/MoreHubScreen';
 
 export default function CustomizationScreen() {
   return (
@@ -13,8 +13,8 @@ export default function CustomizationScreen() {
         'Per-type inbox filters from More → Notification preferences.',
         'Future: compact density, reduced motion, language packs.',
       ]}
-      primaryAction={{ label: 'Notification preferences', onPress: () => router.push('/notification-preferences') }}
-      secondaryAction={{ label: 'Back to More', onPress: () => router.push('/more') }}
+      primaryAction={{ label: 'Notification preferences', onPress: () => router.push('/(tabs)/notification-preferences') }}
+      secondaryAction={{ label: 'Back to More', onPress: () => router.push('/(tabs)/more') }}
     />
   );
 }

@@ -6,13 +6,13 @@ import InfoSessionAPI from '@/api/infoSessionSection';
 import { getAccentFillColor, getAccentIconColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Skeleton from '@/components/ui/Skeleton';
-import InfoSessionCard from '@/components/infoSession/partials/InfoSessionCard';
+import InfoSessionCard from './InfoSessionCard';
 import {
   filterSessionsByName,
   normalizeInfoSessions,
   resolveInfoSessionError,
   sortSessionsByDate,
-} from '@/components/infoSession/helpers';
+} from '../helpers';
 
 export default function InfoSessionsTab() {
   const isDark = useColorScheme() === 'dark';

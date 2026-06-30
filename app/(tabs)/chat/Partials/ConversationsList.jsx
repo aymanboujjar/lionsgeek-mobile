@@ -14,7 +14,7 @@ function openChatThread(otherUserId, onBeforeNavigate) {
     const id = String(otherUserId ?? '').trim();
     if (!id) return;
     onBeforeNavigate?.();
-    router.push(`/chat/${id}`);
+    router.push(`/(tabs)/chat/${id}`);
 }
 
 // Component dial list dial conversations — thread opens as its own stack screen (native back gesture).

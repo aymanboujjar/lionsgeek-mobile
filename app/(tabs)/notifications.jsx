@@ -441,7 +441,7 @@ export default function NotificationsScreen() {
         // Admin links - might not be accessible in mobile, just show notification
         console.log('Admin link:', targetLink);
       } else if (targetLink.startsWith('/posts/')) {
-        router.push(targetLink);
+        router.push(`/(tabs)${targetLink}`);
       } else if (targetLink.startsWith('/students/')) {
         // Student profile or project links
         const parts = targetLink.split('/');
@@ -467,7 +467,7 @@ export default function NotificationsScreen() {
       } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
         router.push('/(tabs)/index');
       } else if (notification.type === 'post_report' && notification?.post_id) {
-        router.push(`/posts/${notification.post_id}${notification.report_id ? `?reportId=${notification.report_id}` : ''}`);
+        router.push(`/(tabs)/posts/${notification.post_id}${notification.report_id ? `?reportId=${notification.report_id}` : ''}`);
       }
     }
   };
@@ -520,7 +520,7 @@ export default function NotificationsScreen() {
             </View>
             <View className="flex-row items-center gap-2">
               <TouchableOpacity
-                onPress={() => router.push('/notification-preferences')}
+                onPress={() => router.push('/(tabs)/notification-preferences')}
                 className="rounded-full bg-black/5 dark:bg-white/10 px-3 py-2"
               >
                 <Ionicons name="settings-outline" size={18} color={isDark ? '#fff' : '#000'} />
@@ -602,7 +602,7 @@ export default function NotificationsScreen() {
                   change what appears in this inbox.
                 </Text>
                 <TouchableOpacity
-                  onPress={() => router.push('/notification-preferences')}
+                  onPress={() => router.push('/(tabs)/notification-preferences')}
                   className="mt-6 rounded-full bg-alpha/20 dark:bg-alpha/30 px-5 py-3"
                 >
                   <Text className="text-alpha text-sm font-bold">Notification preferences</Text>

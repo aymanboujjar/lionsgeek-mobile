@@ -1,3 +1,3 @@
-import ParticipantDetail from '@/components/infoSession/[id]';
+import InfoSessionParticipantDetail from '../Partials/InfoSessionParticipantDetail';
 
-export default ParticipantDetail;
+export default InfoSessionParticipantDetail;

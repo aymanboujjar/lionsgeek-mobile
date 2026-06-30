@@ -23,14 +23,14 @@ import API from '@/api';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AppLayout from '@/components/layout/AppLayout';
-import CreatePost from '@/components/feed/CreatePost';
-import FeedItem from '@/components/feed/FeedItem';
+import CreatePost from './_feed/Partials/CreatePost';
+import FeedItem from './_feed/Partials/FeedItem';
 import Rolegard from '@/components/Rolegard';
 import Skeleton from '@/components/ui/Skeleton';
 import EditProfileModal from '@/components/profile/EditProfileModal';
 import ExperienceFormModal from '@/components/profile/ExperienceFormModal';
 import EducationFormModal from '@/components/profile/EducationFormModal';
-import HighlightsRow from '@/components/stories/HighlightsRow';
+import HighlightsRow from './stories/Partials/HighlightsRow';
 import {
   resolveAvatarUrl,
   resolvePostMediaUrl,
@@ -1807,7 +1807,7 @@ export default function ProfileScreen() {
         </Text>
 
         {isOwnProfile ? (
-          <TouchableOpacity onPress={() => router.push('/more')} hitSlop={12} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/more')} hitSlop={12} activeOpacity={0.7}>
             <Ionicons name="menu-outline" size={26} color={isDark ? '#fff' : '#000'} />
           </TouchableOpacity>
         ) : (

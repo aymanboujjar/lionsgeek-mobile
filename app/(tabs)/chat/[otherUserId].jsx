@@ -3,8 +3,8 @@ import { View, Text, Pressable } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAppContext } from '@/context';
 import AppLayout from '@/components/layout/AppLayout';
-import ChatBox from '@/components/chat/ChatBox';
-import ChatThreadSkeleton from '@/components/chat/partials/ChatThreadSkeleton';
+import ChatBox from './Partials/ChatBox';
+import ChatThreadSkeleton from './Partials/ChatThreadSkeleton';
 import API from '@/api';
 
 export default function ChatThreadScreen() {

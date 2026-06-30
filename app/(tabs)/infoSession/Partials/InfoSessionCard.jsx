@@ -2,12 +2,12 @@ import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, getAccentIconColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import InfoSessionHero from '@/components/infoSession/partials/InfoSessionHero';
+import InfoSessionHero from './InfoSessionHero';
 import {
   formatSessionDate,
   getSessionStatusLabel,
   getSessionAvailabilityLabel,
-} from '@/components/infoSession/helpers';
+} from '../helpers';
 
 export default function InfoSessionCard({ session, onPress }) {
   const isDark = useColorScheme() === 'dark';

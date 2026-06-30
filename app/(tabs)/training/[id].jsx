@@ -257,7 +257,7 @@ export default function TrainingDetails() {
           <View className="mb-6">
             <Pressable
               onPress={() =>
-                router.push({ pathname: '/attendance-history', params: { id: String(training.id) } })
+                router.push({ pathname: '/(tabs)/attendance-history', params: { id: String(training.id) } })
               }
               style={{
                 flexDirection: 'row',

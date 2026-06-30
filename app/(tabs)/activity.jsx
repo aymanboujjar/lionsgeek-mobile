@@ -248,9 +248,9 @@ export default function ActivityScreen() {
         const pid = item.post?.id;
         const cid = item.comment?.id;
         if (pid && cid) {
-          router.push(`/posts/${pid}?commentId=${cid}`);
+          router.push(`/(tabs)/posts/${pid}?commentId=${cid}`);
         } else if (pid) {
-          router.push(`/posts/${pid}`);
+          router.push(`/(tabs)/posts/${pid}`);
         }
         break;
       }
@@ -259,7 +259,7 @@ export default function ActivityScreen() {
       case 'post':
       case 'repost':
         if (item.post?.id) {
-          router.push(`/posts/${item.post.id}`);
+          router.push(`/(tabs)/posts/${item.post.id}`);
         }
         break;
       case 'reservation':

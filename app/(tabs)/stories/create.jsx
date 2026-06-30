@@ -19,13 +19,13 @@ import { Video, ResizeMode, Audio } from 'expo-av';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppContext } from '@/context';
 import API from '@/api';
-import EditableOverlayLayer from '@/components/stories/editor/EditableOverlayLayer';
-import TextInputModal from '@/components/stories/editor/TextInputModal';
-import EmojiPickerSheet from '@/components/stories/editor/EmojiPickerSheet';
-import DrawingCanvas from '@/components/stories/editor/DrawingCanvas';
-import UserPickerSheet from '@/components/stories/editor/UserPickerSheet';
-import MusicPickerSheet from '@/components/stories/editor/MusicPickerSheet';
-import OverlayRenderer from '@/components/stories/OverlayRenderer';
+import EditableOverlayLayer from './Partials/editor/EditableOverlayLayer';
+import TextInputModal from './Partials/editor/TextInputModal';
+import EmojiPickerSheet from './Partials/editor/EmojiPickerSheet';
+import DrawingCanvas from './Partials/editor/DrawingCanvas';
+import UserPickerSheet from './Partials/editor/UserPickerSheet';
+import MusicPickerSheet from './Partials/editor/MusicPickerSheet';
+import OverlayRenderer from './Partials/OverlayRenderer';
 import GradientOverlay from '@/components/ui/GradientOverlay';
 import { resolveAvatarUrl } from '@/components/helpers/helpers';
 
@@ -607,7 +607,7 @@ export default function CreateStoryScreen() {
 
               <Pressable
                 onPress={() => submit('close_friends')}
-                onLongPress={() => router.push('/settings/close-friends')}
+                onLongPress={() => router.push('/(tabs)/settings/close-friends')}
                 delayLongPress={350}
                 disabled={uploading}
                 accessibilityLabel="Post to close friends"

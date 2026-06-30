@@ -81,15 +81,37 @@ export default function TabLayout() {
   ];
   
   const hiddenScreens = [
-    // hado mo2a9atan hna
     { route: "members", name: "Members", icon: "person.3.fill", showTab: isAdmin, roles: ['admin', 'coach'] },
-    { route: "projects", name: "Projects", icon: "hammer.fill", showTab: true, roles: [] }, // 
+    { route: "projects", name: "Projects", icon: "hammer.fill", showTab: true, roles: [] },
     { route: "training", name: "Training", icon: "school" },
-    // tal 7ad  hna
-    { route: "home", name: "Home", icon: "house.fill", showTab: false }, // Hide duplicate home tab
+    { route: "home", name: "Home", icon: "house.fill", showTab: false },
     { route: "search", name: "Search", icon: "magnifyingglass", showTab: false },
     { route: "notifications", name: "Notifications", icon: "bell.fill", showTab: false },
     { route: "infoSession", name: "Info Session", icon: "school", showTab: false },
+    // Stack screens (non-tab routes living under (tabs)/)
+    { route: "chat", name: "Chat", icon: "chatbubbles.fill", showTab: false },
+    { route: "stories", name: "Stories", icon: "book", showTab: false },
+    { route: "posts", name: "Posts", icon: "document-text", showTab: false },
+    { route: "settings", name: "Settings", icon: "settings", showTab: false },
+    { route: "more", name: "More", icon: "ellipsis", showTab: false },
+    { route: "activity", name: "Activity", icon: "pulse", showTab: false },
+    { route: "saved-posts", name: "Saved posts", icon: "bookmark", showTab: false },
+    { route: "achievements", name: "Achievements", icon: "trophy", showTab: false },
+    { route: "learning-progress", name: "Learning", icon: "school", showTab: false },
+    { route: "projects-hub", name: "Projects hub", icon: "hammer", showTab: false },
+    { route: "admin-reports", name: "Reports", icon: "analytics", showTab: false },
+    { route: "customization", name: "Customize", icon: "color-palette", showTab: false },
+    { route: "attendance-history", name: "Attendance", icon: "calendar", showTab: false },
+    { route: "reservation-history-studio", name: "Studio history", icon: "calendar", showTab: false },
+    { route: "reservation-history-cowork", name: "Cowork history", icon: "calendar", showTab: false },
+    { route: "notification-preferences", name: "Notification prefs", icon: "notifications", showTab: false },
+    { route: "terms", name: "Terms", icon: "document-text", showTab: false },
+    { route: "privacy", name: "Privacy", icon: "shield", showTab: false },
+    { route: "support", name: "Support", icon: "help-circle", showTab: false },
+    { route: "licenses", name: "Licenses", icon: "document", showTab: false },
+    { route: "call", name: "Call", icon: "call", showTab: false },
+    { route: "incoming-call", name: "Incoming call", icon: "call", showTab: false },
+    { route: "outgoing-call", name: "Outgoing call", icon: "call", showTab: false },
   ]
 
 
@@ -145,7 +167,7 @@ export default function TabLayout() {
                         if (Platform.OS !== 'web') {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
                         }
-                        router.push('/more');
+                        router.push('/(tabs)/more');
                       }}
                     />
                   ),

@@ -36,7 +36,7 @@ import {
   buildMusicOverlayPayload,
   formatDuration,
   formatMs,
-} from '@/components/stories/editor/musicUtils';
+} from './musicUtils';
 
 const { height: WINDOW_H } = Dimensions.get('window');
 const SHEET_H = Math.round(WINDOW_H * 0.82);

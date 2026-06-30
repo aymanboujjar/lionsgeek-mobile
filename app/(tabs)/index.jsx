@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, RefreshControl, Alert } from 'react-native';
 import { useAppContext } from '@/context';
-import StoriesTray from '@/components/feed/StoriesTray';
-import FeedItem from '@/components/feed/FeedItem';
-import CreatePost from '@/components/feed/CreatePost';
+import StoriesTray from './_feed/Partials/StoriesTray';
+import FeedItem from './_feed/Partials/FeedItem';
+import CreatePost from './_feed/Partials/CreatePost';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import AppLayout from '@/components/layout/AppLayout';

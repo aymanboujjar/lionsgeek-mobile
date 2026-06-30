@@ -7,7 +7,7 @@ import { useAppContext } from '@/context';
 import { userCanAccessScan } from '@/components/helpers/helpers';
 import { InfoSessionAPI } from '@/api/infoSessionSection';
 import AppLayout from '@/components/layout/AppLayout';
-import AccessDenied from '@/components/events/partials/AccessDenied';
+import AccessDenied from '../../events/Partials/AccessDenied';
 import Skeleton from '@/components/ui/Skeleton';
 import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -19,7 +19,7 @@ import {
   isParticipantCheckedIn,
   mapInfoParticipant,
   mapInfoParticipants,
-} from '@/components/infoSession/helpers';
+} from '../helpers';
 
 function SectionCard({ children, className = '' }) {
   return (

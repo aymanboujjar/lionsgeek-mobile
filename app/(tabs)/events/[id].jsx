@@ -1,3 +1,3 @@
-import EventDetail from '@/components/events/partials/EventDetail';
+import EventDetail from './Partials/EventDetail';
 
 export default EventDetail;

@@ -5,8 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { useAppContext } from '@/context';
 import API from '@/api';
-import CommentsModal from '@/components/feed/CommentsModal';
-import LikesModal from '@/components/feed/LikesModal';
+import CommentsModal from './CommentsModal';
+import LikesModal from './LikesModal';
 import { router } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
@@ -750,7 +750,7 @@ export default function FeedItem({ item, onPress, initialFocusCommentId = null }
 
   const handleEditPost = () => {
     setShowPostMenu(false);
-    router.push(`/posts/edit/${item.id}`);
+    router.push(`/(tabs)/posts/edit/${item.id}`);
   };
 
   const handleOpenReport = () => {

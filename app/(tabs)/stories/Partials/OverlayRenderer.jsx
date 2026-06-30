@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react';
 import { View } from 'react-native';
-import TextOverlay from '@/components/stories/overlays/TextOverlay';
-import StickerOverlay from '@/components/stories/overlays/StickerOverlay';
-import DrawingOverlay from '@/components/stories/overlays/DrawingOverlay';
-import MentionOverlay from '@/components/stories/overlays/MentionOverlay';
-import MusicOverlay from '@/components/stories/overlays/MusicOverlay';
+import TextOverlay from './overlays/TextOverlay';
+import StickerOverlay from './overlays/StickerOverlay';
+import DrawingOverlay from './overlays/DrawingOverlay';
+import MentionOverlay from './overlays/MentionOverlay';
+import MusicOverlay from './overlays/MusicOverlay';
 
 /**
  * Read-only overlay layer. Drops in on top of the story media in the viewer

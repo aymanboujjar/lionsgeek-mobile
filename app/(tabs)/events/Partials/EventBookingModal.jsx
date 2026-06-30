@@ -21,8 +21,8 @@ import {
   getOptionLabel,
   normalizeBookingKey,
   validateBookingAnswers,
-} from '@/components/events/bookingHelpers';
-import { getEventDisplayName } from '@/components/events/helpers';
+} from '../bookingHelpers';
+import { getEventDisplayName } from '../helpers';
 import { Colors, getAccentFillColor, getOnAccentTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 

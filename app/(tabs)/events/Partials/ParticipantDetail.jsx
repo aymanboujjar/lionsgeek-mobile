@@ -6,7 +6,7 @@ import { useAppContext } from '@/context';
 import { userCanAccessScan } from '@/components/helpers/helpers';
 import EventsInfoAPI from '@/api/eventsInfoSection';
 import AppLayout from '@/components/layout/AppLayout';
-import AccessDenied from '@/components/events/partials/AccessDenied';
+import AccessDenied from './AccessDenied';
 import Skeleton from '@/components/ui/Skeleton';
 import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -20,7 +20,7 @@ import {
   getParticipantDetailRows,
   isSameEventId,
   userCanCheckInEvent,
-} from '@/components/events/helpers';
+} from '../helpers';
 
 function SectionCard({ children, className = '' }) {
   return (

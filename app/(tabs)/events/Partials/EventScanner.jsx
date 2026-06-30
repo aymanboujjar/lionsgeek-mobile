@@ -6,10 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
 import EventsInfoAPI from '@/api/eventsInfoSection';
 import Skeleton from '@/components/ui/Skeleton';
-import ScanResultOverlay from '@/components/events/partials/ScanResultModal';
+import ScanResultOverlay from './ScanResultModal';
 import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { getEventDisplayName, hasEventPassed, mapValidationMessage, userCanScanEvent } from '@/components/events/helpers';
+import { getEventDisplayName, hasEventPassed, mapValidationMessage, userCanScanEvent } from '../helpers';
 
 const DUPLICATE_SCAN_MS = 2500;
 const CORNER_SIZE = 36;

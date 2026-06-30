@@ -7,10 +7,10 @@ import { userCanAccessScan, userHasAdminRole } from '@/components/helpers/helper
 import EventsInfoAPI from '@/api/eventsInfoSection';
 import AppLayout from '@/components/layout/AppLayout';
 import Skeleton from '@/components/ui/Skeleton';
-import ParticipantsList from '@/components/events/partials/ParticipantsList';
-import EventBookingModal from '@/components/events/partials/EventBookingModal';
-import EventCoverImage from '@/components/events/partials/EventCoverImage';
-import { hasUserBookedEvent } from '@/components/events/bookingHelpers';
+import ParticipantsList from './ParticipantsList';
+import EventBookingModal from './EventBookingModal';
+import EventCoverImage from './EventCoverImage';
+import { hasUserBookedEvent } from '../bookingHelpers';
 import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import {
@@ -26,7 +26,7 @@ import {
   hasEventPassed,
   isPrivateEvent,
   getParticipantCounts,
-} from '@/components/events/helpers';
+} from '../helpers';
 
 function StatusBadge({ status }) {
   const isDark = useColorScheme() === 'dark';

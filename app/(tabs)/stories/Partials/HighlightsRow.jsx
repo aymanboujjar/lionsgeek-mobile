@@ -117,7 +117,7 @@ export default function HighlightsRow({ userId, isOwnProfile, isDark, refreshKey
         {highlights.map((h) => (
           <Pressable
             key={h.id}
-            onPress={() => router.push(`/stories/highlight/${h.id}`)}
+            onPress={() => router.push(`/(tabs)/stories/highlight/${h.id}`)}
             onLongPress={() => handleLongPress(h)}
             delayLongPress={400}
             style={({ pressed }) => [tileWrap, { opacity: pressed ? 0.7 : 1 }]}

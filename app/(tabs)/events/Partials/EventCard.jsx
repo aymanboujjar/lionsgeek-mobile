@@ -2,13 +2,13 @@ import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAccentIconColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import EventCoverImage from '@/components/events/partials/EventCoverImage';
+import EventCoverImage from './EventCoverImage';
 import {
   formatEventDate,
   getEventCoverUrl,
   getEventDisplayName,
   getEventStatusLabel,
-} from '@/components/events/helpers';
+} from '../helpers';
 
 export default function EventCard({ event, onPress, treatPastByDateTime = false }) {
   const isDark = useColorScheme() === 'dark';

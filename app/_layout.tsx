@@ -65,118 +65,15 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="welcome" options={{ headerShown: false }} />
       <Stack.Screen name="loading" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding/index" options={{ headerShown: false }} />
       <Stack.Screen name="auth/login" options={{ headerShown: false }} />
       <Stack.Screen name="auth/forgot-password" options={{ headerShown: false }} />
       <Stack.Screen
-        name="reset-password"
+        name="auth/reset-password"
         options={stackHeaderOptions('Reset password', stackBg, colorScheme)}
       />
-      <Stack.Screen
-        name="notification-preferences"
-        options={stackHeaderOptions('Notification preferences', stackBg, colorScheme)}
-      />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="chat" options={{ headerShown: false }} />
-      <Stack.Screen name="posts/edit/[id]" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="stories/create"
-        options={{
-          headerShown: false,
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-          gestureEnabled: true,
-        }}
-      />
-      <Stack.Screen
-        name="stories/viewer"
-        options={{
-          headerShown: false,
-          presentation: 'fullScreenModal',
-          animation: 'fade',
-          gestureEnabled: false,
-        }}
-      />
-      <Stack.Screen
-        name="stories/highlight/[id]"
-        options={{
-          headerShown: false,
-          presentation: 'fullScreenModal',
-          animation: 'fade',
-          gestureEnabled: false,
-        }}
-      />
-      <Stack.Screen
-        name="settings/close-friends"
-        options={{
-          headerShown: false,
-          presentation: 'modal',
-          animation: 'slide_from_bottom',
-        }}
-      />
-      <Stack.Screen
-        name="call"
-        options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
-      />
-      <Stack.Screen
-        name="incoming-call"
-        options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
-      />
-      <Stack.Screen
-        name="outgoing-call"
-        options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }}
-      />
-      <Stack.Screen name="more" options={stackHeaderOptions('More', stackBg, colorScheme)} />
-      <Stack.Screen
-        name="saved-posts"
-        options={stackHeaderOptions('Saved posts', stackBg, colorScheme)}
-      />
-      <Stack.Screen
-        name="achievements"
-        options={stackHeaderOptions('Achievements', stackBg, colorScheme)}
-      />
-      <Stack.Screen
-        name="learning-progress"
-        options={stackHeaderOptions('Learning progress', stackBg, colorScheme)}
-      />
-      <Stack.Screen name="projects-hub" options={stackHeaderOptions('Projects', stackBg, colorScheme)} />
-      <Stack.Screen
-        name="admin-reports"
-        options={stackHeaderOptions('Reports', stackBg, colorScheme)}
-      />
-      <Stack.Screen
-        name="customization"
-        options={stackHeaderOptions('Customize', stackBg, colorScheme)}
-      />
-      <Stack.Screen
-        name="activity"
-        options={stackHeaderOptions('Recent activity', stackBg, colorScheme)}
-      />
-      <Stack.Screen
-        name="attendance-history"
-        options={{
-          ...stackHeaderOptions('My Attendance', stackBg, colorScheme),
-          gestureEnabled: true,
-          animation: 'slide_from_right' as const,
-        }}
-      />
-      <Stack.Screen
-        name="reservation-history-studio"
-        options={stackHeaderOptions('Studios history', stackBg, colorScheme)}
-      />
-      <Stack.Screen
-        name="reservation-history-cowork"
-        options={stackHeaderOptions('Coworking history', stackBg, colorScheme)}
-      />
-      <Stack.Screen
-        name="terms"
-        options={stackHeaderOptions('Terms & conditions', stackBg, colorScheme)}
-      />
-      <Stack.Screen name="privacy" options={stackHeaderOptions('Privacy policy', stackBg, colorScheme)} />
-      <Stack.Screen name="support" options={stackHeaderOptions('Support', stackBg, colorScheme)} />
-      <Stack.Screen name="licenses" options={stackHeaderOptions('Licenses', stackBg, colorScheme)} />
       <Stack.Screen name="+not-found" />
     </Stack>
   );

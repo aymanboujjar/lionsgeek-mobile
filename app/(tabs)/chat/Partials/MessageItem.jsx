@@ -127,7 +127,7 @@ export default function MessageItem({
                 <View className={`max-w-[85%] rounded-2xl px-4 py-3 ${isCurrentUser ? 'bg-alpha rounded-br-md' : 'bg-gray-200 dark:bg-gray-800 rounded-bl-md'}`}>
                     {postShare ? (
                         <Pressable
-                            onPress={() => router.push(`/posts/${postShare.post_id}`)}
+                            onPress={() => router.push(`/(tabs)/posts/${postShare.post_id}`)}
                             className={`overflow-hidden rounded-xl border ${isCurrentUser ? 'border-black/10 bg-white/10' : 'border-gray-300/60 dark:border-gray-700 bg-white/60 dark:bg-gray-900/20'}`}
                         >
                             {resolveImageUrl(postShare.image) ? (

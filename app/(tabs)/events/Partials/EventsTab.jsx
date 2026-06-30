@@ -8,14 +8,14 @@ import EventsInfoAPI from '@/api/eventsInfoSection';
 import { getAccentFillColor, getAccentIconColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Skeleton from '@/components/ui/Skeleton';
-import EventCard from '@/components/events/partials/EventCard';
+import EventCard from './EventCard';
 import {
   filterEventsByName,
   filterEventsForViewer,
   normalizeEvents,
   resolveEventsError,
   sortEventsByDate,
-} from '@/components/events/helpers';
+} from '../helpers';
 
 export default function EventsTab() {
   const { user } = useAppContext();

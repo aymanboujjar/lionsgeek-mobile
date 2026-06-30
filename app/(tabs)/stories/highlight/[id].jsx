@@ -25,8 +25,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Video, ResizeMode } from 'expo-av';
 import { useAppContext } from '@/context';
 import API from '@/api';
-import OverlayRenderer from '@/components/stories/OverlayRenderer';
-import useStoryMusic from '@/components/stories/useStoryMusic';
+import OverlayRenderer from '../Partials/OverlayRenderer';
+import useStoryMusic from '../Partials/useStoryMusic';
 
 const { width: WINDOW_W, height: WINDOW_H } = Dimensions.get('window');
 const TOP_INSET = (Platform.OS === 'ios' ? 54 : RNStatusBar.currentHeight ?? 24) + 6;
