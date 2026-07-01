@@ -382,7 +382,7 @@ export default function CreateStoryScreen() {
         audience: audienceChoice,
         overlays: cleanOverlays,
       }, token);
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/home');
     } catch (e) {
       const msg = e?.response?.data?.message || e?.message || 'Upload failed';
       Alert.alert('Could not post story', msg);

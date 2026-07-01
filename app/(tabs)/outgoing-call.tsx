@@ -35,7 +35,7 @@ export default function OutgoingCallScreen() {
   useEffect(() => {
     if (pendingCallAsCaller || activeCall) return;
     const timer = setTimeout(() => {
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/home");
     }, 400);
     return () => clearTimeout(timer);
   }, [pendingCallAsCaller, activeCall, router]);

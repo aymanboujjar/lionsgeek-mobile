@@ -95,7 +95,7 @@ export function CallProvider({ children }) {
                     setActiveCall(null);
                     setIncomingCall(null);
                     setPendingCallAsCaller(null);
-                    router.replace("/(tabs)");
+                    router.replace("/(tabs)/home");
                 });
             } catch (e) {
                 console.error("[CallContext] Ably init error:", e);
@@ -144,7 +144,7 @@ export function CallProvider({ children }) {
                 console.error("[CallContext] Cancel call error:", e);
             }
             setPendingCallAsCaller(null);
-            router.replace("/(tabs)");
+            router.replace("/(tabs)/home");
         },
         [token, router]
     );

@@ -384,7 +384,7 @@ export default function CallScreen() {
       // even if backend fails, still leave the screen
     } finally {
       clearActiveCall();
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/home");
     }
   }, [end, clearActiveCall, router, ending]);
 
@@ -392,7 +392,7 @@ export default function CallScreen() {
   useEffect(() => {
     if (activeCall) return;
     const timer = setTimeout(() => {
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/home");
     }, 400);
     return () => clearTimeout(timer);
   }, [activeCall, router]);

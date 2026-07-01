@@ -31,10 +31,10 @@ export default function IncomingCallScreen() {
               caller: data.caller || {},
             });
           } else {
-            router.replace("/(tabs)");
+            router.replace("/(tabs)/home");
           }
         } catch {
-          router.replace("/(tabs)");
+          router.replace("/(tabs)/home");
         }
       })();
     }
@@ -47,7 +47,7 @@ export default function IncomingCallScreen() {
     // be visible through context on the first effect run.
     if (incomingCall || fetchedCall || paramCallId || activeCall) return;
     const timer = setTimeout(() => {
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/home");
     }, 400);
     return () => clearTimeout(timer);
   }, [incomingCall, fetchedCall, paramCallId, activeCall, router]);
@@ -116,7 +116,7 @@ export default function IncomingCallScreen() {
       await API.rejectCall(fetchedCall.callId, token);
       setFetchedCall(null);
     }
-    router.replace("/(tabs)");
+    router.replace("/(tabs)/home");
   };
 
   if (!displayCall) {

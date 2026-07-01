@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAppContext } from '@/context';
 import API from '@/api';
-import FeedItem from '../_feed/Partials/FeedItem';
+import FeedItem from '../home/Partials/FeedItem';
 import Skeleton from '@/components/ui/Skeleton';
 
 export default function PostDetailsScreen() {

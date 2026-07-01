@@ -450,7 +450,7 @@ export default function NotificationsScreen() {
         }
       } else if (targetLink.startsWith('/feed')) {
         // Feed link
-        router.push('/(tabs)/index');
+        router.push('/(tabs)/home');
       } else if (targetLink.includes('reservations')) {
         router.push('/(tabs)/reservations');
       } else if (notification.type === 'reservation' || notification.type === 'appointment') {
@@ -465,7 +465,7 @@ export default function NotificationsScreen() {
       } else if (notification.type === 'project_submission' || notification.type === 'project_status') {
         router.push('/(tabs)/projects');
       } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
-        router.push('/(tabs)/index');
+        router.push('/(tabs)/home');
       } else if (notification.type === 'post_report' && notification?.post_id) {
         router.push(`/(tabs)/posts/${notification.post_id}${notification.report_id ? `?reportId=${notification.report_id}` : ''}`);
       }

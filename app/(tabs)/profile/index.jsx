@@ -15,7 +15,7 @@ import API from '@/api';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AppLayout from '@/components/layout/AppLayout';
-import CreatePost from '../_feed/Partials/CreatePost';
+import CreatePost from '../home/Partials/CreatePost';
 import EditProfileModal from './_components/EditProfileModal';
 import ExperienceFormModal from './_components/ExperienceFormModal';
 import EducationFormModal from './_components/EducationFormModal';

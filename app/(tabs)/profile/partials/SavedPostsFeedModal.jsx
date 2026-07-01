@@ -1,6 +1,6 @@
 import { View, Text, Modal, FlatList, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import FeedItem from '../../_feed/Partials/FeedItem';
+import FeedItem from '../../home/Partials/FeedItem';
 
 export default function SavedPostsFeedModal({
   visible,

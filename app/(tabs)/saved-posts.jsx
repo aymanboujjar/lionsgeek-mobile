@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import AppLayout from '@/components/layout/AppLayout';
-import FeedItem from './_feed/Partials/FeedItem';
+import FeedItem from './home/Partials/FeedItem';
 import Skeleton from '@/components/ui/Skeleton';
 import API from '@/api';
 import { Ionicons } from '@expo/vector-icons';

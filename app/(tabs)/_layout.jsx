@@ -76,7 +76,7 @@ export default function TabLayout() {
   };
 
   const tabScreen = [
-    { route: 'index', name: 'Home', label: 'Home', icon: 'house.fill' },
+    { route: 'home', name: 'Home', label: 'Home', icon: 'house.fill' },
     { route: 'reservations', name: 'Reservations', label: 'Reserve', icon: 'calendar' },
     { route: 'events', name: 'Events', label: 'Events', icon: 'ticket' },
     { route: 'leaderboard', name: 'Leaderboard', label: 'Rank', icon: 'trophy.fill' },
@@ -88,7 +88,6 @@ export default function TabLayout() {
     { route: "members", name: "Members", icon: "person.3.fill", showTab: isAdmin, roles: ['admin', 'coach'] },
     { route: "projects", name: "Projects", icon: "hammer.fill", showTab: true, roles: [] },
     { route: "training", name: "Training", icon: "school" },
-    { route: "home", name: "Home", icon: "house.fill", showTab: false },
     { route: "search", name: "Search", icon: "magnifyingglass", showTab: false },
     { route: "notifications", name: "Notifications", icon: "bell.fill", showTab: false },
     { route: "test", name: "Test", icon: "bell.fill", showTab: false },
@@ -172,6 +171,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      initialRouteName="home"
       tabBar={renderTabBar}
       screenOptions={{
         tabBarActiveTintColor: Colors.alpha,
