@@ -5,7 +5,7 @@ import {
     storeEventBooking,
     validateEventInvitation,
     manualEventChecking,
-} from './events';
+} from './apiProxy';
 
 const APP_URL = process.env.EXPO_PUBLIC_APP_URL;
 
