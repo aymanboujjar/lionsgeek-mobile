@@ -1,16 +1,8 @@
 import { format, isValid, parseISO, startOfDay } from 'date-fns';
 import { userHasAdminRole, userCanAccessScan } from '@/components/helpers/helpers';
+import { EVENTS_APP_URL, EVENTS_PUBLIC_URL, EVENTS_USE_PROXY } from '@/utils/eventsConfig';
 
-const EVENTS_PUBLIC_URL = (
-  process.env.EXPO_PUBLIC_EVENTS_INFO_SECTION_URL ||
-  process.env.EVENTS_INFO_SECTION_URL ||
-  ''
-).replace(/\/+$/, '');
-
-const EVENTS_APP_URL = (process.env.EXPO_PUBLIC_APP_URL || '').replace(/\/+$/, '');
-
-const EVENTS_USE_PROXY =
-  String(process.env.EXPO_PUBLIC_EVENTS_INFO_USE_PROXY || '').toLowerCase() === 'true';
+const OTHER_EVENTS_BATCH_SIZE = 4;
 
 // Resolves multilingual event name JSON to a display string.
 export function getEventDisplayName(name) {
@@ -288,4 +280,60 @@ export function getParticipantDetailRows(participant) {
   });
 
   return rows;
+}
+
+// Finds other event registrations for the same email (orchestration — inject API fetchers).
+export async function collectParticipantOtherRegistrations(
+  email,
+  excludeEventId,
+  { getEvents, getEvent }
+) {
+  const normalizedEmail = normalizeParticipantEmail(email);
+  if (!normalizedEmail || typeof getEvents !== 'function' || typeof getEvent !== 'function') {
+    return [];
+  }
+
+  const listResponse = await getEvents();
+  const events = normalizeEvents(listResponse?.data ?? []).filter(
+    (event) => !isSameEventId(event.id, excludeEventId)
+  );
+
+  const matches = [];
+
+  for (let index = 0; index < events.length; index += OTHER_EVENTS_BATCH_SIZE) {
+    const batch = events.slice(index, index + OTHER_EVENTS_BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (summary) => {
+        if (isSameEventId(summary.id, excludeEventId)) return null;
+
+        try {
+          const response = await getEvent(summary.id);
+          const event = response?.data?.event ?? summary;
+          if (isSameEventId(event.id, excludeEventId)) return null;
+
+          const participants = Array.isArray(response?.data?.participants)
+            ? response.data.participants
+            : [];
+          const registration = participants.find((p) =>
+            participantEmailsMatch(p.email, normalizedEmail)
+          );
+          if (!registration) return null;
+
+          return { event, registration };
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    matches.push(...batchResults.filter(Boolean));
+  }
+
+  const withoutCurrent = matches.filter((item) => !isSameEventId(item.event?.id, excludeEventId));
+
+  return withoutCurrent.sort((a, b) => {
+    const da = getEventDate(a.event)?.getTime() ?? 0;
+    const db = getEventDate(b.event)?.getTime() ?? 0;
+    return db - da;
+  });
 }

@@ -21,6 +21,7 @@ import {
   hasEventPassed,
   isSameEventId,
   userCanCheckInEvent,
+  collectParticipantOtherRegistrations,
 } from '@/utils/events';
 
 export default function EventParticipantScreen() {
@@ -79,7 +80,10 @@ export default function EventParticipantScreen() {
         if (match.email) {
           setLoadingOther(true);
           try {
-            const others = await API.fetchParticipantOtherRegistrations(match.email, eventId);
+            const others = await collectParticipantOtherRegistrations(match.email, eventId, {
+              getEvents: API.getEvents,
+              getEvent: API.getEvent,
+            });
             setOtherRegistrations(others);
           } catch {
             setOtherRegistrations([]);

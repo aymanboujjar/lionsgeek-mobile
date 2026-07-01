@@ -24,7 +24,9 @@ Removed page-as-partial files: `EventDetail.jsx`, `ParticipantDetail.jsx`.
 
 | Area | Files |
 |------|-------|
-| API | `api/index.jsx` — events-info endpoints merged here |
+| API | `api/index.jsx` re-exports `api/events.js` |
+| Config | `utils/eventsConfig.js` — env vars (single source) |
+| Utils | `utils/events.js` — pure helpers + `collectParticipantOtherRegistrations` |
 | Utils | `utils/events.js`, `utils/eventBooking.js` (new) |
 | UI shared | `components/ui/ErrorScreen.jsx`, `components/ui/SectionCard.jsx` |
 | Tokens | `constants/Colors.ts` — `getMutedIconColor`, `Overlays` |
@@ -46,7 +48,7 @@ Exported from `api/index.jsx`:
 - `storeEventBooking(payload)`
 - `validateEventInvitation(payload)`
 - `manualEventChecking(bookingId, eventId)`
-- `fetchParticipantOtherRegistrations(email, excludeEventId)`
+- `collectParticipantOtherRegistrations(email, excludeEventId, { getEvents, getEvent })` — in `utils/events.js`
 
 ## How to test
 
