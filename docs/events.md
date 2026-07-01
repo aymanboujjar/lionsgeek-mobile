@@ -8,7 +8,19 @@ Aligned `app/(tabs)/events/` with `.cursor/rules.md`: centralized API calls, mov
 
 The events feature had a separate axios module, feature-local helpers with embedded API calls, custom per-screen error UI, `ScrollView` + `.map()` lists, and inline hex/rgba colors — all violations of the project invariants.
 
-## Files touched
+## Folder structure (Inertia-style)
+
+```
+app/(tabs)/events/
+├── _layout.tsx
+├── index.jsx              ← list screen (composes Partials)
+├── [id].jsx               ← detail screen (data + composition)
+├── scanner.jsx            ← staff QR (guard + lazy EventScanner)
+├── participant/[id].jsx   ← staff visitor detail
+└── Partials/              ← UI chunks only (no full pages)
+```
+
+Removed page-as-partial files: `EventDetail.jsx`, `ParticipantDetail.jsx`.
 
 | Area | Files |
 |------|-------|
