@@ -16,9 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AppLayout from '@/components/layout/AppLayout';
 import CreatePost from '../_feed/Partials/CreatePost';
-import EditProfileModal from './components/EditProfileModal';
-import ExperienceFormModal from './components/ExperienceFormModal';
-import EducationFormModal from './components/EducationFormModal';
+import EditProfileModal from './_components/EditProfileModal';
+import ExperienceFormModal from './_components/ExperienceFormModal';
+import EducationFormModal from './_components/EducationFormModal';
 import {
     resolveAvatarUrl,
     resolvePostMediaUrl,

@@ -1,6 +1,6 @@
 import { Tabs, router } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, Image, Platform, View } from 'react-native';
+import { Image, Platform, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import * as SystemUI from 'expo-system-ui';
@@ -76,11 +76,11 @@ export default function TabLayout() {
   };
 
   const tabScreen = [
-    { route: "index", name: "Home", icon: "house.fill" },
-    { route: "reservations", name: "Reservations", icon: "calendar" },
-    { route: "events", name: "Events", icon: "ticket" },
-    { route: "leaderboard", name: "Leaderboard", icon: "trophy.fill" },
-    { route: "profile", name: "Profile", icon: "person.fill" },
+    { route: 'index', name: 'Home', label: 'Home', icon: 'house.fill' },
+    { route: 'reservations', name: 'Reservations', label: 'Reserve', icon: 'calendar' },
+    { route: 'events', name: 'Events', label: 'Events', icon: 'ticket' },
+    { route: 'leaderboard', name: 'Leaderboard', label: 'Rank', icon: 'trophy.fill' },
+    { route: 'profile', name: 'Profile', label: 'Profile', icon: 'person.fill' },
     // { route: "test", name: "notifications", icon: "bell.fill" },
   ];
 
@@ -124,10 +124,10 @@ export default function TabLayout() {
   const activeRingColor = Colors.alpha;
   const tabBarBg = isDark ? Colors.dark : Colors.light;
 
-  const visibleTabRoutes = useMemo(() => new Set(tabScreen.map((s) => s.route)), [tabScreen]);
+  const visibleTabOrder = useMemo(() => tabScreen.map((s) => s.route), [tabScreen]);
 
   const tabBarStyle = useMemo(() => {
-    const contentHeight = Platform.OS === 'ios' ? 49 : 56;
+    const contentHeight = Platform.OS === 'ios' ? 49 : 64;
     const base = {
       backgroundColor: tabBarBg,
       borderTopColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
@@ -146,53 +146,10 @@ export default function TabLayout() {
     }
   }, [tabBarBg]);
 
-  // #region agent log
-  useEffect(() => {
-    const { width: screenWidth } = Dimensions.get('window');
-    fetch('http://127.0.0.1:7443/ingest/053d9658-e18d-4e51-b69f-003086ea9876', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '976b46' },
-      body: JSON.stringify({
-        sessionId: '976b46',
-        runId: 'post-fix',
-        hypothesisId: 'B',
-        location: '_layout.jsx:tabBarStyle',
-        message: 'tabBarStyle computed',
-        data: { platform: Platform.OS, insets, tabBarStyle, screenWidth, tabBarBg },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    console.warn('[DEBUG976b46] tabBarStyle', JSON.stringify({ insets, tabBarStyle, screenWidth }));
-  }, [insets, tabBarStyle, tabBarBg]);
-
-  useEffect(() => {
-    const visibleRoutes = tabScreen.map((s) => s.route);
-    const hiddenRouteNames = hiddenScreens.map((s) => s.route);
-    fetch('http://127.0.0.1:7443/ingest/053d9658-e18d-4e51-b69f-003086ea9876', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '976b46' },
-      body: JSON.stringify({
-        sessionId: '976b46',
-        runId: 'post-fix',
-        hypothesisId: 'A',
-        location: '_layout.jsx:registeredScreens',
-        message: 'registered tab screens',
-        data: {
-          visibleCount: visibleRoutes.length,
-          visibleRoutes,
-          hiddenCount: hiddenRouteNames.length,
-          hiddenRoutes: hiddenRouteNames,
-          isAdmin,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }, [isAdmin]);
-  // #endregion
-
   const renderTabBar = (props) => {
-    const allRouteNames = props.state?.routes?.map((r) => r.name) ?? [];
-    const filteredRoutes = props.state.routes.filter((route) => visibleTabRoutes.has(route.name));
+    const filteredRoutes = visibleTabOrder
+      .map((name) => props.state.routes.find((route) => route.name === name))
+      .filter(Boolean);
     const filteredDescriptors = Object.fromEntries(
       filteredRoutes.map((route) => [route.key, props.descriptors[route.key]]),
     );
@@ -203,30 +160,6 @@ export default function TabLayout() {
       routes: filteredRoutes,
       index: filteredIndex >= 0 ? filteredIndex : 0,
     };
-
-    // #region agent log
-    const logPayload = {
-      sessionId: '976b46',
-      runId: 'post-fix',
-      hypothesisId: 'A',
-      location: '_layout.jsx:renderTabBar',
-      message: 'tab bar routes filtered',
-      data: {
-        allRouteCount: allRouteNames.length,
-        allRouteNames,
-        visibleRouteCount: filteredRoutes.length,
-        visibleRouteNames: filteredRoutes.map((r) => r.name),
-        activeRoute: props.state?.routes?.[props.state?.index]?.name,
-      },
-      timestamp: Date.now(),
-    };
-    console.warn('[DEBUG976b46]', JSON.stringify(logPayload));
-    fetch('http://127.0.0.1:7443/ingest/053d9658-e18d-4e51-b69f-003086ea9876', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '976b46' },
-      body: JSON.stringify(logPayload),
-    }).catch(() => {});
-    // #endregion
 
     return (
       <BottomTabBar
@@ -244,75 +177,58 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors.alpha,
         tabBarInactiveTintColor: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
         headerShown: false,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
-        tabBarItemStyle: { flex: 1 },
+        tabBarItemStyle: { flex: 1, minWidth: 0, maxWidth: '20%' },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          marginTop: 2,
+        },
         tabBarStyle,
       }}>
 
 
       {/* screen inside the navigation bar */}
-      {tabScreen.map((screen, idx) => (
+      {tabScreen.map((screen) => (
         <Tabs.Screen
-          key={idx}
+          key={screen.route}
           name={screen.route}
           options={{
             headerShown: false,
             title: screen.name,
+            tabBarLabel: screen.label,
             ...(screen.route === 'profile'
               ? {
-                // Tabs keep screens mounted; if we previously opened someone via
-                // `/(tabs)/profile?userId=...`, tapping the Profile tab must reset
-                // back to your own profile (no params).
-                tabBarButton: (props) => (
-                  <HapticTab
-                    {...props}
-                    onPress={() => {
-                      router.replace('/(tabs)/profile');
-                    }}
-                    onLongPress={() => {
-                      if (Platform.OS !== 'web') {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
-                      }
-                      router.push('/(tabs)/more');
-                    }}
-                  />
-                ),
+                listeners: {
+                  tabPress: (e) => {
+                    e.preventDefault();
+                    router.replace('/(tabs)/profile');
+                  },
+                  tabLongPress: () => {
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
+                    }
+                    router.push('/(tabs)/more');
+                  },
+                },
               }
               : {}),
             tabBarIcon: ({ color, focused }) => {
-              const resolvedIcon = getIconName(screen.icon, focused);
-              // #region agent log
-              if (screen.route === 'events' || screen.route === 'reservations') {
-                fetch('http://127.0.0.1:7443/ingest/053d9658-e18d-4e51-b69f-003086ea9876', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '976b46' },
-                  body: JSON.stringify({
-                    sessionId: '976b46',
-                    runId: 'post-fix',
-                    hypothesisId: 'C',
-                    location: '_layout.jsx:tabBarIcon',
-                    message: 'visible tab icon resolved',
-                    data: { route: screen.route, sfIcon: screen.icon, resolvedIcon, focused },
-                    timestamp: Date.now(),
-                  }),
-                }).catch(() => {});
-              }
-              // #endregion
               if (screen.route === 'profile') {
-                const avatarUrl = API.APP_URL + "/storage/img/profile/" + user?.image;
+                const avatarUrl = user?.image
+                  ? `${API.APP_URL}/storage/img/profile/${user.image}`
+                  : null;
                 const ringClassName = focused ? 'border-2' : 'border';
                 const ringStyle = { borderColor: focused ? activeRingColor : 'transparent' };
-                // console.log(avatarUrl);
 
                 return (
-                  <View className={`w-8 h-8 rounded-full overflow-hidden ${ringClassName}`} style={ringStyle}>
+                  <View className={`w-7 h-7 rounded-full overflow-hidden ${ringClassName}`} style={ringStyle}>
                     {avatarUrl ? (
                       <Image source={{ uri: avatarUrl }} className="w-full h-full" />
                     ) : (
                       <View className="w-full h-full items-center justify-center bg-alpha/20">
-                        <Ionicons size={18} name={focused ? 'person' : 'person-outline'} color={color} />
+                        <Ionicons size={16} name={focused ? 'person' : 'person-outline'} color={color} />
                       </View>
                     )}
                   </View>
@@ -321,7 +237,7 @@ export default function TabLayout() {
 
               return (
                 <Ionicons
-                  size={28}
+                  size={24}
                   name={getIconName(screen.icon, focused)}
                   color={color}
                 />

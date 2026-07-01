@@ -16,7 +16,7 @@ import API from "@/api";
 import { Ionicons } from "@expo/vector-icons";
 import AppLayout from "@/components/layout/AppLayout";
 import Skeleton from "@/components/ui/Skeleton";
-import EditProfileModal from "./profile/components/EditProfileModal";
+import EditProfileModal from "./profile/_components/EditProfileModal";
 import SmoothThemeToggle from "@/components/ui/SmoothThemeToggle";
 import GamerProfileStats from "./more/Partials/GamerProfileStats";
 import {
