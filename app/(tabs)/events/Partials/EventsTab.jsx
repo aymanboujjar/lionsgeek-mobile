@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, Pressable, TextInput } from 'react-native';
+import { View, Text, FlatList, RefreshControl, Pressable, TextInput } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
 import { userCanAccessScan } from '@/components/helpers/helpers';
-import EventsInfoAPI from '@/api/eventsInfoSection';
-import { getAccentFillColor, getAccentIconColor } from '@/constants/Colors';
+import API from '@/api';
+import { getAccentFillColor, getAccentIconColor, getPlaceholderTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Skeleton from '@/components/ui/Skeleton';
+import ErrorScreen from '@/components/ui/ErrorScreen';
 import EventCard from './EventCard';
 import {
   filterEventsByName,
@@ -15,7 +16,9 @@ import {
   normalizeEvents,
   resolveEventsError,
   sortEventsByDate,
-} from '../helpers';
+} from '@/utils/events';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 export default function EventsTab() {
   const { user } = useAppContext();
@@ -23,12 +26,19 @@ export default function EventsTab() {
   const isDark = useColorScheme() === 'dark';
   const accentIcon = getAccentIconColor(isDark);
   const accentFill = getAccentFillColor(isDark);
+  const placeholderColor = getPlaceholderTextColor(isDark);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sortOrder, setSortOrder] = useState('desc');
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(searchQuery), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const fetchEvents = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -36,10 +46,12 @@ export default function EventsTab() {
     setError(null);
 
     try {
-      const response = await EventsInfoAPI.getEvents();
+      const response = await API.getEvents();
       setEvents(normalizeEvents(response?.data));
     } catch (err) {
-      console.error('[SCAN] Events fetch error:', err);
+      if (__DEV__) {
+        console.warn('[Events] fetch failed:', err?.message);
+      }
       setError(resolveEventsError(err));
       setEvents([]);
     } finally {
@@ -58,13 +70,13 @@ export default function EventsTab() {
   );
 
   const displayedEvents = useMemo(
-    () => sortEventsByDate(filterEventsByName(viewerEvents, searchQuery), sortOrder),
-    [viewerEvents, searchQuery, sortOrder]
+    () => sortEventsByDate(filterEventsByName(viewerEvents, debouncedQuery), sortOrder),
+    [viewerEvents, debouncedQuery, sortOrder]
   );
 
-  const openEvent = (eventId) => {
+  const openEvent = useCallback((eventId) => {
     router.push(`/(tabs)/events/${eventId}`);
-  };
+  }, []);
 
   const toggleSortOrder = () => {
     setSortOrder((order) => (order === 'desc' ? 'asc' : 'desc'));
@@ -73,18 +85,18 @@ export default function EventsTab() {
   const searchBar = (
     <View className="flex-row items-center gap-2 px-4 pt-4 pb-2">
       <View className="flex-1 flex-row items-center rounded-2xl border border-beta/10 dark:border-light/10 bg-light dark:bg-dark px-3">
-        <Ionicons name="search" size={18} color="#888" />
+        <Ionicons name="search" size={18} color={placeholderColor} />
         <TextInput
           placeholder="Search events…"
           value={searchQuery}
           onChangeText={setSearchQuery}
           className="flex-1 min-h-11 py-2 pl-2 text-sm text-beta dark:text-light"
-          placeholderTextColor="#888"
+          placeholderTextColor={placeholderColor}
           autoCorrect={false}
         />
         {searchQuery.length > 0 ? (
           <Pressable onPress={() => setSearchQuery('')} hitSlop={8} className="p-1">
-            <Ionicons name="close-circle" size={18} color="#888" />
+            <Ionicons name="close-circle" size={18} color={placeholderColor} />
           </Pressable>
         ) : null}
       </View>
@@ -102,13 +114,36 @@ export default function EventsTab() {
     </View>
   );
 
+  const listHeader = (
+    <>
+      {searchBar}
+      {!loading && !error && viewerEvents.length > 0 ? (
+        <Text className="px-4 pb-2 text-xs text-beta/50 dark:text-light/50">
+          {displayedEvents.length} event{displayedEvents.length === 1 ? '' : 's'}
+          {sortOrder === 'desc' ? ' · newest first' : ' · oldest first'}
+        </Text>
+      ) : null}
+    </>
+  );
+
+  const renderItem = useCallback(
+    ({ item }) => (
+      <EventCard
+        event={item}
+        onPress={() => openEvent(item.id)}
+        treatPastByDateTime={!canAccessScan}
+      />
+    ),
+    [canAccessScan, openEvent]
+  );
+
   if (loading) {
     return (
       <View className="flex-1">
         {searchBar}
         <View className="px-4 pt-2 gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} width="100%" height={180} borderRadius={16} isDark={false} />
+            <Skeleton key={i} width="100%" height={180} borderRadius={16} isDark={isDark} />
           ))}
         </View>
       </View>
@@ -119,16 +154,7 @@ export default function EventsTab() {
     return (
       <View className="flex-1">
         {searchBar}
-        <View className="flex-1 items-center justify-center px-8">
-          <Ionicons name="cloud-offline-outline" size={48} color="#ef4444" />
-          <Text className="text-sm text-error text-center mt-3">{error}</Text>
-          <Pressable
-            onPress={() => fetchEvents()}
-            className="mt-4 bg-beta dark:bg-alpha px-5 py-3 rounded-xl active:opacity-90"
-          >
-            <Text className="text-light dark:text-beta font-semibold">Retry</Text>
-          </Pressable>
-        </View>
+        <ErrorScreen message={error} onRetry={() => fetchEvents()} />
       </View>
     );
   }
@@ -149,20 +175,13 @@ export default function EventsTab() {
   }
 
   return (
-    <ScrollView
+    <FlatList
       className="flex-1"
-      contentContainerStyle={{ paddingBottom: 32 }}
-      keyboardShouldPersistTaps="handled"
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => fetchEvents(true)} tintColor={accentFill} />}
-    >
-      {searchBar}
-
-      <Text className="px-4 pb-2 text-xs text-beta/50 dark:text-light/50">
-        {displayedEvents.length} event{displayedEvents.length === 1 ? '' : 's'}
-        {sortOrder === 'desc' ? ' · newest first' : ' · oldest first'}
-      </Text>
-
-      {displayedEvents.length === 0 ? (
+      data={displayedEvents}
+      keyExtractor={(item) => String(item.id)}
+      renderItem={renderItem}
+      ListHeaderComponent={listHeader}
+      ListEmptyComponent={
         <View className="items-center px-8 py-12">
           <Ionicons name="search-outline" size={40} color={accentIcon} />
           <Text className="text-base font-semibold text-beta dark:text-light mt-3">No matches</Text>
@@ -170,18 +189,17 @@ export default function EventsTab() {
             No events match &quot;{searchQuery}&quot;.
           </Text>
         </View>
-      ) : (
-        <View className="px-4">
-          {displayedEvents.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              onPress={() => openEvent(event.id)}
-              treatPastByDateTime={!canAccessScan}
-            />
-          ))}
-        </View>
-      )}
-    </ScrollView>
+      }
+      contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: 16 }}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => fetchEvents(true)}
+          tintColor={accentFill}
+          colors={[accentFill]}
+        />
+      }
+    />
   );
 }

@@ -1,7 +1,46 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, FlatList, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, getAccentIconColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+
+function ParticipantRow({ participant, index, total, onParticipantPress, accentIcon }) {
+  return (
+    <Pressable
+      onPress={() => onParticipantPress?.(participant)}
+      disabled={!onParticipantPress}
+      className={`flex-row items-center gap-3 px-1 py-3 active:opacity-80 ${
+        index < total - 1 ? 'border-b border-beta/6 dark:border-light/6' : ''
+      }`}
+    >
+      <View className="w-10 h-10 rounded-full bg-beta/15 dark:bg-alpha/15 items-center justify-center">
+        <Text className="text-sm font-bold text-beta dark:text-alpha">
+          {(participant.name || '?').charAt(0).toUpperCase()}
+        </Text>
+      </View>
+      <View className="flex-1 min-w-0">
+        <Text className="text-sm font-semibold text-beta dark:text-light" numberOfLines={1}>
+          {participant.name}
+        </Text>
+        <Text className="text-xs text-beta/55 dark:text-light/55 mt-0.5" numberOfLines={1}>
+          {participant.email}
+        </Text>
+      </View>
+      {participant.is_visited ? (
+        <View className="flex-row items-center gap-1 bg-good/15 px-2.5 py-1 rounded-full">
+          <Ionicons name="qr-code" size={12} color={Colors.good} />
+          <Text className="text-[10px] font-semibold text-good">Scanned</Text>
+        </View>
+      ) : (
+        <View className="bg-beta/10 dark:bg-light/10 px-2.5 py-1 rounded-full">
+          <Text className="text-[10px] font-semibold text-beta/50 dark:text-light/50">Not yet</Text>
+        </View>
+      )}
+      {onParticipantPress ? (
+        <Ionicons name="chevron-forward" size={16} color={accentIcon} />
+      ) : null}
+    </Pressable>
+  );
+}
 
 export default function ParticipantsList({ participants = [], emptyMessage, onParticipantPress }) {
   const isDark = useColorScheme() === 'dark';
@@ -23,6 +62,16 @@ export default function ParticipantsList({ participants = [], emptyMessage, onPa
     );
   }
 
+  const renderItem = ({ item, index }) => (
+    <ParticipantRow
+      participant={item}
+      index={index}
+      total={participants.length}
+      onParticipantPress={onParticipantPress}
+      accentIcon={accentIcon}
+    />
+  );
+
   return (
     <View className="gap-3 mt-4">
       <Text className="text-[11px] font-bold uppercase tracking-wide text-beta/45 dark:text-light/45">
@@ -30,43 +79,12 @@ export default function ParticipantsList({ participants = [], emptyMessage, onPa
       </Text>
 
       <View className="rounded-xl overflow-hidden">
-        {participants.map((participant, index) => (
-          <Pressable
-            key={participant.id}
-            onPress={() => onParticipantPress?.(participant)}
-            disabled={!onParticipantPress}
-            className={`flex-row items-center gap-3 px-1 py-3 active:opacity-80 ${
-              index < participants.length - 1 ? 'border-b border-beta/6 dark:border-light/6' : ''
-            }`}
-          >
-            <View className="w-10 h-10 rounded-full bg-beta/15 dark:bg-alpha/15 items-center justify-center">
-              <Text className="text-sm font-bold text-beta dark:text-alpha">
-                {(participant.name || '?').charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <View className="flex-1 min-w-0">
-              <Text className="text-sm font-semibold text-beta dark:text-light" numberOfLines={1}>
-                {participant.name}
-              </Text>
-              <Text className="text-xs text-beta/55 dark:text-light/55 mt-0.5" numberOfLines={1}>
-                {participant.email}
-              </Text>
-            </View>
-            {participant.is_visited ? (
-              <View className="flex-row items-center gap-1 bg-good/15 px-2.5 py-1 rounded-full">
-                <Ionicons name="qr-code" size={12} color={Colors.good} />
-                <Text className="text-[10px] font-semibold text-good">Scanned</Text>
-              </View>
-            ) : (
-              <View className="bg-beta/10 dark:bg-light/10 px-2.5 py-1 rounded-full">
-                <Text className="text-[10px] font-semibold text-beta/50 dark:text-light/50">Not yet</Text>
-              </View>
-            )}
-            {onParticipantPress ? (
-              <Ionicons name="chevron-forward" size={16} color={accentIcon} />
-            ) : null}
-          </Pressable>
-        ))}
+        <FlatList
+          data={participants}
+          keyExtractor={(item) => String(item.id)}
+          renderItem={renderItem}
+          scrollEnabled={false}
+        />
       </View>
     </View>
   );

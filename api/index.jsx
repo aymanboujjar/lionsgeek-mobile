@@ -1,4 +1,11 @@
 import axios from "axios";
+import {
+  normalizeEvents,
+  isSameEventId,
+  participantEmailsMatch,
+  normalizeParticipantEmail,
+  getEventDate,
+} from '@/utils/events';
 
 const APP_URL = process.env.EXPO_PUBLIC_APP_URL;
 
@@ -471,6 +478,147 @@ const getMusicCharts = async (token, { country = 'MA', limit = 50 } = {}) => {
     return browseMusic(token, { section: 'top_morocco', country, limit });
 };
 
+// ---------------------------------------------------------------------------
+// Events (lionsgeek.ma events-info API — API-key auth, separate from Sanctum)
+// Proxy mode: EXPO_PUBLIC_EVENTS_INFO_USE_PROXY=true → mylionsgeek /api/events-info/*
+// Direct mode: hits lionsgeek.ma /api/*
+// ---------------------------------------------------------------------------
+
+const EVENTS_PUBLIC_URL = (
+    process.env.EXPO_PUBLIC_EVENTS_INFO_SECTION_URL ||
+    process.env.EVENTS_INFO_SECTION_URL ||
+    ''
+).replace(/\/+$/, '');
+
+const EVENTS_APP_URL = (process.env.EXPO_PUBLIC_APP_URL || '').replace(/\/+$/, '');
+
+const EVENTS_USE_PROXY =
+    String(process.env.EXPO_PUBLIC_EVENTS_INFO_USE_PROXY || '').toLowerCase() === 'true';
+
+const EVENTS_API_KEY = (
+    process.env.EXPO_PUBLIC_EVENTS_INFO_SECTION_KEY ||
+    process.env.EVENTS_INFO_SECTION_KEY ||
+    ''
+).trim();
+
+const EVENTS_REQUEST_BASE = EVENTS_USE_PROXY ? EVENTS_APP_URL : EVENTS_PUBLIC_URL;
+const EVENTS_API_PREFIX = EVENTS_USE_PROXY ? 'api/events-info' : 'api';
+
+const ensureEventsConfig = () => {
+    if (EVENTS_USE_PROXY && !EVENTS_APP_URL) {
+        throw new Error(
+            'EXPO_PUBLIC_APP_URL is not set but proxy mode is on. Set it in .env and restart Expo with: npx expo start -c'
+        );
+    }
+    if (!EVENTS_USE_PROXY && !EVENTS_PUBLIC_URL) {
+        throw new Error(
+            'EXPO_PUBLIC_EVENTS_INFO_SECTION_URL is not set. Add it to .env and restart Expo with: npx expo start -c'
+        );
+    }
+    if (!EVENTS_API_KEY) {
+        throw new Error(
+            'EXPO_PUBLIC_EVENTS_INFO_SECTION_KEY is not set. Add it to .env and restart Expo with: npx expo start -c'
+        );
+    }
+};
+
+const eventsAuthHeaders = () => ({
+    Authorization: `Bearer ${EVENTS_API_KEY}`,
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+});
+
+const buildEventsUrl = (endpoint) => `${EVENTS_REQUEST_BASE}/${EVENTS_API_PREFIX}/${endpoint}`;
+
+const buildEventsBookingUrl = () => {
+    if (EVENTS_USE_PROXY) {
+        return `${EVENTS_APP_URL}/api/events-info/booking/store`;
+    }
+    if (!EVENTS_PUBLIC_URL) {
+        throw new Error(
+            'EXPO_PUBLIC_EVENTS_INFO_SECTION_URL is not set. Add it to .env and restart Expo with: npx expo start -c'
+        );
+    }
+    return `${EVENTS_PUBLIC_URL}/api/booking/store`;
+};
+
+const getEventsInfo = async (endpoint) => {
+    ensureEventsConfig();
+    return axios.get(buildEventsUrl(endpoint), { headers: eventsAuthHeaders() });
+};
+
+const putEventsInfo = async (endpoint, data) => {
+    ensureEventsConfig();
+    return axios.put(buildEventsUrl(endpoint), data, { headers: eventsAuthHeaders() });
+};
+
+const postEventsBooking = async (data) => {
+    ensureEventsConfig();
+    return axios.post(buildEventsBookingUrl(), data, { headers: eventsAuthHeaders() });
+};
+
+const getEvents = () => getEventsInfo('events');
+
+const getEvent = (eventId) => getEventsInfo(`events/${eventId}`);
+
+const storeEventBooking = (payload) => postEventsBooking(payload);
+
+const validateEventInvitation = (payload) => putEventsInfo('validate-event-invitation', payload);
+
+const manualEventChecking = (bookingId, eventId) =>
+    putEventsInfo('manual-event-checking', { id: Number(bookingId), event_id: Number(eventId) });
+
+const OTHER_EVENTS_BATCH_SIZE = 4;
+
+const fetchParticipantOtherRegistrations = async (email, excludeEventId) => {
+    const normalizedEmail = normalizeParticipantEmail(email);
+    if (!normalizedEmail) return [];
+
+    const listResponse = await getEvents();
+    const events = normalizeEvents(listResponse?.data ?? []).filter(
+        (event) => !isSameEventId(event.id, excludeEventId)
+    );
+
+    const matches = [];
+
+    for (let index = 0; index < events.length; index += OTHER_EVENTS_BATCH_SIZE) {
+        const batch = events.slice(index, index + OTHER_EVENTS_BATCH_SIZE);
+        const batchResults = await Promise.all(
+            batch.map(async (summary) => {
+                if (isSameEventId(summary.id, excludeEventId)) return null;
+
+                try {
+                    const response = await getEvent(summary.id);
+                    const event = response?.data?.event ?? summary;
+                    if (isSameEventId(event.id, excludeEventId)) return null;
+
+                    const participants = Array.isArray(response?.data?.participants)
+                        ? response.data.participants
+                        : [];
+                    const registration = participants.find((p) =>
+                        participantEmailsMatch(p.email, normalizedEmail)
+                    );
+                    if (!registration) return null;
+
+                    return { event, registration };
+                } catch {
+                    return null;
+                }
+            })
+        );
+
+        matches.push(...batchResults.filter(Boolean));
+    }
+
+    const withoutCurrent = matches.filter((item) => !isSameEventId(item.event?.id, excludeEventId));
+
+    return withoutCurrent.sort((a, b) => {
+        const da = getEventDate(a.event)?.getTime() ?? 0;
+        const db = getEventDate(b.event)?.getTime() ?? 0;
+        return db - da;
+    });
+};
+
 export default {
     get,
     getPublic,
@@ -511,4 +659,13 @@ export default {
     browseMusic,
     searchMusic,
     getMusicCharts,
+    EVENTS_PUBLIC_URL,
+    EVENTS_APP_URL,
+    EVENTS_USE_PROXY,
+    getEvents,
+    getEvent,
+    storeEventBooking,
+    validateEventInvitation,
+    manualEventChecking,
+    fetchParticipantOtherRegistrations,
 };

@@ -4,14 +4,15 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
 import { userCanAccessScan } from '@/components/helpers/helpers';
-import EventsInfoAPI from '@/api/eventsInfoSection';
+import API from '@/api';
 import AppLayout from '@/components/layout/AppLayout';
 import AccessDenied from './AccessDenied';
 import Skeleton from '@/components/ui/Skeleton';
+import ErrorScreen from '@/components/ui/ErrorScreen';
+import SectionCard from '@/components/ui/SectionCard';
 import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import {
-  fetchParticipantOtherRegistrations,
   findParticipantById,
   formatEventDate,
   getEventDisplayName,
@@ -20,17 +21,7 @@ import {
   getParticipantDetailRows,
   isSameEventId,
   userCanCheckInEvent,
-} from '../helpers';
-
-function SectionCard({ children, className = '' }) {
-  return (
-    <View
-      className={`bg-white dark:bg-card border border-beta/8 dark:border-card_border rounded-2xl overflow-hidden ${className}`}
-    >
-      {children}
-    </View>
-  );
-}
+} from '@/utils/events';
 
 function DetailRow({ icon, label, value, accentIcon }) {
   return (
@@ -146,7 +137,7 @@ export default function ParticipantDetail() {
       setOtherRegistrations([]);
 
       try {
-        const response = await EventsInfoAPI.getEvent(eventId);
+        const response = await API.getEvent(eventId);
         const event = response?.data?.event ?? null;
         const participants = Array.isArray(response?.data?.participants) ? response.data.participants : [];
         const match = findParticipantById(participants, participantId);
@@ -164,17 +155,15 @@ export default function ParticipantDetail() {
         if (match.email) {
           setLoadingOther(true);
           try {
-            const others = await fetchParticipantOtherRegistrations(match.email, eventId);
+            const others = await API.fetchParticipantOtherRegistrations(match.email, eventId);
             setOtherRegistrations(others);
-          } catch (otherErr) {
-            console.error('[SCAN] Other registrations error:', otherErr);
+          } catch {
             setOtherRegistrations([]);
           } finally {
             setLoadingOther(false);
           }
         }
-      } catch (err) {
-        console.error('[SCAN] Participant detail error:', err);
+      } catch {
         setError('Could not load participant details.');
       } finally {
         setLoading(false);
@@ -201,10 +190,9 @@ export default function ParticipantDetail() {
           onPress: async () => {
             setCheckingIn(true);
             try {
-              await EventsInfoAPI.manualEventChecking(participantId, eventId);
+              await API.manualEventChecking(participantId, eventId);
               setParticipant((prev) => (prev ? { ...prev, is_visited: true } : prev));
-            } catch (err) {
-              console.error('[SCAN] Manual check-in error:', err);
+            } catch {
               Alert.alert('Check-in failed', 'Could not mark this participant as checked in.');
             } finally {
               setCheckingIn(false);
@@ -253,17 +241,7 @@ export default function ParticipantDetail() {
             <Skeleton width="100%" height={200} borderRadius={16} isDark={isDark} />
           </View>
         ) : error ? (
-          <View className="flex-1 items-center justify-center px-8">
-            <Ionicons name="alert-circle-outline" size={48} color={Colors.error} />
-            <Text className="text-base font-semibold text-beta dark:text-light text-center mt-3">{error}</Text>
-            <Pressable
-              onPress={() => loadParticipant()}
-              className="mt-6 flex-row items-center gap-2 bg-beta dark:bg-alpha px-6 py-3.5 rounded-2xl active:opacity-90"
-            >
-              <Ionicons name="refresh" size={18} color={onAccentText} />
-              <Text className="text-light dark:text-beta font-bold">Try again</Text>
-            </Pressable>
-          </View>
+          <ErrorScreen message={error} onRetry={() => loadParticipant()} />
         ) : (
           <ScrollView
             className="flex-1"

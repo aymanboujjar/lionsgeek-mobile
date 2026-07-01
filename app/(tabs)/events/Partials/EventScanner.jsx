@@ -4,12 +4,12 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
-import EventsInfoAPI from '@/api/eventsInfoSection';
+import API from '@/api';
 import Skeleton from '@/components/ui/Skeleton';
 import ScanResultOverlay from './ScanResultModal';
-import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
+import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor, Overlays } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { getEventDisplayName, hasEventPassed, mapValidationMessage, userCanScanEvent } from '../helpers';
+import { getEventDisplayName, hasEventPassed, mapValidationMessage, userCanScanEvent } from '@/utils/events';
 
 const DUPLICATE_SCAN_MS = 2500;
 const CORNER_SIZE = 36;
@@ -107,7 +107,7 @@ export default function EventScanner() {
       }
       setEventLoading(true);
       try {
-        const response = await EventsInfoAPI.getEvent(id);
+        const response = await API.getEvent(id);
         const event = response?.data?.event ?? null;
         setEventData(event);
         setEventTitle(getEventDisplayName(event?.name));
@@ -178,7 +178,7 @@ export default function EventScanner() {
         return;
       }
 
-      const response = await EventsInfoAPI.validateEventInvitation({
+      const response = await API.validateEventInvitation({
         email: qrData.email,
         code: Number(qrData.code),
         id: Number(id),
@@ -188,7 +188,9 @@ export default function EventScanner() {
       const profile = response?.data?.profile;
       setLastResult(buildScanResult(message, profile));
     } catch (error) {
-      console.error('[SCAN] Validation error:', error);
+      if (__DEV__) {
+        console.warn('[Scanner] validation failed:', error?.message);
+      }
       showFailure('Error', 'Failed to validate QR code. Please try again.');
     } finally {
       setProcessing(false);
@@ -335,14 +337,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,
-    color: 'rgba(250, 250, 250, 0.6)',
+    color: Overlays.textSubtleOnDark,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: Colors.light,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: Overlays.textShadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
@@ -381,12 +383,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: Overlays.textShadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
   instructionsSub: {
-    color: 'rgba(250, 250, 250, 0.65)',
+    color: Overlays.textMutedOnDark,
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
@@ -407,7 +409,7 @@ const styles = StyleSheet.create({
   },
   permissionText: {
     fontSize: 14,
-    color: 'rgba(33, 37, 41, 0.6)',
+    color: Overlays.textMuted,
     marginTop: 8,
     textAlign: 'center',
   },
@@ -425,6 +427,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   backLinkText: {
-    color: 'rgba(33, 37, 41, 0.6)',
+    color: Overlays.textMuted,
   },
 });

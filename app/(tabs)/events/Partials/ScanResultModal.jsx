@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/Colors';
+import { Colors, Overlays } from '@/constants/Colors';
 
 const AUTO_DISMISS_MS = 2000;
 
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(33, 37, 41, 0.72)',
+    backgroundColor: Overlays.backdrop,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     maxWidth: 340,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: Overlays.borderLight,
     backgroundColor: Colors.light,
     padding: 24,
     alignItems: 'center',
@@ -96,14 +96,14 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 14,
-    color: 'rgba(33, 37, 41, 0.65)',
+    color: Overlays.textMuted,
     textAlign: 'center',
     marginTop: 8,
     lineHeight: 20,
   },
   hint: {
     fontSize: 11,
-    color: 'rgba(33, 37, 41, 0.4)',
+    color: Overlays.textDim,
     textAlign: 'center',
     marginTop: 16,
   },

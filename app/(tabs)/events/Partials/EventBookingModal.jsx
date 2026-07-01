@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import EventsInfoAPI from '@/api/eventsInfoSection';
+import API from '@/api';
 import { userHasAdminRole } from '@/components/helpers/helpers';
 import {
   buildInitialAnswers,
@@ -21,9 +21,9 @@ import {
   getOptionLabel,
   normalizeBookingKey,
   validateBookingAnswers,
-} from '../bookingHelpers';
-import { getEventDisplayName } from '../helpers';
-import { Colors, getAccentFillColor, getOnAccentTextColor } from '@/constants/Colors';
+} from '@/utils/eventBooking';
+import { getEventDisplayName } from '@/utils/events';
+import { Colors, getAccentFillColor, getMutedIconColor, getOnAccentTextColor, Overlays } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 const PLACEHOLDERS = {
@@ -65,6 +65,7 @@ export default function EventBookingModal({ visible, event, user, onClose, onSuc
   const isAdmin = userHasAdminRole(user);
   const accentFill = getAccentFillColor(isDark);
   const onAccentText = getOnAccentTextColor(isDark);
+  const mutedIcon = getMutedIconColor(isDark);
   const language = 'en';
 
   const fields = useMemo(() => getBookingFields(event), [event]);
@@ -139,7 +140,7 @@ export default function EventBookingModal({ visible, event, user, onClose, onSuc
     setFormError(null);
 
     try {
-      const response = await EventsInfoAPI.storeBooking({
+      const response = await API.storeEventBooking({
         event_id: event?.id,
         answers,
         ...(isAdmin ? { admin_override: true } : {}),
@@ -191,7 +192,7 @@ export default function EventBookingModal({ visible, event, user, onClose, onSuc
           value={answers[key] ?? ''}
           onChangeText={(value) => updateAnswer(key, value)}
           placeholder={PLACEHOLDERS[normalizedKey] || ''}
-          placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'}
+          placeholderTextColor={mutedIcon}
           keyboardType={keyboardType}
           autoCapitalize={field.type === 'email' ? 'none' : 'sentences'}
           autoCorrect={false}
@@ -269,7 +270,7 @@ export default function EventBookingModal({ visible, event, user, onClose, onSuc
                 <Ionicons
                   name={multiple ? (checked ? 'checkbox' : 'square-outline') : checked ? 'radio-button-on' : 'radio-button-off'}
                   size={20}
-                  color={checked ? accentFill : isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'}
+                  color={checked ? accentFill : mutedIcon}
                 />
               </Pressable>
             );
@@ -292,7 +293,7 @@ export default function EventBookingModal({ visible, event, user, onClose, onSuc
             right: 0,
             top: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.45)',
+            backgroundColor: Overlays.modalScrim,
             zIndex: 1,
           }}
           onPress={handleClose}

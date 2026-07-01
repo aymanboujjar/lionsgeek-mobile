@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Image, StyleSheet } from 'react-native';
+import { View, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Skeleton from '@/components/ui/Skeleton';
 import { getAccentIconColor } from '@/constants/Colors';
@@ -31,22 +31,17 @@ export default function EventCoverImage({ uri, height = 128, borderRadius = 0, c
     <View className={`w-full ${className}`} style={{ height, borderRadius, overflow: 'hidden' }}>
       <Image
         source={{ uri }}
-        style={[StyleSheet.absoluteFill, { borderRadius }]}
+        className="absolute inset-0 w-full h-full"
+        style={{ borderRadius }}
         resizeMode="cover"
         onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
       />
       {!loaded ? (
-        <View style={[StyleSheet.absoluteFill, styles.skeletonLayer]}>
+        <View className="absolute inset-0 z-10">
           <Skeleton width="100%" height={height} borderRadius={borderRadius} isDark={isDark} />
         </View>
       ) : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  skeletonLayer: {
-    zIndex: 1,
-  },
-});

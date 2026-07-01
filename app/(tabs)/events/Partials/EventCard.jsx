@@ -8,7 +8,7 @@ import {
   getEventCoverUrl,
   getEventDisplayName,
   getEventStatusLabel,
-} from '../helpers';
+} from '@/utils/events';
 
 export default function EventCard({ event, onPress, treatPastByDateTime = false }) {
   const isDark = useColorScheme() === 'dark';

@@ -4,14 +4,24 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
 import { userCanAccessScan, userHasAdminRole } from '@/components/helpers/helpers';
-import EventsInfoAPI from '@/api/eventsInfoSection';
+import API from '@/api';
 import AppLayout from '@/components/layout/AppLayout';
 import Skeleton from '@/components/ui/Skeleton';
+import ErrorScreen from '@/components/ui/ErrorScreen';
+import SectionCard from '@/components/ui/SectionCard';
 import ParticipantsList from './ParticipantsList';
 import EventBookingModal from './EventBookingModal';
 import EventCoverImage from './EventCoverImage';
-import { hasUserBookedEvent } from '../bookingHelpers';
-import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
+import { hasUserBookedEvent } from '@/utils/eventBooking';
+import {
+  Colors,
+  getAccentFillColor,
+  getAccentIconColor,
+  getMutedIconColor,
+  getOnAccentTextColor,
+  getPlaceholderTextColor,
+  Overlays,
+} from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import {
   userCanBookEvent,
@@ -26,7 +36,7 @@ import {
   hasEventPassed,
   isPrivateEvent,
   getParticipantCounts,
-} from '../helpers';
+} from '@/utils/events';
 
 function StatusBadge({ status }) {
   const isDark = useColorScheme() === 'dark';
@@ -51,17 +61,6 @@ function StatusBadge({ status }) {
   return (
     <View className="bg-beta/15 dark:bg-light/15 px-3 py-1.5 rounded-full">
       <Text className="text-xs font-bold text-beta/60 dark:text-light/60">Past</Text>
-    </View>
-  );
-}
-
-
-function SectionCard({ children, className = '' }) {
-  return (
-    <View
-      className={`bg-white dark:bg-card border border-beta/8 dark:border-card_border rounded-2xl overflow-hidden ${className}`}
-    >
-      {children}
     </View>
   );
 }
@@ -116,6 +115,8 @@ export default function EventDetail() {
   const accentIcon = getAccentIconColor(isDark);
   const accentFill = getAccentFillColor(isDark);
   const onAccentText = getOnAccentTextColor(isDark);
+  const mutedIcon = getMutedIconColor(isDark);
+  const placeholderColor = getPlaceholderTextColor(isDark);
 
   const [event, setEvent] = useState(null);
   const [participants, setParticipants] = useState([]);
@@ -153,11 +154,10 @@ export default function EventDetail() {
       setError(null);
 
       try {
-        const response = await EventsInfoAPI.getEvent(id);
+        const response = await API.getEvent(id);
         setEvent(response?.data?.event ?? null);
         setParticipants(Array.isArray(response?.data?.participants) ? response.data.participants : []);
-      } catch (err) {
-        console.error('[SCAN] Event detail error:', err);
+      } catch {
         setError('Could not load event details.');
       } finally {
         setLoading(false);
@@ -253,7 +253,7 @@ export default function EventDetail() {
               <Ionicons
                 name="qr-code"
                 size={17}
-                color={scannable ? onAccentText : isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)'}
+                color={scannable ? onAccentText : isDark ? Overlays.disabledIcon : Overlays.disabledIconLight}
               />
               <Text
                 className={`text-xs font-bold ${
@@ -269,22 +269,7 @@ export default function EventDetail() {
         {loading ? (
           <DetailSkeleton isDark={isDark} />
         ) : error ? (
-          <View className="flex-1 items-center justify-center px-8">
-            <View className="w-16 h-16 rounded-2xl bg-error/15 items-center justify-center mb-4">
-              <Ionicons name="cloud-offline-outline" size={32} color={Colors.error} />
-            </View>
-            <Text className="text-base font-semibold text-beta dark:text-light text-center">
-              Something went wrong
-            </Text>
-            <Text className="text-sm text-beta/60 dark:text-light/60 text-center mt-2">{error}</Text>
-            <Pressable
-              onPress={() => fetchEvent()}
-              className="mt-6 flex-row items-center gap-2 bg-beta dark:bg-alpha px-6 py-3.5 rounded-2xl active:opacity-90"
-            >
-              <Ionicons name="refresh" size={18} color={onAccentText} />
-              <Text className="text-light dark:text-beta font-bold">Try again</Text>
-            </Pressable>
-          </View>
+          <ErrorScreen message={error} onRetry={() => fetchEvent()} />
         ) : isPrivate && !canAccessScan ? (
           <View className="flex-1 items-center justify-center px-8">
             <View className="w-16 h-16 rounded-2xl bg-beta/10 dark:bg-light/10 items-center justify-center mb-4">
@@ -484,20 +469,20 @@ export default function EventDetail() {
 
               {participants.length > 0 ? (
                 <View className="flex-row items-center gap-2 mt-4 mb-1 rounded-xl border border-beta/10 dark:border-light/10 bg-beta/4 dark:bg-light/4 px-3">
-                  <Ionicons name="search" size={16} color={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'} />
+                  <Ionicons name="search" size={16} color={mutedIcon} />
                   <TextInput
                     value={participantSearch}
                     onChangeText={setParticipantSearch}
                     onFocus={handleSearchFocus}
                     placeholder="Search by name or email…"
-                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'}
+                    placeholderTextColor={placeholderColor}
                     className="flex-1 min-h-10 py-2 text-sm text-beta dark:text-light"
                     autoCorrect={false}
                     autoCapitalize="none"
                   />
                   {participantSearch.length > 0 ? (
                     <Pressable onPress={() => setParticipantSearch('')} hitSlop={8}>
-                      <Ionicons name="close-circle" size={16} color={isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)'} />
+                      <Ionicons name="close-circle" size={16} color={mutedIcon} />
                     </Pressable>
                   ) : null}
                 </View>

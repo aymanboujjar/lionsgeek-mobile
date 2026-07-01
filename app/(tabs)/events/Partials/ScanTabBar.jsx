@@ -1,6 +1,6 @@
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { getAccentFillColor, getAccentIconColor } from '@/constants/Colors';
+import { getAccentFillColor, getAccentIconColor, getInactiveTabIconColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 const TABS = [
@@ -29,7 +29,7 @@ export default function ScanTabBar({ activeTab, onTabChange }) {
             <Ionicons
               name={isActive ? tab.activeIcon : tab.icon}
               size={20}
-              color={isActive ? getAccentIconColor(isDark) : 'rgba(128,128,128,0.7)'}
+              color={isActive ? getAccentIconColor(isDark) : getInactiveTabIconColor(isDark)}
             />
             <Text
               className={`text-[10px] font-semibold mt-1 ${
