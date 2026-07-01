@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import ExperienceFormModal from '../components/ExperienceFormModal';
+import ExperienceFormModal from '../_components/ExperienceFormModal';
 import { formatPeriod, formatPeriodFromParts, calcDuration, calcDurationFromParts } from './helpers';
 
 export default function ExperienceCard({ profile, isDark, isOwnProfile, token, onExperienceAdded, onExperienceUpdated, onExperienceDeleted }) {

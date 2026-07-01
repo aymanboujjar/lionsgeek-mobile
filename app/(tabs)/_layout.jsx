@@ -77,10 +77,10 @@ export default function TabLayout() {
 
   const tabScreen = [
     { route: 'home', name: 'Home', label: 'Home', icon: 'house.fill' },
-    { route: 'reservations', name: 'Reservations', label: 'Reserve', icon: 'calendar' },
+    { route: 'reservations', name: 'Reservations', label: 'Reservations', icon: 'calendar' },
     { route: 'events', name: 'Events', label: 'Events', icon: 'ticket' },
-    { route: 'leaderboard', name: 'Leaderboard', label: 'Rank', icon: 'trophy.fill' },
     { route: 'profile', name: 'Profile', label: 'Profile', icon: 'person.fill' },
+    // { route: 'leaderboard', name: 'Leaderboard', label: 'Rank', icon: 'trophy.fill' },
     // { route: "test", name: "notifications", icon: "bell.fill" },
   ];
 
@@ -180,7 +180,7 @@ export default function TabLayout() {
         tabBarShowLabel: true,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
-        tabBarItemStyle: { flex: 1, minWidth: 0, maxWidth: '20%' },
+        // tabBarItemStyle: { flex: 1, minWidth: 0, maxWidth: '20%' },
         tabBarLabelStyle: {
           fontSize: 10,
           marginTop: 2,
