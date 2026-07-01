@@ -20,7 +20,7 @@ export default function Navbar() {
   };
 
   const handleChatPress = () => {
-    router.push('/chat');
+    router.push('/(tabs)/chat');
   };
 
   const handleNotificationsPress = () => {

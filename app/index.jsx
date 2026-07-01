@@ -7,13 +7,11 @@ export default function Entry() {
     const checkFirstLaunch = async () => {
       try {
         // Check if user has seen onboarding
-        const welcomeSeen = await AsyncStorage.getItem('welcome_seen');
+        const onboardingSeen = await AsyncStorage.getItem('onboarding_seen');
         const token = await AsyncStorage.getItem('auth_token');
         
-        if (!welcomeSeen) {
-          // First time - show onboarding page
-          // router.replace('/onboarding');
-           router.replace('/welcome');
+        if (onboardingSeen !== '1') {
+          router.replace('/onboarding');
         } else if (token) {
           // Has token - go to loading for verification
           router.replace('/loading');

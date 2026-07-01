@@ -1,8 +1,11 @@
 import { Tabs, router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import * as SystemUI from 'expo-system-ui';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
 
 import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
@@ -14,6 +17,7 @@ import API from '@/api';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
   const { token } = useAppContext();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [storedToken, setStoredToken] = useState(null);
@@ -72,99 +76,159 @@ export default function TabLayout() {
   };
 
   const tabScreen = [
-    { route: "index", name: "Home", icon: "house.fill" },
-    { route: "reservations", name: "Reservations", icon: "calendar" },
-    { route: "events", name: "Events", icon: "ticket" },
-    { route: "leaderboard", name: "Leaderboard", icon: "trophy.fill" },
-    { route: "profile", name: "Profile", icon: "person.fill" },
-    { route: "test", name: "notifications", icon: "bell.fill" },
+    { route: 'home', name: 'Home', label: 'Home', icon: 'house.fill' },
+    { route: 'reservations', name: 'Reservations', label: 'Reserve', icon: 'calendar' },
+    { route: 'events', name: 'Events', label: 'Events', icon: 'ticket' },
+    { route: 'leaderboard', name: 'Leaderboard', label: 'Rank', icon: 'trophy.fill' },
+    { route: 'profile', name: 'Profile', label: 'Profile', icon: 'person.fill' },
+    // { route: "test", name: "notifications", icon: "bell.fill" },
   ];
-  
+
   const hiddenScreens = [
-    // hado mo2a9atan hna
     { route: "members", name: "Members", icon: "person.3.fill", showTab: isAdmin, roles: ['admin', 'coach'] },
-    { route: "projects", name: "Projects", icon: "hammer.fill", showTab: true, roles: [] }, // 
+    { route: "projects", name: "Projects", icon: "hammer.fill", showTab: true, roles: [] },
     { route: "training", name: "Training", icon: "school" },
-    // tal 7ad  hna
-    { route: "home", name: "Home", icon: "house.fill", showTab: false }, // Hide duplicate home tab
     { route: "search", name: "Search", icon: "magnifyingglass", showTab: false },
     { route: "notifications", name: "Notifications", icon: "bell.fill", showTab: false },
+    { route: "test", name: "Test", icon: "bell.fill", showTab: false },
     { route: "infoSession", name: "Info Session", icon: "school", showTab: false },
+    // Stack screens (non-tab routes living under (tabs)/)
+    { route: "chat", name: "Chat", icon: "chatbubbles.fill", showTab: false },
+    { route: "stories", name: "Stories", icon: "book", showTab: false },
+    { route: "posts", name: "Posts", icon: "document-text", showTab: false },
+    { route: "settings", name: "Settings", icon: "settings", showTab: false },
+    { route: "more", name: "More", icon: "ellipsis", showTab: false },
+    { route: "activity", name: "Activity", icon: "pulse", showTab: false },
+    { route: "saved-posts", name: "Saved posts", icon: "bookmark", showTab: false },
+    { route: "achievements", name: "Achievements", icon: "trophy", showTab: false },
+    { route: "learning-progress", name: "Learning", icon: "school", showTab: false },
+    { route: "projects-hub", name: "Projects hub", icon: "hammer", showTab: false },
+    { route: "admin-reports", name: "Reports", icon: "analytics", showTab: false },
+    { route: "customization", name: "Customize", icon: "color-palette", showTab: false },
+    { route: "attendance-history", name: "Attendance", icon: "calendar", showTab: false },
+    { route: "reservation-history-studio", name: "Studio history", icon: "calendar", showTab: false },
+    { route: "reservation-history-cowork", name: "Cowork history", icon: "calendar", showTab: false },
+    { route: "notification-preferences", name: "Notification prefs", icon: "notifications", showTab: false },
+    { route: "terms", name: "Terms", icon: "document-text", showTab: false },
+    { route: "privacy", name: "Privacy", icon: "shield", showTab: false },
+    { route: "support", name: "Support", icon: "help-circle", showTab: false },
+    { route: "licenses", name: "Licenses", icon: "document", showTab: false },
+    { route: "call", name: "Call", icon: "call", showTab: false },
+    { route: "incoming-call", name: "Incoming call", icon: "call", showTab: false },
+    { route: "outgoing-call", name: "Outgoing call", icon: "call", showTab: false },
   ]
 
 
   const isDark = colorScheme === 'dark';
   const activeRingColor = Colors.alpha;
+  const tabBarBg = isDark ? Colors.dark : Colors.light;
 
-  // const resolveProfileAvatarValue = () => user?.avatar || user?.image;
+  const visibleTabOrder = useMemo(() => tabScreen.map((s) => s.route), [tabScreen]);
+
+  const tabBarStyle = useMemo(() => {
+    const contentHeight = Platform.OS === 'ios' ? 49 : 64;
+    const base = {
+      backgroundColor: tabBarBg,
+      borderTopColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
+      borderTopWidth: 1,
+      paddingBottom: insets.bottom,
+      height: contentHeight + insets.bottom,
+    };
+    return Platform.OS === 'ios'
+      ? { ...base, position: 'absolute', left: 0, right: 0, bottom: 0 }
+      : base;
+  }, [insets.bottom, isDark, tabBarBg]);
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      SystemUI.setBackgroundColorAsync(tabBarBg).catch(() => {});
+    }
+  }, [tabBarBg]);
+
+  const renderTabBar = (props) => {
+    const filteredRoutes = visibleTabOrder
+      .map((name) => props.state.routes.find((route) => route.name === name))
+      .filter(Boolean);
+    const filteredDescriptors = Object.fromEntries(
+      filteredRoutes.map((route) => [route.key, props.descriptors[route.key]]),
+    );
+    const activeRouteName = props.state.routes[props.state.index]?.name;
+    const filteredIndex = filteredRoutes.findIndex((route) => route.name === activeRouteName);
+    const filteredState = {
+      ...props.state,
+      routes: filteredRoutes,
+      index: filteredIndex >= 0 ? filteredIndex : 0,
+    };
+
+    return (
+      <BottomTabBar
+        {...props}
+        state={filteredState}
+        descriptors={filteredDescriptors}
+      />
+    );
+  };
 
   return (
     <Tabs
+      initialRouteName="home"
+      tabBar={renderTabBar}
       screenOptions={{
         tabBarActiveTintColor: Colors.alpha,
         tabBarInactiveTintColor: isDark ? Colors.light + 'CC' : Colors.beta + 'CC',
         headerShown: false,
+        tabBarShowLabel: true,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            position: 'absolute',
-            backgroundColor: isDark ? Colors.dark : Colors.light,
-            borderTopColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
-            borderTopWidth: 1,
-          },
-          default: {
-            backgroundColor: isDark ? Colors.dark : Colors.light,
-            borderTopColor: isDark ? Colors.dark_gray : Colors.dark_gray + '30',
-            borderTopWidth: 1,
-          },
-        }),
+        tabBarItemStyle: { flex: 1, minWidth: 0, maxWidth: '20%' },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          marginTop: 2,
+        },
+        tabBarStyle,
       }}>
 
 
       {/* screen inside the navigation bar */}
-      {tabScreen.map((screen, idx) => (
+      {tabScreen.map((screen) => (
         <Tabs.Screen
-          key={idx}
+          key={screen.route}
           name={screen.route}
           options={{
             headerShown: false,
             title: screen.name,
+            tabBarLabel: screen.label,
             ...(screen.route === 'profile'
               ? {
-                  // Tabs keep screens mounted; if we previously opened someone via
-                  // `/(tabs)/profile?userId=...`, tapping the Profile tab must reset
-                  // back to your own profile (no params).
-                  tabBarButton: (props) => (
-                    <HapticTab
-                      {...props}
-                      onPress={() => {
-                        router.replace('/(tabs)/profile');
-                      }}
-                      onLongPress={() => {
-                        if (Platform.OS !== 'web') {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-                        }
-                        router.push('/more');
-                      }}
-                    />
-                  ),
-                }
+                listeners: {
+                  tabPress: (e) => {
+                    e.preventDefault();
+                    router.replace('/(tabs)/profile');
+                  },
+                  tabLongPress: () => {
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
+                    }
+                    router.push('/(tabs)/more');
+                  },
+                },
+              }
               : {}),
             tabBarIcon: ({ color, focused }) => {
               if (screen.route === 'profile') {
-                const avatarUrl = API.APP_URL + "/storage/img/profile/" + user?.image;
+                const avatarUrl = user?.image
+                  ? `${API.APP_URL}/storage/img/profile/${user.image}`
+                  : null;
                 const ringClassName = focused ? 'border-2' : 'border';
                 const ringStyle = { borderColor: focused ? activeRingColor : 'transparent' };
-                // console.log(avatarUrl);
-                
+
                 return (
-                  <View className={`w-8 h-8 rounded-full overflow-hidden ${ringClassName}`} style={ringStyle}>
+                  <View className={`w-7 h-7 rounded-full overflow-hidden ${ringClassName}`} style={ringStyle}>
                     {avatarUrl ? (
                       <Image source={{ uri: avatarUrl }} className="w-full h-full" />
                     ) : (
                       <View className="w-full h-full items-center justify-center bg-alpha/20">
-                        <Ionicons size={18} name={focused ? 'person' : 'person-outline'} color={color} />
+                        <Ionicons size={16} name={focused ? 'person' : 'person-outline'} color={color} />
                       </View>
                     )}
                   </View>
@@ -173,7 +237,7 @@ export default function TabLayout() {
 
               return (
                 <Ionicons
-                  size={28}
+                  size={24}
                   name={getIconName(screen.icon, focused)}
                   color={color}
                 />

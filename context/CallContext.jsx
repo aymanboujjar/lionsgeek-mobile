@@ -68,7 +68,7 @@ export function CallProvider({ children }) {
                         caller: data.caller || {},
                         caller_token: data.caller_token,
                     });
-                    router.replace("/incoming-call");
+                    router.replace("/(tabs)/incoming-call");
                 });
 
                 channel.subscribe("call-accepted", (msg) => {
@@ -83,7 +83,7 @@ export function CallProvider({ children }) {
                             isCaller: true,
                         });
                         setPendingCallAsCaller(null);
-                        setTimeout(() => router.replace("/call"), 0);
+                        setTimeout(() => router.replace("/(tabs)/call"), 0);
                     }
                 });
 
@@ -95,7 +95,7 @@ export function CallProvider({ children }) {
                     setActiveCall(null);
                     setIncomingCall(null);
                     setPendingCallAsCaller(null);
-                    router.replace("/(tabs)");
+                    router.replace("/(tabs)/home");
                 });
             } catch (e) {
                 console.error("[CallContext] Ably init error:", e);
@@ -125,7 +125,7 @@ export function CallProvider({ children }) {
                 calleeId,
                 callee: { id: callee.id, name: callee.name, image: callee.image ?? callee.avatar },
             });
-            setTimeout(() => router.replace("/outgoing-call"), 0);
+            setTimeout(() => router.replace("/(tabs)/outgoing-call"), 0);
             return data;
         },
         [token, router]
@@ -144,7 +144,7 @@ export function CallProvider({ children }) {
                 console.error("[CallContext] Cancel call error:", e);
             }
             setPendingCallAsCaller(null);
-            router.replace("/(tabs)");
+            router.replace("/(tabs)/home");
         },
         [token, router]
     );
@@ -182,7 +182,7 @@ export function CallProvider({ children }) {
             if (data?.token && data?.channel_name) {
                 setTimeout(() => {
                     console.log('[CallContext] navigating to /call');
-                    router.replace('/call');
+                    router.replace('/(tabs)/call');
                 }, 0);
             }
             return data;

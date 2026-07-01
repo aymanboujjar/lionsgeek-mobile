@@ -15,10 +15,10 @@ import { useAppContext } from '@/context';
 import { userCanAccessScan } from '@/components/helpers/helpers';
 import { InfoSessionAPI } from '@/api/infoSessionSection';
 import AppLayout from '@/components/layout/AppLayout';
-import AccessDenied from '@/components/events/partials/AccessDenied';
 import Skeleton from '@/components/ui/Skeleton';
-import ParticipantsList from '@/components/events/partials/ParticipantsList';
-import InfoSessionHero from '@/components/infoSession/partials/InfoSessionHero';
+import AccessDenied from '../events/Partials/AccessDenied';
+import ParticipantsList from '../events/Partials/ParticipantsList';
+import InfoSessionHero from './Partials/InfoSessionHero';
 import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import {
@@ -29,7 +29,7 @@ import {
   getSessionAvailabilityLabel,
   getSessionStatusLabel,
   mapInfoParticipants,
-} from '@/components/infoSession/helpers';
+} from './helpers';
 
 function StatusBadge({ status }) {
   const isDark = useColorScheme() === 'dark';

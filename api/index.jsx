@@ -1,4 +1,11 @@
 import axios from "axios";
+import {
+    getEvents,
+    getEvent,
+    storeEventBooking,
+    validateEventInvitation,
+    manualEventChecking,
+} from './apiProxy';
 
 const APP_URL = process.env.EXPO_PUBLIC_APP_URL;
 
@@ -511,4 +518,9 @@ export default {
     browseMusic,
     searchMusic,
     getMusicCharts,
+    getEvents,
+    getEvent,
+    storeEventBooking,
+    validateEventInvitation,
+    manualEventChecking,
 };

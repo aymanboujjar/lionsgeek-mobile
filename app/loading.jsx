@@ -78,7 +78,7 @@ export default function LoadingScreen() {
               // Don't block app flow if push notification setup fails
             }
             
-            router.replace('/(tabs)');
+            router.replace('/(tabs)/home');
           } else {
             // Token invalid, clear and go to login
             console.log('[LOADING] No data in response');

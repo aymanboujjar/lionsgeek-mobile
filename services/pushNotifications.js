@@ -151,7 +151,7 @@ function handleNotificationNavigation(data) {
       switch (type) {
         case 'post_interaction':
           if (post_id) {
-            router.push('/(tabs)');
+            router.push('/(tabs)/home');
           }
           break;
         
@@ -212,7 +212,7 @@ function handleNotificationNavigation(data) {
           if (link) {
             console.log('Notification link:', link);
           }
-          router.push('/(tabs)');
+          router.push('/(tabs)/home');
           break;
       }
     });

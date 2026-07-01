@@ -1,12 +1,9 @@
 import { Stack } from 'expo-router';
 
-export default function HomeStack() {
+export default function HomeLayout() {
   return (
     <Stack screenOptions={{ headerShown: false, gestureEnabled: true }}>
-      {/* Month view */}
       <Stack.Screen name="index" />
-      {/* Day view */}
-      <Stack.Screen name="profile" />
     </Stack>
   );
 }
