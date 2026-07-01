@@ -71,7 +71,7 @@ export default function LoadingScreen() {
             try {
               const pushToken = await registerForPushNotificationsAsync();
               if (pushToken) {
-                await sendPushTokenToBackend(pushToken, token);
+                await sendPushTokenToBackend(pushToken, tokenStr);
               }
             } catch (error) {
               console.error('[LOADING] Error setting up push notifications:', error);
