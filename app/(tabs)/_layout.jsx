@@ -1,5 +1,5 @@
 import { Tabs, router } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Platform, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -14,6 +14,21 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
 import API from '@/api';
+
+function ProfileTabBarButton(props) {
+  return (
+    <HapticTab
+      {...props}
+      delayLongPress={400}
+      onLongPress={() => {
+        if (Platform.OS !== 'web') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        }
+        router.push('/(tabs)/more');
+      }}
+    />
+  );
+}
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -97,7 +112,7 @@ export default function TabLayout() {
     { route: "stories", name: "Stories", icon: "book", showTab: false },
     { route: "posts", name: "Posts", icon: "document-text", showTab: false },
     { route: "settings", name: "Settings", icon: "settings", showTab: false },
-    { route: "more", name: "More", icon: "ellipsis", showTab: false },
+    { route: "more", name: "More", icon: "ellipsis", showTab: false, hideTabBar: false },
     { route: "activity", name: "Activity", icon: "pulse", showTab: false },
     { route: "saved-posts", name: "Saved posts", icon: "bookmark", showTab: false },
     { route: "achievements", name: "Achievements", icon: "trophy", showTab: false },
@@ -145,19 +160,69 @@ export default function TabLayout() {
     }
   }, [tabBarBg]);
 
-  const renderTabBar = (props) => {
+  const lastVisibleTabIndexRef = useRef(0);
+
+  const renderTabBar = useCallback((props) => {
     const filteredRoutes = visibleTabOrder
       .map((name) => props.state.routes.find((route) => route.name === name))
       .filter(Boolean);
-    const filteredDescriptors = Object.fromEntries(
-      filteredRoutes.map((route) => [route.key, props.descriptors[route.key]]),
-    );
     const activeRouteName = props.state.routes[props.state.index]?.name;
     const filteredIndex = filteredRoutes.findIndex((route) => route.name === activeRouteName);
+    const onHiddenRoute = filteredIndex < 0;
+
+    if (filteredIndex >= 0) {
+      lastVisibleTabIndexRef.current = filteredIndex;
+    }
+
+    const filteredDescriptors = Object.fromEntries(
+      filteredRoutes.map((route) => {
+        const descriptor = props.descriptors[route.key];
+        if (!descriptor) return [route.key, descriptor];
+
+        const OriginalButton = descriptor.options.tabBarButton ?? HapticTab;
+
+        return [
+          route.key,
+          {
+            ...descriptor,
+            options: {
+              ...descriptor.options,
+              tabBarIcon: descriptor.options.tabBarIcon
+                ? (iconProps) =>
+                    descriptor.options.tabBarIcon({
+                      ...iconProps,
+                      focused: onHiddenRoute ? false : iconProps.focused,
+                    })
+                : descriptor.options.tabBarIcon,
+              tabBarButton: (buttonProps) => (
+                <OriginalButton
+                  {...buttonProps}
+                  onPress={(e) => {
+                    if (onHiddenRoute) {
+                      const event = props.navigation.emit({
+                        type: 'tabPress',
+                        target: route.key,
+                        canPreventDefault: true,
+                      });
+                      if (!event.defaultPrevented) {
+                        props.navigation.navigate(route.name, route.params);
+                      }
+                      return;
+                    }
+                    buttonProps.onPress?.(e);
+                  }}
+                />
+              ),
+            },
+          },
+        ];
+      }),
+    );
+
     const filteredState = {
       ...props.state,
       routes: filteredRoutes,
-      index: filteredIndex >= 0 ? filteredIndex : 0,
+      index: filteredIndex >= 0 ? filteredIndex : lastVisibleTabIndexRef.current,
     };
 
     return (
@@ -165,9 +230,10 @@ export default function TabLayout() {
         {...props}
         state={filteredState}
         descriptors={filteredDescriptors}
+        activeTintColor={onHiddenRoute ? props.inactiveTintColor : props.activeTintColor}
       />
     );
-  };
+  }, [visibleTabOrder]);
 
   return (
     <Tabs
@@ -200,16 +266,11 @@ export default function TabLayout() {
             tabBarLabel: screen.label,
             ...(screen.route === 'profile'
               ? {
+                tabBarButton: ProfileTabBarButton,
                 listeners: {
                   tabPress: (e) => {
                     e.preventDefault();
                     router.replace('/(tabs)/profile');
-                  },
-                  tabLongPress: () => {
-                    if (Platform.OS !== 'web') {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
-                    }
-                    router.push('/(tabs)/more');
                   },
                 },
               }
@@ -264,7 +325,11 @@ export default function TabLayout() {
                 color={color}
               />
             ),
-            tabBarStyle: screen.showTab ? undefined : { display: 'none' },
+            tabBarStyle: screen.hideTabBar === false
+              ? undefined
+              : screen.showTab
+                ? undefined
+                : { display: 'none' },
             href: null,
           }}
         />
