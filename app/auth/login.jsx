@@ -85,20 +85,8 @@ export default function LoginScreen() {
           console.error('[LOGIN] Token was not saved correctly!');
           throw new Error('Failed to save authentication token');
         }
-        
-        // Register for push notifications and send token to backend
-        try {
-          const { registerForPushNotificationsAsync, sendPushTokenToBackend } = await import('@/services/pushNotifications');
-          const pushToken = await registerForPushNotificationsAsync();
-          if (pushToken) {
-            await sendPushTokenToBackend(pushToken, responseData.token);
-          }
-        } catch (error) {
-          console.error('[LOGIN] Error setting up push notifications:', error);
-          // Don't block login flow if push notification setup fails
-        }
-        
-        // Redirect to loading page to verify token and check onboarding
+
+        // Redirect to loading page to verify token and register push notifications
         router.replace('/loading');
       } else {
         throw new Error('No data received');

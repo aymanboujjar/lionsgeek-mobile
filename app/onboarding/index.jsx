@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, Image, Dimensions, Pressable, Platform } from 'react-native';
+import { View, Text, ScrollView, Image, Dimensions, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
-import * as MediaLibrary from 'expo-media-library';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { router } from 'expo-router';
 import { Home as LogoIcon } from '@/components/logo';
@@ -40,17 +38,6 @@ export default function Onboarding() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
-    // Configure notifications handler (foreground behavior)
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: false,
-        shouldSetBadge: false,
-      }),
-    });
-  }, []);
-
-  useEffect(() => {
     const redirectIfLoggedIn = async () => {
       try {
         const token = await AsyncStorage.getItem('auth_token');
@@ -75,19 +62,7 @@ export default function Onboarding() {
     redirectIfLoggedIn();
   }, []);
 
-  const requestPermissions = async () => {
-    try {
-      await Notifications.requestPermissionsAsync();
-      if (Platform.OS !== 'web') {
-        await MediaLibrary.requestPermissionsAsync();
-      }
-    } catch (error) {
-      console.warn('[ONBOARDING] Permission request failed:', error);
-    }
-  };
-
   const complete = async () => {
-    await requestPermissions();
     await AsyncStorage.setItem('onboarding_seen', '1');
     // If logged in go to loading to verify, otherwise to login
     const token = await AsyncStorage.getItem('auth_token');
