@@ -15,6 +15,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
 import API from '@/api';
 
+function ProfileTabBarButton(props) {
+  return (
+    <HapticTab
+      {...props}
+      delayLongPress={400}
+      onLongPress={() => {
+        if (Platform.OS !== 'web') {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        }
+        router.push('/(tabs)/more');
+      }}
+    />
+  );
+}
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
@@ -200,16 +215,11 @@ export default function TabLayout() {
             tabBarLabel: screen.label,
             ...(screen.route === 'profile'
               ? {
+                tabBarButton: ProfileTabBarButton,
                 listeners: {
                   tabPress: (e) => {
                     e.preventDefault();
                     router.replace('/(tabs)/profile');
-                  },
-                  tabLongPress: () => {
-                    if (Platform.OS !== 'web') {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => { });
-                    }
-                    router.push('/(tabs)/more');
                   },
                 },
               }
