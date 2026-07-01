@@ -270,7 +270,7 @@ export default function More() {
     <AppLayout showNavbar={false} className="dark:bg-[#0D0C0B]">
       <ScrollView
         className="flex-1 bg-light dark:bg-[#0D0C0B]"
-        contentContainerClassName="pb-14"
+        contentContainerClassName="pt-14"
         showsVerticalScrollIndicator={false}
       >
         {/* Profile — centered premium block */}
