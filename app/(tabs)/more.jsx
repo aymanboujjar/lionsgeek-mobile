@@ -23,6 +23,7 @@ import {
   resolveAvatarUrl,
   getUserRolesNormalized,
 } from "@/components/helpers/helpers";
+import { isStudentUser } from "@/components/training/attendanceCheckIn";
 import { Colors } from "@/constants/Colors";
 
 const ACCENT = "#F5C518";
@@ -250,6 +251,7 @@ export default function More() {
   const canViewMembers = roleLower.some((r) => ["admin", "coach"].includes(r));
   const isAdmin = roleLower.includes("admin");
   const canViewReports = roleLower.some((r) => ["admin", "coach"].includes(r));
+  const showStudentCheckIn = isStudentUser(user ?? displayProfile);
 
   const comingSoon = (feature) => () =>
     Alert.alert(
@@ -464,15 +466,26 @@ export default function More() {
             onPress={() => router.push("/(tabs)/attendance-history")}
             right={chevron}
           />
-          <RowDivider />
-                    {/* qr scanner */}
-        <SettingRow
-          icon="qr-code-outline"
-          label="Scan QR code"
-          sublabel="Quick check-in to a session"
-          onPress={() => router.push("/(tabs)/training/qr-scanner")}
-          right={chevron}
-        />
+          {showStudentCheckIn ? (
+            <>
+              <RowDivider />
+              <SettingRow
+                icon="finger-print-outline"
+                label="Mark attendance"
+                sublabel="One-tap check-in on school WiFi"
+                onPress={() => router.push("/(tabs)/training/check-in")}
+                right={chevron}
+              />
+              <RowDivider />
+              <SettingRow
+                icon="qr-code-outline"
+                label="Scan QR code"
+                sublabel="Quick check-in to a session"
+                onPress={() => router.push("/(tabs)/training/qr-scanner")}
+                right={chevron}
+              />
+            </>
+          ) : null}
         </SettingsCard>
         {/* Spaces */}
         <SectionLabel title="Spaces & calendar" />
