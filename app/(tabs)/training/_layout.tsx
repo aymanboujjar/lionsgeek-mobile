@@ -32,6 +32,15 @@ export default function TrainingStack() {
           animation: 'slide_from_right',
         }}
       />
+      {/* Student check-in button */}
+      <Stack.Screen
+        name="check-in"
+        options={{
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          animation: 'slide_from_right',
+        }}
+      />
     </Stack>
   );
 }

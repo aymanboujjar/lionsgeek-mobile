@@ -7,6 +7,7 @@ import CreatePost from '@/components/feed/CreatePost';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import AppLayout from '@/components/layout/AppLayout';
+import HomeAttendanceReminderBanner from '@/components/training/HomeAttendanceReminderBanner';
 import API from '@/api';
 import Skeleton from '@/components/ui/Skeleton';
 import { assignUniqueFeedKeys } from '@/components/helpers/helpers';
@@ -215,6 +216,8 @@ export default function HomeScreen() {
 
   return (
     <AppLayout showNavbar={true}>
+      <HomeAttendanceReminderBanner />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={{ backgroundColor: isDark ? '#0f0f0f' : '#e9e5df' }}
