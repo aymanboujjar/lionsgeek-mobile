@@ -7,6 +7,7 @@ import CreatePost from './Partials/CreatePost';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import AppLayout from '@/components/layout/AppLayout';
+import HomeAttendanceReminderBanner from '@/components/training/HomeAttendanceReminderBanner';
 import API from '@/api';
 import Skeleton from '@/components/ui/Skeleton';
 import { assignUniqueFeedKeys } from '@/components/helpers/helpers';
@@ -307,6 +308,7 @@ export default function HomeScreen() {
 
   return (
     <AppLayout showNavbar={true}>
+      <HomeAttendanceReminderBanner />
       <FlatList
         data={loading ? [] : posts}
         keyExtractor={(item) => String(item.feedKey ?? item.id)}
