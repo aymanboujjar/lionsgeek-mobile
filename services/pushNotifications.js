@@ -207,6 +207,10 @@ function handleNotificationNavigation(data) {
         case 'announcement':
           router.push('/(tabs)/notifications');
           break;
+
+        case 'attendance_reminder':
+          router.push('/(tabs)/training/check-in');
+          break;
         
         default:
           if (link) {
