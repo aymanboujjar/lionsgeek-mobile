@@ -41,4 +41,5 @@ app-example
 
 
 .cursor
-
+android/
+google-services.json
