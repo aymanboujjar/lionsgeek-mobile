@@ -15,6 +15,7 @@ import { useAppContext } from '@/context';
 import API from '@/api';
 import { goToOwnProfileTab } from '@/utils/profileNavigation';
 import { getAuthToken } from '@/utils/authTokenStorage';
+import { getUserRoles } from '@/utils/roles';
 
 function ProfileTabBarButton(props) {
   return (
@@ -71,8 +72,8 @@ export default function TabLayout() {
 
 
   const { user } = useAppContext();
-  const userRoles = user?.roles || [];
-  const isAdmin = userRoles.some(r => ['admin', 'coach'].includes(r?.toLowerCase?.() || r));
+  const userRoles = getUserRoles(user);
+  const isAdmin = userRoles.some(r => ['admin', 'coach'].includes(r));
 
   // Map SF Symbols icon names to Ionicons names for cross-platform support
   const getIconName = (sfSymbolName, focused = false) => {

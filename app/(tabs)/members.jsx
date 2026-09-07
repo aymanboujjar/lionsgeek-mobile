@@ -9,6 +9,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import { useScrollTabPadding } from '@/hooks/useScrollTabPadding';
 import Skeleton from '@/components/ui/Skeleton';
 import { userHasAdminRole } from '@/components/helpers/helpers';
+import { getUserRoles } from '@/utils/roles';
 
 export default function MembersScreen() {
   const { user: currentUser, token } = useAppContext();
@@ -18,9 +19,9 @@ export default function MembersScreen() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Check if current user is admin
-  const currentUserRoles = currentUser?.roles || [];
-  const isAdmin = currentUserRoles.some(r => ['admin', 'coach'].includes(r?.toLowerCase?.() || r));
+  // Check if current user is admin (roles or single role field)
+  const currentUserRoles = getUserRoles(currentUser);
+  const isAdmin = currentUserRoles.some(r => ['admin', 'coach'].includes(r));
 
   useEffect(() => {
     const fetchMembers = async () => {

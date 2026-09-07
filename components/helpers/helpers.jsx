@@ -1,4 +1,5 @@
 import API from '@/api';
+import { getUserRoles } from '@/utils/roles';
 
 function isAbsoluteUrl(value) {
   return typeof value === 'string' && (value.startsWith('http://') || value.startsWith('https://'));
@@ -77,19 +78,9 @@ export function resolvePostMediaUrl(postOrValue) {
   return `${API.APP_URL}/storage/img/posts/${value}`;
 }
 
-function normalizeRoleEntry(role) {
-  if (role == null || role === '') return null;
-  const value = (typeof role === 'string' ? role : String(role)).trim().toLowerCase();
-  return value.replace(/^['"]+|['"]+$/g, '') || null;
-}
-
 // Normalizes a user's roles to lowercase strings (handles roles/role, array or single string).
 export function getUserRolesNormalized(user) {
-  const source = user?.roles ?? user?.role;
-  if (!source) return [];
-
-  const list = Array.isArray(source) ? source : [source];
-  return [...new Set(list.map(normalizeRoleEntry).filter(Boolean))];
+  return getUserRoles(user);
 }
 
 // True when the viewer may see other users' email addresses (admin only).

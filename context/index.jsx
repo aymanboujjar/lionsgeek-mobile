@@ -11,15 +11,23 @@ const THEME_STORAGE_KEY = 'app_theme_preference';
 /** Fields persisted to AsyncStorage for cold-start UI gates. Full profile stays in memory. */
 function toAuthUserStub(nextUser) {
     if (!nextUser || typeof nextUser !== 'object') return null;
-    const stub = {
+
+    const roles = Array.isArray(nextUser.roles)
+        ? nextUser.roles
+        : (nextUser.role != null
+            ? (Array.isArray(nextUser.role) ? nextUser.role : [nextUser.role])
+            : []);
+    const role = nextUser.role ?? roles[0] ?? null;
+
+    return {
         id: nextUser.id,
         name: nextUser.name,
         image: nextUser.image,
         access_scan: nextUser.access_scan,
+        role,
+        roles,
+        formation_id: nextUser.formation_id ?? null,
     };
-    if (nextUser.role !== undefined) stub.role = nextUser.role;
-    if (nextUser.roles !== undefined) stub.roles = nextUser.roles;
-    return stub;
 }
 
 const appContext = createContext();
