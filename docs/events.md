@@ -1,12 +1,40 @@
-# Events tab — mobile compliance refactor
+# Events tab — mobile architecture
 
-## What changed
+## Auth model (current)
 
-Aligned `app/(tabs)/events/` with `.cursor/rules.md`: centralized API calls, moved pure helpers to `utils/`, added shared error UI, improved list performance, and replaced hardcoded colors.
+Events / info-session traffic is **Sanctum-authenticated via the mylionsgeek proxy**.
 
-## Why
+Mobile clients must **not** ship or receive the upstream lionsgeek.ma section API key.
 
-The events feature had a separate axios module, feature-local helpers with embedded API calls, custom per-screen error UI, `ScrollView` + `.map()` lists, and inline hex/rgba colors — all violations of the project invariants.
+| Concern | Current behavior |
+|---------|------------------|
+| Client auth | User Sanctum Bearer PAT (`Authorization: Bearer …`) |
+| API base | `EXPO_PUBLIC_APP_URL` + `/api/events-info/*` |
+| Upstream key | Server-only (`LIONSGEEK_MA_API_KEY` / `config('services.lionsgeek')`) |
+| Client secrets | Do **not** define `EXPO_PUBLIC_EVENTS_INFO_SECTION_KEY` (or any section key) — it would ship in the JS bundle |
+
+Authorization is enforced **server-side** on `/api/events-info/*`:
+
+- All routes require `auth:sanctum`
+- Public event list/detail/booking: any authenticated user (private events / empty participants filtered in the proxy)
+- Scan / PII / check-in routes: Sanctum + `events.info.scan` (admin role **or** `access_scan` on the user record — never from the request body)
+
+## Required mobile env
+
+```env
+EXPO_PUBLIC_APP_URL=https://your-api-domain.com
+EXPO_PUBLIC_EVENTS_INFO_USE_PROXY=true
+# Optional: public CDN base for non-sensitive image display fallbacks only
+EXPO_PUBLIC_EVENTS_INFO_SECTION_URL=https://lionsgeek.ma/
+```
+
+Do **not** put upstream API keys in any `EXPO_PUBLIC_*` variable.
+
+Config source: `utils/eventsConfig.js` (`EVENTS_API_KEY` is forced empty; proxy mode is required).
+
+## What changed (UI refactor notes)
+
+Aligned `app/(tabs)/events/` with project rules: centralized API calls, pure helpers in `utils/`, shared error UI, list performance, and tokenized colors.
 
 ## Folder structure (Inertia-style)
 
@@ -20,45 +48,32 @@ app/(tabs)/events/
 └── Partials/              ← UI chunks only (no full pages)
 ```
 
-Removed page-as-partial files: `EventDetail.jsx`, `ParticipantDetail.jsx`.
-
 | Area | Files |
 |------|-------|
 | API | `api/index.jsx` re-exports `api/events.js` |
 | Config | `utils/eventsConfig.js` — env vars (single source) |
-| Utils | `utils/events.js` — pure helpers + `collectParticipantOtherRegistrations` |
-| Utils | `utils/events.js`, `utils/eventBooking.js` (new) |
+| Utils | `utils/events.js`, `utils/eventBooking.js` |
 | UI shared | `components/ui/ErrorScreen.jsx`, `components/ui/SectionCard.jsx` |
-| Tokens | `constants/Colors.ts` — `getMutedIconColor`, `Overlays` |
-| Events screens | All files under `app/(tabs)/events/Partials/`, `scanner.jsx` |
-| Removed | `api/eventsInfoSection.jsx`, `app/(tabs)/events/helpers.js`, `app/(tabs)/events/bookingHelpers.js` |
+| Tokens | `constants/Colors.ts` |
 
-## API contracts (unchanged behavior)
+## Client API helpers
 
-Events use **API-key auth** (not Sanctum). Env vars:
-
-- `EXPO_PUBLIC_EVENTS_INFO_SECTION_URL` — lionsgeek.ma base (direct mode)
-- `EXPO_PUBLIC_EVENTS_INFO_SECTION_KEY` — bearer token
-- `EXPO_PUBLIC_EVENTS_INFO_USE_PROXY=true` — route via `EXPO_PUBLIC_APP_URL/api/events-info/*`
-- `EXPO_PUBLIC_APP_URL` — required in proxy mode
-
-Exported from `api/index.jsx`:
+Exported from `api/index.jsx` (all go through Sanctum proxy when configured):
 
 - `getEvents()`, `getEvent(id)`
 - `storeEventBooking(payload)`
 - `validateEventInvitation(payload)`
 - `manualEventChecking(bookingId, eventId)`
-- `collectParticipantOtherRegistrations(email, excludeEventId, { getEvents, getEvent })` — in `utils/events.js`
+- `collectParticipantOtherRegistrations(...)` — in `utils/events.js`
 
 ## How to test
 
-1. Set `.env` with events URL + key (and proxy flags if needed); restart Expo with `-c`.
-2. **Regular user** — Events tab lists public events; tap event → book flow; past/private events hidden.
-3. **Scan staff** — Events + Info Session tabs; participant list, QR scanner, manual check-in.
-4. **Admin** — Register after event end; scan anytime.
-5. Pull-to-refresh on list and detail; trigger airplane mode → shared error screen with retry.
-6. Search events — debounced filter; list scrolls via `FlatList`.
+1. Set `.env` with `EXPO_PUBLIC_APP_URL` and `EXPO_PUBLIC_EVENTS_INFO_USE_PROXY=true`; restart Expo with `-c`.
+2. Log in so the app has a Sanctum token.
+3. **Regular user** — Events tab lists public events; book flow; private/past filtered by server.
+4. **Scan staff** (`access_scan` or admin) — participant list, QR scanner, manual check-in.
+5. Pull-to-refresh; airplane mode → shared error screen with retry.
 
 ## Invariants
 
-No route renames. Auth AsyncStorage keys unchanged. Events remain on separate lionsgeek.ma API-key contract (documented above).
+No route renames. Auth token storage unchanged. Upstream section keys stay on the server; mobile never embeds them.
