@@ -1,11 +1,11 @@
 import 'react-native-reanimated';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
 import * as Font from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { LogBox, Platform } from 'react-native';
 import "../index.css";
 
 import { AppProvider, useAppContext } from '@/context';
@@ -13,8 +13,18 @@ import { CallProvider } from '@/context/CallContext';
 import { setupNotificationListeners, removeNotificationListeners } from '@/services/pushNotifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Colors } from '@/constants/Colors';
-import Constants from 'expo-constants';
 import AppVersionGate from '@/components/AppVersionGate';
+
+// Hide known noisy third-party / web deprecation toasts in the UI.
+LogBox.ignoreLogs([
+  'SafeAreaView has been deprecated',
+  '"textShadow*" style props are deprecated',
+  '"shadow*" style props are deprecated',
+  'textShadow*',
+  'shadow*',
+  "Custom sound 'default' not found",
+  'expo-notifications: Custom sound',
+]);
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -39,14 +49,12 @@ function RootLayoutNav() {
   const stackBg = colorScheme === 'dark' ? '#0D0C0B' : Colors.light;
 
   useEffect(() => {
-    if (Constants.appOwnership === 'expo') {
-      return;
-    }
-
     try {
       notificationListenersRef.current = setupNotificationListeners();
     } catch (e) {
-      console.warn('[notifications] setup failed:', e);
+      if (__DEV__) {
+        console.log('[notifications] setup failed:', e);
+      }
     }
 
     return () => {

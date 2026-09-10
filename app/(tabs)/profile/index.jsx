@@ -41,7 +41,7 @@ import {
     getLastExperience,
     normalizeSocialLinks,
     tryFetchFirstList,
-} from './partials/_helpers';
+} from '@/utils/profileHelpers';
 import { isRepostPost } from './partials/RepostsGridTab';
 
 export default function ProfileScreen() {

@@ -1,6 +1,6 @@
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { formatPeriod, formatPeriodFromParts } from './_helpers';
+import { formatPeriod, formatPeriodFromParts } from '@/utils/profileHelpers';
 
 export default function EducationCard({ profile, isDark }) {
   const rawList =

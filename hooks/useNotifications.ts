@@ -1,33 +1,50 @@
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { useEffect, useState, useCallback } from 'react';
 import { Platform, Alert } from 'react-native';
 
+type NotificationLike = {
+  request?: unknown;
+};
+
 type UseNotificationsReturn = {
   expoPushToken: string | null;
-  lastNotification: Notifications.Notification | null;
+  lastNotification: NotificationLike | null;
   scheduleLocalNotification: (title?: string, body?: string) => Promise<void>;
 };
 
+function isExpoGo() {
+  return Constants.appOwnership === 'expo';
+}
+
+function loadNotifications(): typeof import('expo-notifications') | null {
+  if (isExpoGo()) return null;
+  // Lazy require so Expo Go never evaluates the native module.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('expo-notifications');
+}
+
 export default function useNotifications(): UseNotificationsReturn {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [lastNotification, setLastNotification] = useState<Notifications.Notification | null>(null);
+  const [lastNotification, setLastNotification] = useState<NotificationLike | null>(null);
 
   useEffect(() => {
-    // Move setNotificationHandler here to avoid bundler/native errors
+    const Notifications = loadNotifications();
+    if (!Notifications) {
+      return undefined;
+    }
+
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
-        // Newer SDKs expect these flags as well (iOS presentation styles)
         shouldShowBanner: true,
         shouldShowList: true,
       }),
     });
 
-    registerForPushNotificationsAsync().then(token => setExpoPushToken(token));
+    registerForPushNotificationsAsync(Notifications).then(token => setExpoPushToken(token));
 
     const receivedSub = Notifications.addNotificationReceivedListener(notification => {
       setLastNotification(notification);
@@ -45,7 +62,10 @@ export default function useNotifications(): UseNotificationsReturn {
 
   const scheduleLocalNotification = useCallback(
     async (title = 'Hello', body = 'This is a test') => {
-      const trigger: Notifications.TimeIntervalTriggerInput = {
+      const Notifications = loadNotifications();
+      if (!Notifications) return;
+
+      const trigger = {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
         seconds: 2,
         repeats: false,
@@ -61,13 +81,14 @@ export default function useNotifications(): UseNotificationsReturn {
   return { expoPushToken, lastNotification, scheduleLocalNotification };
 }
 
-async function registerForPushNotificationsAsync(): Promise<string | null> {
+async function registerForPushNotificationsAsync(
+  Notifications: typeof import('expo-notifications'),
+): Promise<string | null> {
   if (!Device.isDevice) {
     console.warn('Push notifications require a physical device.');
     return null;
   }
 
-  // Android requires a channel
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'default',
@@ -91,12 +112,10 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
   }
 
   try {
-    // In dev clients / standalone builds, passing projectId is required
     const projectId =
-      // Preferred in production/EAS
-      (Constants as any).easConfig?.projectId ??
-      // Fallback for Expo Go/dev
-      (Constants as any).expoConfig?.extra?.eas?.projectId;
+      (Constants as { easConfig?: { projectId?: string } }).easConfig?.projectId ??
+      (Constants as { expoConfig?: { extra?: { eas?: { projectId?: string } } } }).expoConfig?.extra?.eas
+        ?.projectId;
 
     const tokenData = await Notifications.getExpoPushTokenAsync(
       projectId ? { projectId } : undefined
@@ -113,6 +132,3 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
     return null;
   }
 }
-
-// Notification handler should be configured once. Keeping it within the hook's effect ensures
-// it's set during app lifecycle, and avoids multiple registrations across environments.

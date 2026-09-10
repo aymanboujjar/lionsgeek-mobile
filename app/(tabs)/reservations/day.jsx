@@ -22,7 +22,7 @@ import {
   getTimelineTotalHeight,
   minutesToY,
   selectionToTimeRange,
-} from './Partials/timelineUtils';
+} from '@/utils/timelineUtils';
 
 export default function DayView() {
   const { date, tab, reservations: reservationsParam, reservationsCowork: reservationsCoworkParam, place: placeParam } = useLocalSearchParams();

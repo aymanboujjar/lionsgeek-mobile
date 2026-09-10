@@ -15,7 +15,8 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { Video, ResizeMode, Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import StoryVideo from './Partials/StoryVideo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppContext } from '@/context';
 import API from '@/api';
@@ -68,64 +69,63 @@ export default function CreateStoryScreen() {
   useEffect(() => {
     (async () => {
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-          shouldDuckAndroid: true,
+        await setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
+          shouldPlayInBackground: false,
+          interruptionMode: 'duckOthers',
         });
       } catch (_) {}
     })();
   }, []);
 
   // Preview the selected music track in the editor so the creator hears
-  // exactly what will play on the story. Re-creates the Sound whenever
+  // exactly what will play on the story. Re-creates the player whenever
   // the music overlay's preview_url or trim range changes. Suspended while
   // the music picker is open (the picker plays its own preview).
   useEffect(() => {
     const musicOverlay = overlays.find((o) => o.type === 'music');
     let cancelled = false;
+    let statusSub = null;
 
     (async () => {
       if (!musicOverlay?.preview_url || musicOpen) {
         if (previewSoundRef.current) {
-          try { await previewSoundRef.current.stopAsync(); } catch (_) {}
-          try { await previewSoundRef.current.unloadAsync(); } catch (_) {}
+          try { previewSoundRef.current.pause(); } catch (_) {}
+          try { previewSoundRef.current.release(); } catch (_) {}
           previewSoundRef.current = null;
         }
         return;
       }
       // Reload with the current trim
       if (previewSoundRef.current) {
-        try { await previewSoundRef.current.stopAsync(); } catch (_) {}
-        try { await previewSoundRef.current.unloadAsync(); } catch (_) {}
+        try { previewSoundRef.current.pause(); } catch (_) {}
+        try { previewSoundRef.current.release(); } catch (_) {}
         previewSoundRef.current = null;
       }
       try {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: musicOverlay.preview_url },
-          {
-            shouldPlay: true,
-            isLooping: true,
-            volume: 0.85,
-            positionMillis: musicOverlay.start_ms || 0,
-          },
-        );
+        const player = createAudioPlayer({ uri: musicOverlay.preview_url });
+        player.loop = false;
+        player.volume = 0.85;
+        const start = musicOverlay.start_ms || 0;
+        player.seekTo(start / 1000);
+        player.play();
         if (cancelled) {
-          try { await sound.unloadAsync(); } catch (_) {}
+          try { player.pause(); } catch (_) {}
+          try { player.release(); } catch (_) {}
           return;
         }
-        previewSoundRef.current = sound;
+        previewSoundRef.current = player;
 
-        // Manually loop the [start_ms, end_ms] window since expo-av's native
-        // looping only loops the entire file.
-        sound.setOnPlaybackStatusUpdate((status) => {
+        // Manually loop the [start_ms, end_ms] window.
+        statusSub = player.addListener('playbackStatusUpdate', (status) => {
           if (!status?.isLoaded) return;
-          const start = musicOverlay.start_ms || 0;
           const storyEnd = musicOverlay.end_ms || 60000;
           const previewEnd = Math.min(start + 30000, storyEnd);
-          if (status.positionMillis >= previewEnd - 50) {
-            sound.setPositionAsync(start).catch(() => {});
+          const positionMs = (status.currentTime || 0) * 1000;
+          if (status.didJustFinish || positionMs >= previewEnd - 50) {
+            player.seekTo(start / 1000);
+            player.play();
           }
         });
       } catch (_) {
@@ -135,6 +135,9 @@ export default function CreateStoryScreen() {
 
     return () => {
       cancelled = true;
+      if (statusSub) {
+        try { statusSub.remove(); } catch (_) {}
+      }
     };
   }, [overlays.find((o) => o.type === 'music')?.preview_url,
       overlays.find((o) => o.type === 'music')?.start_ms,
@@ -145,7 +148,8 @@ export default function CreateStoryScreen() {
   useEffect(() => {
     return () => {
       if (previewSoundRef.current) {
-        previewSoundRef.current.unloadAsync().catch(() => {});
+        try { previewSoundRef.current.pause(); } catch (_) {}
+        try { previewSoundRef.current.release(); } catch (_) {}
         previewSoundRef.current = null;
       }
     };
@@ -424,15 +428,13 @@ export default function CreateStoryScreen() {
           }}
         >
           {media.type === 'video' ? (
-            <Video
-              ref={videoRef}
-              source={{ uri: media.uri }}
+            <StoryVideo
+              uri={media.uri}
               style={StyleSheet.absoluteFillObject}
-              resizeMode={ResizeMode.COVER}
               shouldPlay
               isLooping
-              isMuted={hasMusicOverlay}
-              useNativeControls={false}
+              muted={hasMusicOverlay}
+              playerRef={videoRef}
             />
           ) : (
             <Image
@@ -838,7 +840,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    direction: 'ltr',
+    writingDirection: 'ltr',
   },
   audiencePill: {
     flexDirection: 'row',

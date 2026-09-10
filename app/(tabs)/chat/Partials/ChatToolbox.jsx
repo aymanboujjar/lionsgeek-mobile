@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import API from '@/api';
 import { useAppContext } from '@/context';
 import Skeleton from '@/components/ui/Skeleton';
-import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from './resolveAttachmentUrl';
+import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from '@/utils/resolveAttachmentUrl';
 
 // Toolbox component dial attachments w posts
 export default function ChatToolbox({ conversationId, otherUserId, onPreviewAttachment, messages = [] }) {

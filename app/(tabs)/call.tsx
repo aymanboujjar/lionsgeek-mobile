@@ -13,7 +13,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { WebView } from "react-native-webview";
-import { Audio } from "expo-av";
+import { requestRecordingPermissionsAsync, setAudioModeAsync } from "expo-audio";
 import { useCallContext } from "@/context/CallContext";
 import { useAppContext } from "@/context";
 import API from "@/api";
@@ -474,10 +474,10 @@ export default function CallScreen() {
             return;
           }
         } else {
-          // iOS – use expo-av to trigger the system mic prompt.
-          const { status } = await Audio.requestPermissionsAsync();
+          // iOS – use expo-audio to trigger the system mic prompt.
+          const { granted } = await requestRecordingPermissionsAsync();
           if (cancelled) return;
-          if (status !== "granted") {
+          if (!granted) {
             setMicError("Microphone permission denied. Enable it in Settings to make calls.");
             return;
           }
@@ -485,24 +485,22 @@ export default function CallScreen() {
         // Configure audio session on BOTH platforms so the WebView's <audio>
         // element actually plays through the loudspeaker and is not ducked /
         // routed through the earpiece.
-        //  - playsInSilentModeIOS: critical, otherwise the silent switch
+        //  - playsInSilentMode: critical, otherwise the silent switch
         //    mutes the remote audio entirely.
-        //  - allowsRecordingIOS: required while we have the mic open; we
+        //  - allowsRecording: required while we have the mic open; we
         //    accept that this routes through the receiver by default and
         //    rely on the WebView's audio element to route to the speaker.
-        //  - shouldDuckAndroid: false so the music stays paused, not ducked.
+        //  - interruptionMode doNotMix so other audio is paused, not ducked.
         try {
-          await Audio.setAudioModeAsync({
-            allowsRecordingIOS: true,
-            playsInSilentModeIOS: true,
-            staysActiveInBackground: false,
-            shouldDuckAndroid: false,
-            playThroughEarpieceAndroid: false,
-            interruptionModeIOS: 1, // DoNotMix
-            interruptionModeAndroid: 1, // DoNotMix
-          } as any);
+          await setAudioModeAsync({
+            allowsRecording: true,
+            playsInSilentMode: true,
+            shouldPlayInBackground: false,
+            shouldRouteThroughEarpiece: false,
+            interruptionMode: "doNotMix",
+          });
         } catch (e) {
-          console.warn("[call] Audio.setAudioModeAsync failed", e);
+          console.warn("[call] setAudioModeAsync failed", e);
         }
         if (!cancelled) setMicReady(true);
       } catch (e: any) {

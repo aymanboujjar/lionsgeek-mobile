@@ -22,7 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { useAppContext } from '@/context';
 import API from '@/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,7 +36,7 @@ import {
   buildMusicOverlayPayload,
   formatDuration,
   formatMs,
-} from './_musicUtils';
+} from '@/utils/musicUtils';
 
 const { height: WINDOW_H } = Dimensions.get('window');
 const SHEET_H = Math.round(WINDOW_H * 0.82);
@@ -103,11 +103,11 @@ export default function MusicPickerSheet({ visible, onClose, onPick }) {
   useEffect(() => {
     (async () => {
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-          shouldDuckAndroid: true,
+        await setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
+          shouldPlayInBackground: false,
+          interruptionMode: 'duckOthers',
         });
       } catch (_) {}
     })();
@@ -120,8 +120,8 @@ export default function MusicPickerSheet({ visible, onClose, onPick }) {
       positionTimerRef.current = null;
     }
     if (soundRef.current) {
-      try { await soundRef.current.stopAsync(); } catch (_) {}
-      try { await soundRef.current.unloadAsync(); } catch (_) {}
+      try { soundRef.current.pause(); } catch (_) {}
+      try { soundRef.current.release(); } catch (_) {}
       soundRef.current = null;
     }
     setPlaying(false);
@@ -198,22 +198,17 @@ export default function MusicPickerSheet({ visible, onClose, onPick }) {
       return;
     }
     try {
-      const { sound, status } = await Audio.Sound.createAsync(
-        { uri: track.preview_url },
-        {
-          shouldPlay: true,
-          isLooping: true,
-          positionMillis: 0,
-          volume: 1.0,
-        }
-      );
-      soundRef.current = sound;
+      const player = createAudioPlayer({ uri: track.preview_url });
+      player.loop = true;
+      player.volume = 1.0;
+      player.play();
+      soundRef.current = player;
       setPlaying(true);
       // Poll position for the playhead overlay on the waveform.
-      positionTimerRef.current = setInterval(async () => {
+      positionTimerRef.current = setInterval(() => {
         try {
-          const s = await sound.getStatusAsync();
-          if (s?.isLoaded) setAudioPos(s.positionMillis || 0);
+          const player = soundRef.current;
+          if (player) setAudioPos(Math.round((player.currentTime || 0) * 1000));
         } catch (_) {}
       }, 150);
     } catch (e) {
@@ -228,12 +223,12 @@ export default function MusicPickerSheet({ visible, onClose, onPick }) {
       return;
     }
     try {
-      const status = await soundRef.current.getStatusAsync();
-      if (status?.isLoaded && status.isPlaying) {
-        await soundRef.current.pauseAsync();
+      const player = soundRef.current;
+      if (player.playing) {
+        player.pause();
         setPlaying(false);
       } else {
-        await soundRef.current.playAsync();
+        player.play();
         setPlaying(true);
       }
     } catch (_) {}
@@ -270,7 +265,7 @@ export default function MusicPickerSheet({ visible, onClose, onPick }) {
     setStartMs(newStart);
     if (soundRef.current) {
       try {
-        await soundRef.current.setPositionAsync(newStart);
+        soundRef.current.seekTo(newStart / 1000);
       } catch (_) {}
     }
   }, [selected, maxStartMs, trimWindowFraction]);

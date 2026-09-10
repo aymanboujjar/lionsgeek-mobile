@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 
 /**
  * Loads, loops (within the trimmed start_ms..end_ms window) and plays a
- * story's music overlay using expo-av. Returns nothing — it's purely a side
+ * story's music overlay using expo-audio. Returns nothing — it's purely a side
  * effect tied to the story's lifecycle.
  *
- *  - Re-creates the Sound whenever the music overlay (preview_url / trim)
+ *  - Re-creates the player whenever the music overlay (preview_url / trim)
  *    changes, e.g. when navigating to the next story.
  *  - Mutes / unmutes (effectively pause/play) without unloading when
  *    `isPaused` toggles, so resuming feels instant.
@@ -18,10 +18,10 @@ import { Audio } from 'expo-av';
  *   useStoryMusic(overlay, { isPaused });
  *
  * The story video's audio should be muted whenever a music overlay exists
- * (the caller is responsible for passing `isMuted` to its <Video>).
+ * (the caller is responsible for passing `muted` to its video player).
  */
 export default function useStoryMusic(musicOverlay, { isPaused = false } = {}) {
-  const soundRef  = useRef(null);
+  const playerRef = useRef(null);
   const overlayId = musicOverlay?.id;
   const previewUrl = musicOverlay?.preview_url;
   const startMs    = musicOverlay?.start_ms ?? 0;
@@ -31,11 +31,11 @@ export default function useStoryMusic(musicOverlay, { isPaused = false } = {}) {
   useEffect(() => {
     (async () => {
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-          shouldDuckAndroid: true,
+        await setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true,
+          shouldPlayInBackground: false,
+          interruptionMode: 'duckOthers',
         });
       } catch (_) {}
     })();
@@ -44,41 +44,46 @@ export default function useStoryMusic(musicOverlay, { isPaused = false } = {}) {
   // Load / unload when the active music overlay changes.
   useEffect(() => {
     let cancelled = false;
+    let statusSub = null;
 
-    const unload = async () => {
-      if (soundRef.current) {
-        try { await soundRef.current.stopAsync(); } catch (_) {}
-        try { await soundRef.current.unloadAsync(); } catch (_) {}
-        soundRef.current = null;
+    const unload = () => {
+      if (statusSub) {
+        try { statusSub.remove(); } catch (_) {}
+        statusSub = null;
+      }
+      if (playerRef.current) {
+        try { playerRef.current.pause(); } catch (_) {}
+        try { playerRef.current.release(); } catch (_) {}
+        playerRef.current = null;
       }
     };
 
     (async () => {
-      await unload();
+      unload();
       if (!previewUrl) return;
 
       try {
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: previewUrl },
-          {
-            shouldPlay: true,
-            isLooping: false, // we loop the window manually
-            volume: 1.0,
-            positionMillis: startMs,
-          },
-        );
+        const player = createAudioPlayer({ uri: previewUrl });
+        player.loop = false; // we loop the window manually
+        player.volume = 1.0;
+        player.seekTo(startMs / 1000);
+        player.play();
+
         if (cancelled) {
-          try { await sound.unloadAsync(); } catch (_) {}
+          try { player.pause(); } catch (_) {}
+          try { player.release(); } catch (_) {}
           return;
         }
-        soundRef.current = sound;
+        playerRef.current = player;
+
         // Loop the preview inside the full song segment on the story.
-        sound.setOnPlaybackStatusUpdate((status) => {
+        statusSub = player.addListener('playbackStatusUpdate', (status) => {
           if (!status?.isLoaded) return;
           const previewEnd = Math.min(startMs + 30000, endMs);
-          if (status.didJustFinish || status.positionMillis >= previewEnd - 50) {
-            sound.setPositionAsync(startMs).catch(() => {});
-            sound.playAsync().catch(() => {});
+          const positionMs = (status.currentTime ?? 0) * 1000;
+          if (status.didJustFinish || positionMs >= previewEnd - 50) {
+            player.seekTo(startMs / 1000);
+            player.play();
           }
         });
       } catch (_) {
@@ -95,18 +100,16 @@ export default function useStoryMusic(musicOverlay, { isPaused = false } = {}) {
     // via remote-update (rare) is honoured.
   }, [overlayId, previewUrl, startMs, endMs]);
 
-  // Pause / resume by toggling volume — instant, doesn't tear down audio.
+  // Pause / resume — instant, doesn't tear down audio.
   useEffect(() => {
-    const s = soundRef.current;
-    if (!s) return;
-    (async () => {
-      try {
-        if (isPaused) {
-          await s.pauseAsync();
-        } else {
-          await s.playAsync();
-        }
-      } catch (_) {}
-    })();
+    const player = playerRef.current;
+    if (!player) return;
+    try {
+      if (isPaused) {
+        player.pause();
+      } else {
+        player.play();
+      }
+    } catch (_) {}
   }, [isPaused, previewUrl]);
 }

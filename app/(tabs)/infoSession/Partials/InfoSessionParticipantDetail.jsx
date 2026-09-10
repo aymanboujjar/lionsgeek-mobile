@@ -20,7 +20,7 @@ import {
   isParticipantCheckedIn,
   mapInfoParticipant,
   mapInfoParticipants,
-} from '../_helpers';
+} from '@/utils/infoSessionHelpers';
 
 function SectionCard({ children, className = '' }) {
   return (

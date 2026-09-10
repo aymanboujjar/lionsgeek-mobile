@@ -22,7 +22,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
+import StoryVideo from './Partials/StoryVideo';
 import { useAppContext } from '@/context';
 import { resolveAvatarUrl } from '@/components/helpers/helpers';
 import API from '@/api';
@@ -32,7 +32,7 @@ import StoryReplyInput from './Partials/StoryReplyInput';
 import SaveToHighlightSheet from './Partials/SaveToHighlightSheet';
 import OverlayRenderer from './Partials/OverlayRenderer';
 import useStoryMusic from './Partials/useStoryMusic';
-import { useStoryCaptureReport } from './Partials/_useStoryCaptureReport';
+import { useStoryCaptureReport } from '@/hooks/useStoryCaptureReport';
 
 const { width: WINDOW_W, height: WINDOW_H } = Dimensions.get('window');
 const TOP_INSET = (Platform.OS === 'ios' ? 54 : RNStatusBar.currentHeight ?? 24) + 6;
@@ -194,7 +194,9 @@ export default function StoryViewerScreen() {
     isPausedRef.current = true;
     setMusicPaused(true);
     cancelAnimation(progress);
-    if (videoRef.current) videoRef.current.pauseAsync?.().catch(() => {});
+    if (videoRef.current) {
+      try { videoRef.current.pause(); } catch (_) {}
+    }
   }, []);
 
   const resume = useCallback(() => {
@@ -210,7 +212,9 @@ export default function StoryViewerScreen() {
     }, (finished) => {
       if (finished) runOnJS(advance)();
     });
-    if (videoRef.current) videoRef.current.playAsync?.().catch(() => {});
+    if (videoRef.current) {
+      try { videoRef.current.play(); } catch (_) {}
+    }
   }, [currentStory, advance]);
 
   // ────────────────────────────────────────────────────────────────────
@@ -447,20 +451,15 @@ export default function StoryViewerScreen() {
             {/* Media layer — sole target for tap / pan / long-press */}
             <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' }}>
               {currentStory.media_type === 'video' ? (
-                <Video
+                <StoryVideo
                   key={currentStory.id}
-                  ref={videoRef}
-                  source={{ uri: currentStory.media_url }}
+                  uri={currentStory.media_url}
                   style={{ width: WINDOW_W, height: WINDOW_H }}
-                  resizeMode={ResizeMode.COVER}
                   shouldPlay={!isPausedRef.current}
-                  isMuted={videoIsMuted}
-                  useNativeControls={false}
-                  onLoad={() => setVideoReady(true)}
-                  onError={() => setVideoReady(true)}
-                  onPlaybackStatusUpdate={(status) => {
-                    if (status?.didJustFinish) advance();
-                  }}
+                  muted={videoIsMuted}
+                  playerRef={videoRef}
+                  onReady={() => setVideoReady(true)}
+                  onEnd={advance}
                 />
               ) : (
                 <Image

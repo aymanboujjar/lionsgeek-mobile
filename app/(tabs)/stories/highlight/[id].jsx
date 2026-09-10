@@ -22,7 +22,7 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
+import StoryVideo from '../Partials/StoryVideo';
 import { useAppContext } from '@/context';
 import API from '@/api';
 import OverlayRenderer from '../Partials/OverlayRenderer';
@@ -113,7 +113,9 @@ export default function HighlightViewerScreen() {
     isPausedRef.current = true;
     setMusicPaused(true);
     cancelAnimation(progress);
-    if (videoRef.current) videoRef.current.pauseAsync?.().catch(() => {});
+    if (videoRef.current) {
+      try { videoRef.current.pause(); } catch (_) {}
+    }
   }, []);
 
   const resume = useCallback(() => {
@@ -126,7 +128,9 @@ export default function HighlightViewerScreen() {
     progress.value = withTiming(1, { duration, easing: Easing.linear }, (finished) => {
       if (finished) runOnJS(advance)();
     });
-    if (videoRef.current) videoRef.current.playAsync?.().catch(() => {});
+    if (videoRef.current) {
+      try { videoRef.current.play(); } catch (_) {}
+    }
   }, [currentStory, advance]);
 
   const goPrev = useCallback(() => {
@@ -254,18 +258,15 @@ export default function HighlightViewerScreen() {
           {/* Media layer */}
           <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' }}>
             {currentStory.media_type === 'video' ? (
-              <Video
+              <StoryVideo
                 key={currentStory.id}
-                ref={videoRef}
-                source={{ uri: currentStory.media_url }}
+                uri={currentStory.media_url}
                 style={{ width: WINDOW_W, height: WINDOW_H }}
-                resizeMode={ResizeMode.COVER}
                 shouldPlay={!isPausedRef.current}
-                isMuted={muted || !!musicOverlay}
-                useNativeControls={false}
-                onLoad={() => setVideoReady(true)}
-                onError={() => setVideoReady(true)}
-                onPlaybackStatusUpdate={(s) => { if (s?.didJustFinish) advance(); }}
+                muted={muted || !!musicOverlay}
+                playerRef={videoRef}
+                onReady={() => setVideoReady(true)}
+                onEnd={advance}
               />
             ) : (
               <Image
