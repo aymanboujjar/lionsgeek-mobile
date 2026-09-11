@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -359,11 +359,17 @@ export default function NotificationsScreen() {
         'appointment': 'appointment',
         'post': 'post',
         'post-report': 'post-report',
+        'user-report': 'user-report',
+        'user-block': 'user-block',
         'follow': 'follow',
         'project-status': 'project-status',
         'task-assignment': 'task-assignment',
         'project-message': 'project-message',
+        'job-application': 'job-application',
         'announcement': 'announcement',
+        'event': 'event',
+        'attendance_reminder': 'attendance_reminder',
+        'attendance-reminder': 'attendance-reminder',
       };
 
       const prefix = parts.slice(0, -1).join('-'); // Get all parts except the last one
@@ -387,14 +393,21 @@ export default function NotificationsScreen() {
 
   const markAllAsRead = async () => {
     if (!token) return;
+    if (!notifications.some((n) => !n.read)) return;
+
+    const previous = notifications;
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
     try {
       await API.postWithAuth('mobile/notifications/mark-all-read', {}, token);
-
-      // Update local state
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      const response = await API.getWithAuth('mobile/notifications', token);
+      if (response?.data?.notifications) {
+        setNotifications(response.data.notifications.map(formatNotificationForMobile));
+      }
     } catch (error) {
+      setNotifications(previous);
       if (__DEV__) console.error('[NOTIFICATIONS] Error marking all as read:', error);
+      Alert.alert('Could not mark all as read', 'Please try again.');
     }
   };
 

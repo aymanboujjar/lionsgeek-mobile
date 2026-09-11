@@ -18,11 +18,14 @@ function ChatUnreadBadge({ count }) {
   );
 }
 
+const NotificationUnreadBadge = ChatUnreadBadge;
+
 export default function Navbar() {
   const { user, token } = useAppContext();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
 
   const refreshChatUnread = useCallback(async () => {
     if (!token) {
@@ -39,10 +42,26 @@ export default function Navbar() {
     }
   }, [token]);
 
+  const refreshNotificationUnread = useCallback(async () => {
+    if (!token) {
+      setNotificationUnreadCount(0);
+      return;
+    }
+    try {
+      const response = await API.getWithAuth('mobile/notifications', token);
+      const list = response?.data?.notifications ?? [];
+      const total = list.filter((n) => !n.read_at).length;
+      setNotificationUnreadCount(total);
+    } catch {
+      // Keep last known count on transient failures.
+    }
+  }, [token]);
+
   useFocusEffect(
     useCallback(() => {
       refreshChatUnread();
-    }, [refreshChatUnread])
+      refreshNotificationUnread();
+    }, [refreshChatUnread, refreshNotificationUnread])
   );
 
   const handleSearchPress = () => {
@@ -89,8 +108,9 @@ export default function Navbar() {
             <Ionicons name="chatbubbles-outline" size={24} color={isDark ? '#fff' : '#000'} />
             <ChatUnreadBadge count={chatUnreadCount} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleNotificationsPress}>
+          <TouchableOpacity className="relative" onPress={handleNotificationsPress}>
             <Ionicons name="notifications-outline" size={24} color={isDark ? '#fff' : '#000'} />
+            <NotificationUnreadBadge count={notificationUnreadCount} />
           </TouchableOpacity>
         </View>
       </View>
