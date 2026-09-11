@@ -21,6 +21,22 @@ function tryParsePostShare(body) {
     }
 }
 
+function tryParseStoryReply(body) {
+    if (!body) return null;
+    let parsed = body;
+    if (typeof body === 'string') {
+        const trimmed = body.trim();
+        if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null;
+        try {
+            parsed = JSON.parse(trimmed);
+        } catch {
+            return null;
+        }
+    }
+    if (parsed?.type !== 'story_reply') return null;
+    return parsed;
+}
+
 function resolveImageUrl(value) {
     if (!value || typeof value !== 'string') return null;
     if (value.startsWith('http://') || value.startsWith('https://')) return value;
@@ -59,6 +75,7 @@ export default function MessageItem({
     const router = useRouter();
     const { token } = useAppContext();
     const postShare = tryParsePostShare(message?.body);
+    const storyReply = tryParseStoryReply(message?.body);
     const attachmentMediaUrl = resolveAttachmentUrl(message.attachment_url || message.attachment_path);
     const authHeaders = isGatedChatAttachmentUrl(attachmentMediaUrl) && token
         ? { Authorization: `Bearer ${token}` }
@@ -101,6 +118,38 @@ export default function MessageItem({
             borderBottomRightRadius: 18,
         };
 
+    const hasTextBody = Boolean(
+        (message.body && !postShare && !storyReply) || postShare || storyReply
+    );
+    const isImageOnly =
+        message.attachment_type === 'image' &&
+        message.attachment_path &&
+        !hasTextBody &&
+        !isAudioAttachment &&
+        !isVideoAttachment;
+    const isVideoOnly = isVideoAttachment && message.attachment_path && !hasTextBody;
+    const isAudioOnly = isAudioAttachment && message.attachment_path && !hasTextBody;
+    const isMediaBubble = isImageOnly || isVideoOnly;
+
+    const metaRow = (
+        <View className={`flex-row items-center gap-1 ${isCurrentUser ? 'justify-end' : 'justify-start'} mt-1 px-1`}>
+            <Text className="text-[11px] text-beta/45 dark:text-light/45">
+                {formatMessageTime(message.created_at)}
+            </Text>
+            {isCurrentUser ? (
+                <View className="ml-0.5">
+                    {message.pending ? (
+                        <Ionicons name="time-outline" size={12} color="#888" />
+                    ) : message.is_read && message.read_at ? (
+                        <Ionicons name="checkmark-done" size={14} color="#3b82f6" />
+                    ) : (
+                        <Ionicons name="checkmark" size={14} color="#888" />
+                    )}
+                </View>
+            ) : null}
+        </View>
+    );
+
     return (
         <>
             {showDateSeparator && (
@@ -116,7 +165,7 @@ export default function MessageItem({
                     <View className="flex-1 h-px bg-black/10 dark:bg-white/10" />
                 </View>
             )}
-            <View className={`flex-row mb-3 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+            <View className={`flex-row mb-2.5 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
                 {!isCurrentUser && (
                     <Pressable
                         onPress={() => router.push(`/students/${otherUser.id}`)}
@@ -125,171 +174,314 @@ export default function MessageItem({
                         {otherUser?.image ? (
                             <Image
                                 source={{ uri: `${API.APP_URL}/storage/img/profile/${otherUser.image}` }}
-                                className="w-8 h-8 rounded-xl"
+                                className="w-7 h-7 rounded-full"
                                 resizeMode="cover"
                             />
                         ) : (
-                            <View className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-800 items-center justify-center border border-black/5 dark:border-white/10">
-                                <Ionicons name="person" size={16} color="#888" />
+                            <View className="w-7 h-7 rounded-full bg-neutral-300 dark:bg-zinc-700 items-center justify-center">
+                                <Ionicons name="person" size={14} color="#888" />
                             </View>
                         )}
                     </Pressable>
                 )}
-                <View className={`max-w-[85%] rounded-2xl px-4 py-3 ${isCurrentUser ? 'bg-alpha rounded-br-md' : 'bg-gray-200 dark:bg-gray-800 rounded-bl-md'}`}>
-                    {postShare ? (
-                        <Pressable
-                            onPress={() => router.push(`/(tabs)/posts/${postShare.post_id}`)}
-                            className={`overflow-hidden rounded-xl border ${isCurrentUser ? 'border-black/10 bg-white/10' : 'border-gray-300/60 dark:border-gray-700 bg-white/60 dark:bg-gray-900/20'}`}
-                        >
-                            {resolveImageUrl(postShare.image) ? (
-                                <Image
-                                    source={{ uri: resolveImageUrl(postShare.image) }}
-                                    className="w-full h-44"
-                                    resizeMode="cover"
-                                />
-                            ) : (
-                                <View className="w-full h-32 items-center justify-center bg-black/10 dark:bg-dark_gray">
-                                    <Ionicons name="image-outline" size={28} color={isCurrentUser ? '#111' : '#888'} />
-                                </View>
-                            )}
 
-                            <View className="p-3 gap-1">
-                                <Text className={`text-xs font-semibold ${isCurrentUser ? 'text-black/70' : 'text-gray-600 dark:text-gray-300'}`} numberOfLines={1}>
-                                    {postShare.author_name ? postShare.author_name : 'Post'}
-                                </Text>
-                                {postShare.description ? (
-                                    <Text className={`${isCurrentUser ? 'text-black' : 'text-black dark:text-white'} text-sm font-semibold`} numberOfLines={2}>
-                                        {postShare.description}
-                                    </Text>
-                                ) : (
-                                    <Text className={`${isCurrentUser ? 'text-black' : 'text-black dark:text-white'} text-sm font-semibold`} numberOfLines={2}>
-                                        Shared a post
-                                    </Text>
-                                )}
-                                <Text className={`text-xs ${isCurrentUser ? 'text-black/60' : 'text-gray-500 dark:text-gray-400'}`}>
-                                    Tap to view
-                                </Text>
-                            </View>
-                        </Pressable>
-                    ) : message.body ? (
-                        <Text className={`text-sm leading-relaxed ${isCurrentUser ? 'text-black' : 'text-black dark:text-white'}`}>
-                            {message.body}
-                        </Text>
-                    ) : null}
-
-                    {message.attachment_type === 'image' && message.attachment_path && (
-                        <Pressable
-                            onPress={() => onPreviewAttachment({ type: 'image', path: message.attachment_url || message.attachment_path, name: message.attachment_name })}
-                            className="mt-2 w-full rounded-2xl overflow-hidden border border-black/[0.06] dark:border-white/[0.08]"
-                        >
-                            <Image
-                                source={{ uri: imageUrl, headers: authHeaders }}
-                                className="w-full max-h-72 min-h-[140px]"
-                                resizeMode="cover"
-                            />
-                            {message.attachment_size && (
-                                <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {formatFileSize(message.attachment_size)}
-                                </Text>
-                            )}
-                        </Pressable>
-                    )}
-
-                    {isVideoAttachment && message.attachment_path && (
-                        <Pressable
-                            onPress={() => onPreviewAttachment({ type: 'video', path: message.attachment_url || message.attachment_path, name: message.attachment_name })}
-                            className="mt-2 w-full rounded-2xl overflow-hidden border border-black/[0.06] dark:border-white/[0.08] bg-zinc-900"
-                        >
-                            <View className="w-full h-52 items-center justify-center">
-                                <View className="w-16 h-16 rounded-full bg-white/12 items-center justify-center border border-white/20">
-                                    <Ionicons name="play" size={36} color="#fff" style={{ marginLeft: 4 }} />
-                                </View>
-                            </View>
-                            {message.attachment_size && (
-                                <Text className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                    {formatFileSize(message.attachment_size)}
-                                </Text>
-                            )}
-                        </Pressable>
-                    )}
-
-                    {message.attachment_type === 'file' && message.attachment_path && (
-                        <Pressable
-                            onPress={() => onDownloadAttachment(message.attachment_url || message.attachment_path, message.attachment_name)}
-                            className={`mt-2 w-full flex-row items-center gap-3 p-3 rounded-lg border ${isCurrentUser ? 'bg-white/10 border-white/20' : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600'}`}
-                        >
-                            <Ionicons name="document" size={20} color={isCurrentUser ? '#ffc801' : '#666'} />
-                            <View className="flex-1">
-                                <Text className={`text-xs ${isCurrentUser ? 'text-black' : 'text-black dark:text-white'}`} numberOfLines={1}>
-                                    {message.attachment_name || 'Attachment'}
-                                </Text>
-                                {message.attachment_size && (
-                                    <Text className="text-xs text-gray-500 dark:text-gray-400">
-                                        {formatFileSize(message.attachment_size)}
-                                    </Text>
-                                )}
-                            </View>
-                            <Ionicons name="download" size={16} color={isCurrentUser ? '#ffc801' : '#666'} />
-                        </Pressable>
-                    )}
-
-                    {isAudioAttachment && message.attachment_path && (
-                        <View
-                            className={`mt-2 rounded-2xl overflow-hidden border ${isCurrentUser
-                                ? 'border-white/20 bg-black/10'
-                                : 'border-black/[0.06] dark:border-white/[0.08] bg-black/[0.03] dark:bg-white/[0.05]'
-                                }`}
-                        >
-                            <VoiceMessage
-                                audioUrl={imageUrl}
-                                duration={audioDuration[message.id] || message.audio_duration}
-                                isCurrentUser={isCurrentUser}
-                                headers={authHeaders}
-                            />
-                        </View>
-                    )}
-
-                    <View className={`flex-row items-center gap-1.5 justify-end mt-1.5`}>
-                        <Text className={`text-xs ${isCurrentUser ? 'text-black/70' : 'text-gray-500 dark:text-gray-400'}`}>
-                            {formatMessageTime(message.created_at)}
-                        </Text>
-                        {isCurrentUser && (
-                            <View className="ml-1">
-                                {message.pending ? (
-                                    <Ionicons name="time-outline" size={12} color="#666" />
-                                ) : message.is_read && message.read_at ? (
-                                    <Ionicons name="checkmark-done" size={14} color="#3b82f6" />
-                                ) : (
-                                    <Ionicons name="checkmark" size={14} color="#666" />
-                                )}
-                            </View>
-                        )}
-                    </View>
-
-                    {isCurrentUser && showMenuForMessage === message.id && (
-                        <View className="absolute top-2 right-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-1 bg-white dark:bg-gray-800 z-10">
+                <View className="max-w-[78%]">
+                    {/* Instagram-style standalone image / video bubble */}
+                    {isMediaBubble ? (
+                        <View>
                             <Pressable
-                                onPress={() => {
-                                    onDeleteMessage(message.id);
-                                    onMenuToggle(null);
-                                }}
-                                className="w-full flex-row items-center px-3 py-2"
+                                onPress={() =>
+                                    onPreviewAttachment({
+                                        type: isVideoOnly ? 'video' : 'image',
+                                        path: message.attachment_url || message.attachment_path,
+                                        name: message.attachment_name,
+                                    })
+                                }
+                                onLongPress={
+                                    isCurrentUser
+                                        ? () =>
+                                              onMenuToggle(
+                                                  showMenuForMessage === message.id ? null : message.id
+                                              )
+                                        : undefined
+                                }
+                                className="rounded-[22px] overflow-hidden bg-neutral-200 dark:bg-zinc-800"
+                                style={{ width: 260, maxWidth: '100%' }}
                             >
-                                <Ionicons name="trash" size={12} color="#ef4444" />
-                                <Text className="ml-2 text-xs text-red-500">Delete</Text>
+                                {isImageOnly ? (
+                                    <Image
+                                        source={{ uri: imageUrl, headers: authHeaders }}
+                                        style={{ width: '100%', height: 320 }}
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <View className="w-full h-72 items-center justify-center bg-black">
+                                        <View className="w-14 h-14 rounded-full bg-white/20 items-center justify-center border border-white/30">
+                                            <Ionicons name="play" size={28} color="#fff" style={{ marginLeft: 3 }} />
+                                        </View>
+                                    </View>
+                                )}
                             </Pressable>
+                            {isCurrentUser && showMenuForMessage === message.id ? (
+                                <View className="absolute top-2 right-2 rounded-xl border border-beta/10 dark:border-light/10 p-1 bg-light dark:bg-dark z-10">
+                                    <Pressable
+                                        onPress={() => {
+                                            onDeleteMessage(message.id);
+                                            onMenuToggle(null);
+                                        }}
+                                        className="flex-row items-center px-3 py-2"
+                                    >
+                                        <Ionicons name="trash" size={12} color="#ef4444" />
+                                        <Text className="ml-2 text-xs text-error">Delete</Text>
+                                    </Pressable>
+                                </View>
+                            ) : null}
+                            {metaRow}
                         </View>
-                    )}
-
-                    {isCurrentUser && (
-                        <Pressable
-                            onPress={() => onMenuToggle(showMenuForMessage === message.id ? null : message.id)}
-                            className="absolute top-2 right-2 p-1"
+                    ) : (
+                        <View
+                            className={`rounded-[22px] overflow-hidden ${
+                                isCurrentUser
+                                    ? 'bg-alpha'
+                                    : isAudioOnly
+                                        ? 'bg-neutral-200 dark:bg-[#2c2c2c]'
+                                        : 'bg-neutral-200 dark:bg-[#2c2c2c]'
+                            }`}
+                            style={bubbleRadius}
                         >
-                            <Ionicons name="ellipsis-vertical" size={14} color="#666" />
-                        </Pressable>
+                            <View className={isAudioOnly ? 'px-3 py-2.5' : 'px-3.5 py-3'}>
+                                {postShare ? (
+                                    <Pressable
+                                        onPress={() => router.push(`/(tabs)/posts/${postShare.post_id}`)}
+                                        className="overflow-hidden rounded-2xl bg-black/10"
+                                    >
+                                        {resolveImageUrl(postShare.image) ? (
+                                            <Image
+                                                source={{ uri: resolveImageUrl(postShare.image) }}
+                                                className="w-full h-44"
+                                                resizeMode="cover"
+                                            />
+                                        ) : (
+                                            <View className="w-full h-28 items-center justify-center bg-black/10">
+                                                <Ionicons name="image-outline" size={28} color={isCurrentUser ? '#111' : '#aaa'} />
+                                            </View>
+                                        )}
+                                        <View className="p-3 gap-1">
+                                            <Text
+                                                className={`text-xs font-semibold ${isCurrentUser ? 'text-black/70' : 'text-white/70'}`}
+                                                numberOfLines={1}
+                                            >
+                                                {postShare.author_name || 'Post'}
+                                            </Text>
+                                            <Text
+                                                className={`text-sm font-semibold ${isCurrentUser ? 'text-black' : 'text-white'}`}
+                                                numberOfLines={2}
+                                            >
+                                                {postShare.description || 'Shared a post'}
+                                            </Text>
+                                        </View>
+                                    </Pressable>
+                                ) : storyReply ? (
+                                    <View className="overflow-hidden rounded-2xl bg-black/10">
+                                        {resolveImageUrl(
+                                            storyReply.image || storyReply.story_image || storyReply.thumbnail
+                                        ) ? (
+                                            <Image
+                                                source={{
+                                                    uri: resolveImageUrl(
+                                                        storyReply.image ||
+                                                            storyReply.story_image ||
+                                                            storyReply.thumbnail
+                                                    ),
+                                                }}
+                                                className="w-full h-40"
+                                                resizeMode="cover"
+                                            />
+                                        ) : (
+                                            <View className="w-full h-24 items-center justify-center bg-black/10">
+                                                <Ionicons
+                                                    name="sparkles-outline"
+                                                    size={26}
+                                                    color={isCurrentUser ? '#111' : '#aaa'}
+                                                />
+                                            </View>
+                                        )}
+                                        <View className="p-3 gap-1">
+                                            <Text
+                                                className={`text-[10px] font-bold uppercase tracking-wider ${
+                                                    isCurrentUser ? 'text-black/60' : 'text-white/55'
+                                                }`}
+                                            >
+                                                Story reply
+                                            </Text>
+                                            <Text
+                                                className={`text-sm font-semibold ${isCurrentUser ? 'text-black' : 'text-white'}`}
+                                                numberOfLines={4}
+                                            >
+                                                {storyReply.text ||
+                                                    storyReply.reply ||
+                                                    storyReply.message ||
+                                                    'Replied to a story'}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                ) : message.body ? (
+                                    <Text
+                                        className={`text-[15px] leading-[21px] ${
+                                            isCurrentUser ? 'text-black' : 'text-black dark:text-white'
+                                        }`}
+                                    >
+                                        {message.body}
+                                    </Text>
+                                ) : null}
+
+                                {message.attachment_type === 'image' && message.attachment_path && hasTextBody ? (
+                                    <Pressable
+                                        onPress={() =>
+                                            onPreviewAttachment({
+                                                type: 'image',
+                                                path: message.attachment_url || message.attachment_path,
+                                                name: message.attachment_name,
+                                            })
+                                        }
+                                        className="mt-2 rounded-2xl overflow-hidden"
+                                    >
+                                        <Image
+                                            source={{ uri: imageUrl, headers: authHeaders }}
+                                            style={{ width: '100%', height: 220 }}
+                                            resizeMode="cover"
+                                        />
+                                    </Pressable>
+                                ) : null}
+
+                                {isVideoAttachment && message.attachment_path && hasTextBody ? (
+                                    <Pressable
+                                        onPress={() =>
+                                            onPreviewAttachment({
+                                                type: 'video',
+                                                path: message.attachment_url || message.attachment_path,
+                                                name: message.attachment_name,
+                                            })
+                                        }
+                                        className="mt-2 rounded-2xl overflow-hidden bg-black"
+                                    >
+                                        <View className="w-full h-48 items-center justify-center">
+                                            <View className="w-14 h-14 rounded-full bg-white/20 items-center justify-center">
+                                                <Ionicons name="play" size={28} color="#fff" style={{ marginLeft: 3 }} />
+                                            </View>
+                                        </View>
+                                    </Pressable>
+                                ) : null}
+
+                                {message.attachment_type === 'file' && message.attachment_path ? (
+                                    <Pressable
+                                        onPress={() =>
+                                            onDownloadAttachment(
+                                                message.attachment_url || message.attachment_path,
+                                                message.attachment_name
+                                            )
+                                        }
+                                        className={`mt-2 w-full flex-row items-center gap-3 p-3 rounded-2xl ${
+                                            isCurrentUser ? 'bg-black/10' : 'bg-black/10 dark:bg-white/10'
+                                        }`}
+                                    >
+                                        <View className="w-10 h-10 rounded-xl bg-alpha/25 items-center justify-center">
+                                            <Ionicons name="document-text" size={20} color={isCurrentUser ? '#111' : '#ffc801'} />
+                                        </View>
+                                        <View className="flex-1 min-w-0">
+                                            <Text
+                                                className={`text-sm font-semibold ${isCurrentUser ? 'text-black' : 'text-black dark:text-white'}`}
+                                                numberOfLines={1}
+                                            >
+                                                {message.attachment_name || 'Attachment'}
+                                            </Text>
+                                            {message.attachment_size ? (
+                                                <Text
+                                                    className={`text-[11px] mt-0.5 ${
+                                                        isCurrentUser ? 'text-black/55' : 'text-black/50 dark:text-white/50'
+                                                    }`}
+                                                >
+                                                    {formatFileSize(message.attachment_size)}
+                                                </Text>
+                                            ) : null}
+                                        </View>
+                                        <Ionicons
+                                            name="download-outline"
+                                            size={18}
+                                            color={isCurrentUser ? '#111' : '#ffc801'}
+                                        />
+                                    </Pressable>
+                                ) : null}
+
+                                {isAudioAttachment && message.attachment_path ? (
+                                    <View className={hasTextBody ? 'mt-2' : ''}>
+                                        <VoiceMessage
+                                            audioUrl={imageUrl}
+                                            duration={audioDuration[message.id] || message.audio_duration}
+                                            isCurrentUser={isCurrentUser}
+                                            headers={authHeaders}
+                                        />
+                                    </View>
+                                ) : null}
+
+                                {!isAudioOnly ? (
+                                    <View className="flex-row items-center gap-1.5 justify-end mt-1.5">
+                                        <Text
+                                            className={`text-[11px] ${
+                                                isCurrentUser ? 'text-black/60' : 'text-black/45 dark:text-white/45'
+                                            }`}
+                                        >
+                                            {formatMessageTime(message.created_at)}
+                                        </Text>
+                                        {isCurrentUser ? (
+                                            <View className="ml-0.5">
+                                                {message.pending ? (
+                                                    <Ionicons name="time-outline" size={12} color="#666" />
+                                                ) : message.is_read && message.read_at ? (
+                                                    <Ionicons name="checkmark-done" size={14} color="#3b82f6" />
+                                                ) : (
+                                                    <Ionicons name="checkmark" size={14} color="#666" />
+                                                )}
+                                            </View>
+                                        ) : null}
+                                    </View>
+                                ) : null}
+
+                                {isCurrentUser && showMenuForMessage === message.id ? (
+                                    <View className="absolute top-2 right-2 rounded-xl shadow-lg border border-beta/10 dark:border-light/10 p-1 bg-light dark:bg-dark z-10">
+                                        <Pressable
+                                            onPress={() => {
+                                                onDeleteMessage(message.id);
+                                                onMenuToggle(null);
+                                            }}
+                                            className="flex-row items-center px-3 py-2"
+                                        >
+                                            <Ionicons name="trash" size={12} color="#ef4444" />
+                                            <Text className="ml-2 text-xs text-error">Delete</Text>
+                                        </Pressable>
+                                    </View>
+                                ) : null}
+
+                                {isCurrentUser ? (
+                                    <Pressable
+                                        onPress={() =>
+                                            onMenuToggle(showMenuForMessage === message.id ? null : message.id)
+                                        }
+                                        className="absolute top-2 right-2 p-1"
+                                    >
+                                        <Ionicons
+                                            name="ellipsis-vertical"
+                                            size={14}
+                                            color={isCurrentUser ? '#333' : '#aaa'}
+                                        />
+                                    </Pressable>
+                                ) : null}
+                            </View>
+                            {isAudioOnly ? metaRow : null}
+                        </View>
                     )}
                 </View>
+
                 {isCurrentUser && (
                     <Pressable
                         onPress={() => router.push(`/students/${currentUser.id}`)}
@@ -298,12 +490,12 @@ export default function MessageItem({
                         {currentUser?.image ? (
                             <Image
                                 source={{ uri: `${API.APP_URL}/storage/img/profile/${currentUser.image}` }}
-                                className="w-8 h-8 rounded-xl"
+                                className="w-7 h-7 rounded-full"
                                 resizeMode="cover"
                             />
                         ) : (
-                            <View className="w-8 h-8 rounded-xl bg-alpha/30 items-center justify-center border border-black/10">
-                                <Ionicons name="person" size={16} color="#444" />
+                            <View className="w-7 h-7 rounded-full bg-alpha/30 items-center justify-center">
+                                <Ionicons name="person" size={14} color="#444" />
                             </View>
                         )}
                     </Pressable>
