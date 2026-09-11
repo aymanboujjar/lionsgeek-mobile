@@ -7,7 +7,7 @@ import { getAuthToken, removeAuthToken } from '@/utils/authTokenStorage';
 import API from '@/api';
 import { Home as LogoIcon } from '@/components/logo';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { registerForPushNotificationsAsync, sendPushTokenToBackend } from '@/services/pushNotifications';
+import { registerForPushNotificationsAsync, sendPushTokenToBackend, consumePendingNotificationNavigation, handleNotificationNavigation } from '@/services/pushNotifications';
 
 export default function LoadingScreen() {
   const { saveAuth } = useAppContext();
@@ -36,7 +36,7 @@ export default function LoadingScreen() {
           return;
         }
 
-        const enterHomeWithUser = async (userData) => {
+        const enterAppWithUser = async (userData) => {
           await saveAuth(tokenStr, userData);
           try {
             const pushToken = await registerForPushNotificationsAsync();
@@ -45,6 +45,18 @@ export default function LoadingScreen() {
             }
           } catch {
             // Push setup is optional; do not block app flow.
+          }
+
+          // Prefer cold-start notification destination over unconditional Home.
+          try {
+            const pendingData = await consumePendingNotificationNavigation();
+            if (pendingData) {
+              router.replace('/(tabs)/home');
+              setTimeout(() => handleNotificationNavigation(pendingData), 0);
+              return;
+            }
+          } catch {
+            // fall through to home
           }
           router.replace('/(tabs)/home');
         };
@@ -59,7 +71,7 @@ export default function LoadingScreen() {
             } else if (response.data.user) {
               userData = response.data.user;
             }
-            await enterHomeWithUser(userData);
+            await enterAppWithUser(userData);
             return;
           }
 
@@ -67,7 +79,7 @@ export default function LoadingScreen() {
           const cached = await AsyncStorage.getItem('auth_user');
           if (cached) {
             try {
-              await enterHomeWithUser(JSON.parse(cached));
+              await enterAppWithUser(JSON.parse(cached));
               return;
             } catch {
               // fall through
@@ -90,7 +102,7 @@ export default function LoadingScreen() {
           const cached = await AsyncStorage.getItem('auth_user');
           if (cached) {
             try {
-              await enterHomeWithUser(JSON.parse(cached));
+              await enterAppWithUser(JSON.parse(cached));
               return;
             } catch {
               // fall through

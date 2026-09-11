@@ -68,7 +68,12 @@ export default function ChatHeader({ conversation, onBack }) {
                 )}
                 <View className="flex-1 flex-row items-center min-w-0 gap-3">
                     <Pressable
-                        onPress={() => router.push(`/students/${conversation.other_user.id}`)}
+                        onPress={() =>
+                            router.push({
+                                pathname: '/(tabs)/profile',
+                                params: { userId: String(conversation.other_user.id) },
+                            })
+                        }
                         className="relative"
                     >
                         {conversation.other_user?.image ? (
@@ -90,7 +95,12 @@ export default function ChatHeader({ conversation, onBack }) {
                         />
                     </Pressable>
                     <Pressable
-                        onPress={() => router.push(`/students/${conversation.other_user.id}`)}
+                        onPress={() =>
+                            router.push({
+                                pathname: '/(tabs)/profile',
+                                params: { userId: String(conversation.other_user.id) },
+                            })
+                        }
                         className="flex-1 min-w-0"
                     >
                         <Text className="text-base font-extrabold text-black dark:text-white tracking-tight" numberOfLines={1}>

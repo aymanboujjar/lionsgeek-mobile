@@ -135,6 +135,10 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
       Alert.alert('Validation Error', 'Please select start and end times');
       return;
     }
+    if (startTime >= endTime) {
+      Alert.alert('Validation Error', 'End time must be after start time');
+      return;
+    }
 
     const payload = {
       title: name.trim(),

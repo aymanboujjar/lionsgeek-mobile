@@ -196,7 +196,14 @@ export default function MessageItem({
             <View className={`flex-row mb-2.5 ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
                 {!isCurrentUser && (
                     <Pressable
-                        onPress={() => router.push(`/students/${otherUser.id}`)}
+                        onPress={() =>
+                            otherUser?.id
+                                ? router.push({
+                                      pathname: '/(tabs)/profile',
+                                      params: { userId: String(otherUser.id) },
+                                  })
+                                : null
+                        }
                         className="mr-2 self-end mb-1"
                     >
                         {otherUser?.image ? (
@@ -523,7 +530,14 @@ export default function MessageItem({
 
                 {isCurrentUser && (
                     <Pressable
-                        onPress={() => router.push(`/students/${currentUser.id}`)}
+                        onPress={() =>
+                            currentUser?.id
+                                ? router.push({
+                                      pathname: '/(tabs)/profile',
+                                      params: { userId: String(currentUser.id) },
+                                  })
+                                : null
+                        }
                         className="ml-2 self-end mb-1"
                     >
                         {currentUser?.image ? (

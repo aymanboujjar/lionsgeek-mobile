@@ -1,6 +1,7 @@
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '@/api';
 
 /**
@@ -131,7 +132,70 @@ export async function sendPushTokenToBackend(token, authToken) {
 /**
  * Setup notification listeners (tap + cold start).
  * Navigation uses expo-router — no React Navigation ref required.
+ *
+ * Cold-start taps are stashed (not navigated immediately) so auth bootstrap
+ * in loading.jsx can route after login instead of replacing to Home.
  */
+let pendingColdStartNotification = null;
+const HANDLED_NOTIFICATION_IDS_KEY = 'handled_push_notification_ids';
+
+async function wasNotificationAlreadyHandled(notificationId) {
+  if (!notificationId) return false;
+  try {
+    const raw = await AsyncStorage.getItem(HANDLED_NOTIFICATION_IDS_KEY);
+    const ids = raw ? JSON.parse(raw) : [];
+    return Array.isArray(ids) && ids.includes(notificationId);
+  } catch {
+    return false;
+  }
+}
+
+async function markNotificationHandled(notificationId) {
+  if (!notificationId) return;
+  try {
+    const raw = await AsyncStorage.getItem(HANDLED_NOTIFICATION_IDS_KEY);
+    const ids = raw ? JSON.parse(raw) : [];
+    const next = Array.isArray(ids) ? ids.filter((id) => id !== notificationId) : [];
+    next.push(notificationId);
+    // Keep a small rolling window to avoid unbounded growth.
+    await AsyncStorage.setItem(HANDLED_NOTIFICATION_IDS_KEY, JSON.stringify(next.slice(-40)));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+/**
+ * Consume a cold-start notification payload (once). Returns data or null.
+ * Also re-reads getLastNotificationResponseAsync so auth bootstrap is not
+ * racing the listener setup stash.
+ */
+export async function consumePendingNotificationNavigation() {
+  let pending = pendingColdStartNotification;
+  pendingColdStartNotification = null;
+
+  if (!pending?.data) {
+    const Notifications = loadNotifications();
+    if (Notifications?.getLastNotificationResponseAsync) {
+      try {
+        const response = await Notifications.getLastNotificationResponseAsync();
+        const notificationId = response?.notification?.request?.identifier;
+        const data = response?.notification?.request?.content?.data;
+        if (data && notificationId && !(await wasNotificationAlreadyHandled(notificationId))) {
+          pending = { id: notificationId, data };
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  if (!pending?.data) return null;
+  if (pending.id) {
+    await markNotificationHandled(pending.id);
+  }
+  return pending.data;
+}
+
 export function setupNotificationListeners() {
   const Notifications = loadNotifications();
   if (!Notifications) {
@@ -145,19 +209,22 @@ export function setupNotificationListeners() {
   const notificationListener = Notifications.addNotificationReceivedListener(() => {});
 
   const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+    const notificationId = response?.notification?.request?.identifier;
     const data = response?.notification?.request?.content?.data;
-    if (data) {
+    if (!data) return;
+    markNotificationHandled(notificationId).finally(() => {
       handleNotificationNavigation(data);
-    }
+    });
   });
 
-  // App opened from a killed state via notification tap.
+  // App opened from a killed state via notification tap — stash for loading.jsx.
   Notifications.getLastNotificationResponseAsync?.()
-    .then((response) => {
+    .then(async (response) => {
+      const notificationId = response?.notification?.request?.identifier;
       const data = response?.notification?.request?.content?.data;
-      if (data) {
-        handleNotificationNavigation(data);
-      }
+      if (!data || !notificationId) return;
+      if (await wasNotificationAlreadyHandled(notificationId)) return;
+      pendingColdStartNotification = { id: notificationId, data };
     })
     .catch(() => {});
 

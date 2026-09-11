@@ -17,7 +17,6 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_APP_URL": "REPLACE_WITH_HTTPS_API_URL",
         "EXPO_PUBLIC_EVENTS_INFO_SECTION_URL": "https://lionsgeek.ma/",
         "EXPO_PUBLIC_EVENTS_INFO_USE_PROXY": "true"
       }

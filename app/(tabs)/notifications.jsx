@@ -30,12 +30,6 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const canTestPush = getUserRoles(user).includes('admin');
 
-  useEffect(() => {
-    if (token) {
-      fetchNotifications();
-    }
-  }, [token]);
-
   useFocusEffect(
     useCallback(() => {
       if (token) {
