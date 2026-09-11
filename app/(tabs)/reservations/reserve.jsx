@@ -35,6 +35,7 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
   const [step, setStep] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [createdReservation, setCreatedReservation] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   
   useEffect(() => {
     if (prefillTime) {
@@ -117,7 +118,7 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
   const prevStep = () => setStep(s => Math.max(s - 1, 1));
 
   const submitReservation = async () => {
-    if (!token) return;
+    if (!token || submitting) return;
     if (!name || !name.trim()) {
       Alert.alert('Validation Error', 'Please enter a reservation name');
       return;
@@ -147,6 +148,7 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
       equipment: selectedEquipment,
     };
 
+    setSubmitting(true);
     try {
       const response = await API.postWithAuth('reservations/store', payload, token);
       setCreatedReservation({
@@ -161,6 +163,16 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
       setShowModal(true);
     } catch (error) {
       console.error('Error creating reservation:', error);
+      const apiMessage =
+        error?.response?.data?.message
+        || error?.response?.data?.error
+        || (error?.response?.data?.errors
+          ? Object.values(error.response.data.errors).flat().join('\n')
+          : null)
+        || 'Failed to create reservation. Please try again.';
+      Alert.alert('Error', apiMessage);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -241,21 +253,24 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
 
           <Pressable
             onPress={step === 3 ? submitReservation : nextStep}
-            disabled={step === 3 && (!name || !studio || !day)}
+            disabled={
+              (step === 3 && (!name || !studio || !day))
+              || (step === 3 && submitting)
+            }
             className={`min-w-[72px] h-10 px-4 rounded-xl items-center justify-center ${
-              step === 3 && (!name || !studio || !day)
+              (step === 3 && (!name || !studio || !day)) || (step === 3 && submitting)
                 ? 'bg-beta/10 dark:bg-light/10'
                 : 'bg-beta dark:bg-alpha active:opacity-80'
             }`}
           >
             <Text
               className={`text-sm font-bold ${
-                step === 3 && (!name || !studio || !day)
+                (step === 3 && (!name || !studio || !day)) || (step === 3 && submitting)
                   ? 'text-beta/35 dark:text-light/35'
                   : 'text-light dark:text-beta'
               }`}
             >
-              {step === 3 ? 'Submit' : 'Next'}
+              {step === 3 ? (submitting ? 'Submitting…' : 'Submit') : 'Next'}
             </Text>
           </Pressable>
         </View>

@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, RefreshControl } from 'react-native';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import AppLayout from '@/components/layout/AppLayout';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import API from '@/api';
 import { formatDistanceToNow } from 'date-fns';
 import Skeleton from '@/components/ui/Skeleton';
@@ -36,6 +36,14 @@ export default function NotificationsScreen() {
     }
   }, [token]);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (token) {
+        fetchNotifications();
+      }
+    }, [token])
+  );
+
   useEffect(() => {
     if (!token) return;
     if (!Ably) return;
@@ -65,7 +73,7 @@ export default function NotificationsScreen() {
           });
         });
       } catch (_error) {
-        // If Ably token fails, notifications still work via polling.
+        // Ably unavailable — focus/pull-to-refresh still refresh the list.
       }
     };
 
@@ -214,6 +222,9 @@ export default function NotificationsScreen() {
       color,
       link: notif.link,
       mobileLink: notif.mobile_link,
+      post_id: notif.post_id ?? null,
+      event_id: notif.event_id ?? notif.lionsgeek_event_id ?? null,
+      report_id: notif.report_id ?? null,
       // Store original notification data for mark as read
       notificationType: notif.type,
       notificationId: notif.id,
@@ -428,38 +439,74 @@ export default function NotificationsScreen() {
     // Navigate based on notification type and link
     const targetLink = notification.mobileLink || notification.link;
     if (targetLink) {
-      // Handle different link formats
-      if (targetLink.startsWith('/admin/')) {
-        // Admin links - might not be accessible in mobile, just show notification
-      } else if (targetLink.startsWith('/posts/')) {
+      if (targetLink.startsWith('/events/')) {
+        const id = targetLink.split('/')[2] || notification.event_id;
+        if (id) {
+          router.push(`/(tabs)/events/${id}`);
+          return;
+        }
+      }
+      if (targetLink.startsWith('/profile/')) {
+        const id = targetLink.split('/')[2];
+        if (id) {
+          router.push({ pathname: '/(tabs)/profile', params: { userId: String(id) } });
+          return;
+        }
+      }
+      if (targetLink.startsWith('/admin/reservations') || targetLink.includes('reservations')) {
+        router.push('/(tabs)/reservations');
+        return;
+      }
+      if (targetLink.startsWith('/admin/appointments') || targetLink.includes('appointments')) {
+        router.push('/(tabs)/reservations');
+        return;
+      }
+      if (targetLink.startsWith('/posts/')) {
         router.push(`/(tabs)${targetLink}`);
-      } else if (targetLink.startsWith('/students/')) {
-        // Student profile or project links
+        return;
+      }
+      if (targetLink.startsWith('/students/')) {
         const parts = targetLink.split('/');
         if (parts.includes('project')) {
           router.push('/(tabs)/projects-hub');
+          return;
         }
-      } else if (targetLink.startsWith('/feed')) {
-        // Feed link
-        router.push('/(tabs)/home');
-      } else if (targetLink.includes('reservations')) {
-        router.push('/(tabs)/reservations');
-      } else if (notification.type === 'reservation' || notification.type === 'appointment') {
-        router.push('/(tabs)/reservations');
-      } else if (notification.type === 'project_submission' || notification.type === 'project_status') {
-        router.push('/(tabs)/projects-hub');
       }
-    } else {
-      // Fallback navigation based on type
+      if (targetLink.startsWith('/feed') || targetLink === '/home' || targetLink.startsWith('/home')) {
+        router.push('/(tabs)/home');
+        return;
+      }
+      if (targetLink.startsWith('/projects')) {
+        router.push('/(tabs)/projects-hub');
+        return;
+      }
+      if (targetLink.startsWith('/training')) {
+        router.push(targetLink.includes('check-in') ? '/(tabs)/training/check-in' : '/(tabs)/training');
+        return;
+      }
       if (notification.type === 'reservation' || notification.type === 'appointment') {
         router.push('/(tabs)/reservations');
-      } else if (notification.type === 'project_submission' || notification.type === 'project_status') {
-        router.push('/(tabs)/projects-hub');
-      } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
-        router.push('/(tabs)/home');
-      } else if (notification.type === 'post_report' && notification?.post_id) {
-        router.push(`/(tabs)/posts/${notification.post_id}${notification.report_id ? `?reportId=${notification.report_id}` : ''}`);
+        return;
       }
+      if (notification.type === 'project_submission' || notification.type === 'project_status') {
+        router.push('/(tabs)/projects-hub');
+        return;
+      }
+    }
+
+    // Fallback navigation based on type
+    if (notification.type === 'reservation' || notification.type === 'appointment') {
+      router.push('/(tabs)/reservations');
+    } else if (notification.type === 'project_submission' || notification.type === 'project_status' || notification.type === 'task_assignment' || notification.type === 'project_message') {
+      router.push('/(tabs)/projects-hub');
+    } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
+      router.push('/(tabs)/home');
+    } else if (notification.type === 'post_report' && notification?.post_id) {
+      router.push(`/(tabs)/posts/${notification.post_id}${notification.report_id ? `?reportId=${notification.report_id}` : ''}`);
+    } else if (notification.type === 'event' && notification?.event_id) {
+      router.push(`/(tabs)/events/${notification.event_id}`);
+    } else if (notification.type === 'attendance_reminder') {
+      router.push('/(tabs)/training/check-in');
     }
   };
 
@@ -503,9 +550,9 @@ export default function NotificationsScreen() {
               </TouchableOpacity>
               <View>
                 <Text className="text-2xl font-bold text-black dark:text-white">Notifications</Text>
-                {unreadCount > 0 && (
+                {unreadCount > 0 ? (
                   <Text className="text-sm text-black/60 dark:text-white/60 mt-1">{unreadCount} unread</Text>
-                )}
+                ) : null}
               </View>
             </View>
             <View className="flex-row items-center gap-2">
@@ -523,14 +570,15 @@ export default function NotificationsScreen() {
                 >
                   <Ionicons name="notifications" size={16} color="#10b981" />
                 </TouchableOpacity>
-              ) : null}              {unreadCount > 0 && (
+              ) : null}
+              {unreadCount > 0 ? (
                 <TouchableOpacity
                   onPress={markAllAsRead}
                   className="bg-alpha/20 dark:bg-alpha/30 rounded-full px-4 py-2"
                 >
                   <Text className="text-alpha text-sm font-bold">Mark all read</Text>
                 </TouchableOpacity>
-              )}
+              ) : null}
             </View>
           </View>
         </View>

@@ -113,7 +113,7 @@ export default function NewCoworkReservation({ selectedDate: propSelectedDate, p
 
   const submitReservation = async () => {
     if (!validateForm()) return;
-    if (!token) return;
+    if (!token || submitting) return;
 
     setSubmitting(true);
     const payload = {

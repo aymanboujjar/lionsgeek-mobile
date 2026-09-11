@@ -23,6 +23,8 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [loadingOlder, setLoadingOlder] = useState(false);
+    const [hasMoreOlder, setHasMoreOlder] = useState(true);
     const [attachment, setAttachment] = useState(null);
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
@@ -47,17 +49,10 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
     const typingTimeoutRef = useRef(null);
     const shouldAutoScrollRef = useRef(true);
     const nearBottomRef = useRef(true);
+    const sendingRef = useRef(false);
 
-    // Poll for new messages
+    // Reset session + fetch when conversation changes (single effect).
     useEffect(() => {
-        fetchMessages();
-        //  fetchMessages();
-        // return () => clearInterval(interval);
-    }, [conversation.id]);
-
-    // Fetch messages - b3d ma y3tiw 3la conversation
-    useEffect(() => {
-        // Leaving and re-entering a conversation clears modify privileges.
         setSessionMessageIds(new Set());
         setEditingMessage(null);
         setReplyToMessage(null);
@@ -67,6 +62,7 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
             return prev.filter(m => m.pending && pendingTempIdsRef.current.has(m.tempId));
         });
         shouldAutoScrollRef.current = true;
+        setHasMoreOlder(true);
         fetchMessages();
     }, [conversation.id]);
 
@@ -110,7 +106,7 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
     const fetchMessages = async () => {
         try {
             setLoading(true);
-            const response = await API.getWithAuth(`mobile/chat/conversation/${conversation.id}/messages`, token);
+            const response = await API.getWithAuth(`mobile/chat/conversation/${conversation.id}/messages?limit=150`, token);
 
             if (response && response.data) {
                 const fetchedMessages = response.data.messages || [];
@@ -121,6 +117,7 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
                     const stillPending = pendingMessages.filter(m => !existingIds.has(m.tempId));
                     return [...fetchedMessages, ...stillPending];
                 });
+                setHasMoreOlder(fetchedMessages.length >= 150);
                 shouldAutoScrollRef.current = nearBottomRef.current;
 
                 // Mark messages as read when conversation is opened
@@ -136,9 +133,40 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         }
     };
 
+    const loadOlderMessages = async () => {
+        if (loadingOlder || !hasMoreOlder || !messages.length) return;
+        const oldestId = messages.find((m) => m.id != null && !m.pending)?.id;
+        if (!oldestId) return;
+
+        try {
+            setLoadingOlder(true);
+            const response = await API.getWithAuth(
+                `mobile/chat/conversation/${conversation.id}/messages?limit=50&before_id=${oldestId}`,
+                token
+            );
+            const older = response?.data?.messages || [];
+            if (older.length === 0) {
+                setHasMoreOlder(false);
+                return;
+            }
+            setMessages((prev) => {
+                const existing = new Set(prev.map((m) => m.id));
+                const uniqueOlder = older.filter((m) => m.id != null && !existing.has(m.id));
+                return [...uniqueOlder, ...prev];
+            });
+            setHasMoreOlder(older.length >= 50);
+        } catch (error) {
+            console.error('Failed to load older messages:', error);
+        } finally {
+            setLoadingOlder(false);
+        }
+    };
+
     const scrollToBottom = () => {
         if (messagesEndRef.current) {
-            messagesEndRef.current.scrollToEnd({ animated: true });
+            if (typeof messagesEndRef.current.scrollToEnd === 'function') {
+                messagesEndRef.current.scrollToEnd({ animated: true });
+            }
         }
     };
 
@@ -168,8 +196,9 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         const nextAttachment = overrides?.attachment ?? attachment;
         const nextMessageBody = overrides?.body !== undefined ? overrides.body : newMessage.trim();
 
-        if ((!nextMessageBody && !nextAttachment && !nextAudioBlob) || sending) return;
+        if ((!nextMessageBody && !nextAttachment && !nextAudioBlob) || sending || sendingRef.current) return;
 
+        sendingRef.current = true;
         const messageBody = typeof nextMessageBody === 'string' ? nextMessageBody.trim() : '';
         const tempId = Date.now();
         pendingTempIdsRef.current.add(tempId);
@@ -379,6 +408,7 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
             trackSessionMessage(null, tempId);
             Alert.alert('Error', error.message || 'Failed to send message. Please try again.');
         } finally {
+            sendingRef.current = false;
             setSending(false);
         }
     };
@@ -678,6 +708,9 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
         const nearBottom = distanceFromBottom < 120;
         nearBottomRef.current = nearBottom;
+        if (contentOffset.y < 80) {
+            loadOlderMessages();
+        }
     };
 
     return (
@@ -700,6 +733,8 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
                     <MessageList
                         messages={messages}
                         loading={loading}
+                        loadingOlder={loadingOlder}
+                        onLoadOlder={loadOlderMessages}
                         suppressInitialLoadingSkeleton={suppressMessageListLoadingSkeleton}
                         currentUser={currentUser}
                         conversation={conversation}

@@ -129,9 +129,10 @@ export async function sendPushTokenToBackend(token, authToken) {
 }
 
 /**
- * Setup notification listeners
+ * Setup notification listeners (tap + cold start).
+ * Navigation uses expo-router — no React Navigation ref required.
  */
-export function setupNotificationListeners(navigation) {
+export function setupNotificationListeners() {
   const Notifications = loadNotifications();
   if (!Notifications) {
     return {
@@ -143,13 +144,22 @@ export function setupNotificationListeners(navigation) {
   ensureNotificationHandler(Notifications);
   const notificationListener = Notifications.addNotificationReceivedListener(() => {});
 
-  const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-    const data = response.notification.request.content.data;
-
-    if (data && navigation) {
-      handleNotificationNavigation(data, navigation);
+  const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+    const data = response?.notification?.request?.content?.data;
+    if (data) {
+      handleNotificationNavigation(data);
     }
   });
+
+  // App opened from a killed state via notification tap.
+  Notifications.getLastNotificationResponseAsync?.()
+    .then((response) => {
+      const data = response?.notification?.request?.content?.data;
+      if (data) {
+        handleNotificationNavigation(data);
+      }
+    })
+    .catch(() => {});
 
   return {
     notificationListener,
@@ -160,63 +170,100 @@ export function setupNotificationListeners(navigation) {
 /**
  * Handle navigation based on notification data
  */
-function handleNotificationNavigation(data) {
+export function handleNotificationNavigation(data) {
   if (!data) return;
 
   try {
     import('expo-router').then(({ router }) => {
-      const { type, link, post_id, project_id, sender_id, follower_id, conversation_id } = data;
+      const {
+        type,
+        link,
+        mobile_link,
+        post_id,
+        project_id,
+        sender_id,
+        follower_id,
+        conversation_id,
+        other_user_id,
+        user_id,
+        event_id,
+      } = data;
+
+      const targetLink = mobile_link || link;
+
+      if (typeof targetLink === 'string' && targetLink.length > 0) {
+        if (targetLink.startsWith('/events/')) {
+          const id = targetLink.split('/')[2];
+          if (id) {
+            router.push(`/(tabs)/events/${id}`);
+            return;
+          }
+        }
+        if (targetLink.startsWith('/posts/')) {
+          router.push(`/(tabs)${targetLink}`);
+          return;
+        }
+        if (targetLink.startsWith('/profile/')) {
+          const id = targetLink.split('/')[2];
+          if (id) {
+            router.push({ pathname: '/(tabs)/profile', params: { userId: String(id) } });
+            return;
+          }
+        }
+        if (targetLink.includes('reservations') || targetLink.startsWith('/admin/reservations')) {
+          router.push('/(tabs)/reservations');
+          return;
+        }
+        if (targetLink.includes('appointments') || targetLink.startsWith('/admin/appointments')) {
+          router.push('/(tabs)/reservations');
+          return;
+        }
+      }
 
       switch (type) {
         case 'post_interaction':
           if (post_id) {
+            router.push(`/(tabs)/posts/${post_id}`);
+          } else {
             router.push('/(tabs)/home');
           }
           break;
 
-        case 'follow':
-          if (follower_id) {
-            router.push(`/(tabs)/profile`);
+        case 'follow': {
+          const profileId = follower_id || user_id || sender_id;
+          if (profileId) {
+            router.push({ pathname: '/(tabs)/profile', params: { userId: String(profileId) } });
+          } else {
+            router.push('/(tabs)/profile');
           }
           break;
+        }
 
         case 'project_status':
         case 'project_submission':
-          if (project_id) {
-            router.push('/(tabs)/reservations');
-          }
-          break;
-
         case 'task_assignment':
-          router.push('/(tabs)/reservations');
-          break;
-
         case 'project_message':
-          if (project_id) {
-            router.push('/(tabs)/reservations');
-          }
+          router.push('/(tabs)/projects-hub');
           break;
 
-        case 'chat_message':
-          if (conversation_id) {
+        case 'chat_message': {
+          const peerId = other_user_id || sender_id;
+          if (peerId) {
+            router.push(`/(tabs)/chat/${peerId}`);
+          } else {
             router.push('/(tabs)/chat');
           }
           break;
+        }
 
         case 'reservation':
-          router.push('/(tabs)/reservations');
-          break;
-
         case 'appointment':
-          router.push('/(tabs)/reservations');
-          break;
-
         case 'access_request_response':
           router.push('/(tabs)/reservations');
           break;
 
         case 'exercise_review':
-          router.push('/(tabs)/reservations');
+          router.push('/(tabs)/training');
           break;
 
         case 'discipline_change':
@@ -231,11 +278,16 @@ function handleNotificationNavigation(data) {
           router.push('/(tabs)/training/check-in');
           break;
 
-        default:
-          if (link) {
-            console.log('Notification link:', link);
+        case 'event':
+          if (event_id) {
+            router.push(`/(tabs)/events/${event_id}`);
+          } else {
+            router.push('/(tabs)/events');
           }
-          router.push('/(tabs)/home');
+          break;
+
+        default:
+          router.push('/(tabs)/notifications');
           break;
       }
     });
