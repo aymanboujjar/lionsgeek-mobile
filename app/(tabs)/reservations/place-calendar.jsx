@@ -12,7 +12,7 @@ import { getAccentFillColor, getAccentIconColor } from '@/constants/Colors';
 import SectionCard from '@/components/ui/SectionCard';
 import Skeleton from '@/components/ui/Skeleton';
 import ReservationDetailHeader from './Partials/ReservationDetailHeader';
-import { getReservationCalendarTheme } from './Partials/reservationTheme';
+import { getReservationCalendarTheme } from '@/utils/reservationTheme';
 import EventCoverImage from '../events/Partials/EventCoverImage';
 
 export default function PlaceCalendarScreen() {

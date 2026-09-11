@@ -7,7 +7,7 @@ import {
   formatSessionDate,
   getSessionStatusLabel,
   getSessionAvailabilityLabel,
-} from '../_helpers';
+} from '@/utils/infoSessionHelpers';
 
 export default function InfoSessionCard({ session, onPress }) {
   const isDark = useColorScheme() === 'dark';

@@ -10,7 +10,7 @@ import PreviewPanel from './PreviewPanel';
 import ChatToolbox from './ChatToolbox';
 import TypingIndicator from './TypingIndicator';
 import RecordingIndicator from './RecordingIndicator';
-import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from './resolveAttachmentUrl';
+import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from '@/utils/resolveAttachmentUrl';
 
 // Main ChatBox component - refactored b components so9or
 export default function ChatBox({ conversation, onBack, isExpanded, onExpand, suppressMessageListLoadingSkeleton }) {
@@ -138,11 +138,17 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         // Placeholder
     }, []);
 
-    const handleSendMessage = async (e) => {
+    const handleSendMessage = async (e, overrides = null) => {
         if (e && e.preventDefault) e.preventDefault();
-        if ((!newMessage.trim() && !attachment && !audioBlob) || sending) return;
 
-        const messageBody = newMessage.trim();
+        const nextAudioBlob = overrides?.audioBlob ?? audioBlob;
+        const nextAudioURL = overrides?.audioURL ?? audioURL;
+        const nextAttachment = overrides?.attachment ?? attachment;
+        const nextMessageBody = overrides?.body !== undefined ? overrides.body : newMessage.trim();
+
+        if ((!nextMessageBody && !nextAttachment && !nextAudioBlob) || sending) return;
+
+        const messageBody = typeof nextMessageBody === 'string' ? nextMessageBody.trim() : '';
         const tempId = Date.now();
         pendingTempIdsRef.current.add(tempId);
         
@@ -167,34 +173,38 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
             created_at: new Date().toISOString(),
         };
 
-        if (attachment) {
-            optimisticMessage.attachment_path = attachment.uri;
-            optimisticMessage.attachment_name = attachment.name;
-            optimisticMessage.attachment_size = attachment.size;
+        if (nextAttachment) {
+            optimisticMessage.attachment_path = nextAttachment.uri;
+            optimisticMessage.attachment_name = nextAttachment.name;
+            optimisticMessage.attachment_size = nextAttachment.size;
             
-            if (attachment.type.startsWith('image/')) {
+            if (nextAttachment.type.startsWith('image/')) {
                 optimisticMessage.attachment_type = 'image';
-            } else if (attachment.type.startsWith('video/')) {
+            } else if (nextAttachment.type.startsWith('video/')) {
                 optimisticMessage.attachment_type = 'video';
             } else {
                 optimisticMessage.attachment_type = 'file';
             }
         }
 
-        if (audioBlob) {
-            optimisticMessage.attachment_path = audioURL;
+        if (nextAudioBlob) {
+            optimisticMessage.attachment_path = nextAudioURL || nextAudioBlob.uri;
             optimisticMessage.attachment_type = 'audio';
             optimisticMessage.attachment_name = 'voice-message.m4a';
-            optimisticMessage.attachment_size = audioBlob.size || 0;
+            optimisticMessage.attachment_size = nextAudioBlob.size || 0;
+            if (overrides?.audioDuration != null) {
+                optimisticMessage.audio_duration = overrides.audioDuration;
+            }
         }
 
         setMessages(prev => [...prev, optimisticMessage]);
         shouldAutoScrollRef.current = true;
 
         const formMessageBody = messageBody;
-        const formAttachment = attachment;
-        const formAudioBlob = audioBlob;
-        const prevAudioURL = audioURL;
+        const formAttachment = nextAttachment;
+        const formAudioBlob = nextAudioBlob;
+        const formAudioURL = nextAudioURL || nextAudioBlob?.uri;
+        const sentAsAudio = Boolean(formAudioBlob);
         
         setNewMessage('');
         setAttachment(null);
@@ -247,18 +257,24 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
             }
             
             if (formAudioBlob) {
+                // MPEG-4 AAC voice notes are often sniffed as video/mp4 by servers.
+                // Force audio MIME + name, and keep attachment_type=audio.
+                const audioUri = formAudioBlob.uri || formAudioURL;
                 const audioData = {
-                    uri: formAudioBlob.uri,
-                    type: 'audio/m4a',
-                    name: 'audio.m4a',
+                    uri: audioUri,
+                    type: 'audio/mp4',
+                    name: 'voice-message.m4a',
                 };
                 
                 console.log('[CHATBOX] Uploading audio:', {
-                    uri: formAudioBlob.uri.substring(0, 50) + '...',
+                    uri: String(audioUri || '').substring(0, 50) + '...',
                 });
                 
                 formData.append('attachment', audioData);
                 formData.append('attachment_type', 'audio');
+                if (overrides?.audioDuration != null) {
+                    formData.append('audio_duration', String(overrides.audioDuration));
+                }
             }
 
             const response = await API.postWithAuth(
@@ -268,7 +284,18 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
             );
 
             if (response && response.data) {
-                const newMessageData = response.data.message;
+                const rawMessage = response.data.message || {};
+                // If backend mis-classifies m4a/AAC as video, keep it as audio on the client.
+                const newMessageData = sentAsAudio
+                    ? {
+                        ...rawMessage,
+                        attachment_type: 'audio',
+                        attachment_name: rawMessage.attachment_name?.match(/\.(mp4|m4a|aac|caf)$/i)
+                            ? 'voice-message.m4a'
+                            : (rawMessage.attachment_name || 'voice-message.m4a'),
+                        audio_duration: rawMessage.audio_duration ?? overrides?.audioDuration,
+                    }
+                    : rawMessage;
 
                 setMessages(prev => {
                     const filtered = prev.filter(msg => msg.tempId !== tempId);

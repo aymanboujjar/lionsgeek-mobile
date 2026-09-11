@@ -8,7 +8,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import ScanResultOverlay from '../../events/Partials/ScanResultModal';
 import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { mapValidationMessage, validateInfoSessionQrScan } from '../_helpers';
+import { mapValidationMessage, validateInfoSessionQrScan } from '@/utils/infoSessionHelpers';
 
 const DUPLICATE_SCAN_MS = 2500;
 const CORNER_SIZE = 36;

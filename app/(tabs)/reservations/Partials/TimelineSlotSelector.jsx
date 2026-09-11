@@ -13,7 +13,7 @@ import {
   minutesToTimeString,
   minutesToY,
   yToMinutes,
-} from './timelineUtils';
+} from '@/utils/timelineUtils';
 
 const LONG_PRESS_MS = 400;
 

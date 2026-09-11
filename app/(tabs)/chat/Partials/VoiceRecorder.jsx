@@ -1,7 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import {
+    useAudioRecorder,
+    useAudioRecorderState,
+    RecordingPresets,
+    requestRecordingPermissionsAsync,
+    setAudioModeAsync,
+} from 'expo-audio';
 import Skeleton from '@/components/ui/Skeleton';
 
 export default function VoiceRecorder({ onRecordingComplete, onCancel, disabled, onStopRecordingRef, onSendAudioDirect }) {
@@ -12,7 +18,17 @@ export default function VoiceRecorder({ onRecordingComplete, onCancel, disabled,
     const [error, setError] = useState(null);
     const shouldSendDirectlyRef = useRef(false);
 
-    const recordingRef = useRef(null);
+    const audioRecorder = useAudioRecorder({
+        ...RecordingPresets.HIGH_QUALITY,
+        extension: '.m4a',
+        android: {
+            ...RecordingPresets.HIGH_QUALITY.android,
+            extension: '.m4a',
+            outputFormat: 'mpeg4',
+            audioEncoder: 'aac',
+        },
+    });
+    const recorderState = useAudioRecorderState(audioRecorder);
     const timerRef = useRef(null);
     const touchStartTimeRef = useRef(null);
     const waveBars = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
@@ -29,30 +45,24 @@ export default function VoiceRecorder({ onRecordingComplete, onCancel, disabled,
         try {
             setError(null);
 
-            // Request permissions
-            const { status } = await Audio.requestPermissionsAsync();
-            if (status !== 'granted') {
+            const { granted } = await requestRecordingPermissionsAsync();
+            if (!granted) {
                 throw new Error('Microphone permission denied');
             }
 
-            // Set audio mode
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: true,
-                playsInSilentModeIOS: true,
+            await setAudioModeAsync({
+                allowsRecording: true,
+                playsInSilentMode: true,
             });
 
-            // Start recording
-            const { recording } = await Audio.Recording.createAsync(
-                Audio.RecordingOptionsPresets.HIGH_QUALITY
-            );
+            await audioRecorder.prepareToRecordAsync();
+            audioRecorder.record();
 
-            recordingRef.current = recording;
             setIsRecording(true);
             setRecordingTime(0);
             setCanSend(false);
             shouldSendDirectlyRef.current = false;
 
-            // Start timer
             timerRef.current = setInterval(() => {
                 setRecordingTime((prev) => {
                     const newTime = prev + 1;
@@ -71,7 +81,7 @@ export default function VoiceRecorder({ onRecordingComplete, onCancel, disabled,
 
     // Stop recording - always auto-sends (like text messages)
     const stopRecordingAndSend = useCallback(async () => {
-        if (!recordingRef.current || !isRecording) {
+        if (!isRecording && !recorderState.isRecording) {
             return;
         }
 
@@ -87,15 +97,12 @@ export default function VoiceRecorder({ onRecordingComplete, onCancel, disabled,
         }
 
         try {
-            await recordingRef.current.stopAndUnloadAsync();
-            const uri = recordingRef.current.getURI();
-            const status = await recordingRef.current.getStatusAsync();
+            await audioRecorder.stop();
+            const uri = audioRecorder.uri;
+            const duration = Math.round(audioRecorder.currentTime) || recordingTime;
 
-            if (uri && status.isLoaded) {
-                const duration = Math.round(status.durationMillis / 1000) || recordingTime;
-
-                // Create file object for upload
-                const fileType = 'audio/m4a'; // iOS/Android default
+            if (uri) {
+                const fileType = 'audio/mp4';
 
                 if (shouldSendDirectlyRef.current && onSendAudioDirect) {
                     setIsUploading(false);
@@ -103,8 +110,6 @@ export default function VoiceRecorder({ onRecordingComplete, onCancel, disabled,
                     setCanSend(false);
                     setRecordingTime(0);
 
-                    // In React Native, we need to create a FormData with the file
-                    // For now, we'll pass the URI and let the parent handle it
                     try {
                         await onSendAudioDirect(uri, duration, fileType);
                     } catch (err) {
@@ -125,15 +130,14 @@ export default function VoiceRecorder({ onRecordingComplete, onCancel, disabled,
             setIsUploading(false);
             setIsRecording(false);
             setCanSend(false);
-            recordingRef.current = null;
         }
-    }, [isRecording, canSend, recordingTime, onSendAudioDirect, onRecordingComplete]);
+    }, [isRecording, canSend, recordingTime, onSendAudioDirect, onRecordingComplete, audioRecorder, recorderState.isRecording]);
 
     // Stop recording without sending (cancel)
     const stopRecording = async () => {
-        if (recordingRef.current && isRecording) {
+        if (isRecording || recorderState.isRecording) {
             try {
-                await recordingRef.current.stopAndUnloadAsync();
+                await audioRecorder.stop();
             } catch (err) {
                 console.error('Error stopping recording:', err);
             }
@@ -144,7 +148,6 @@ export default function VoiceRecorder({ onRecordingComplete, onCancel, disabled,
         }
         setIsRecording(false);
         setCanSend(false);
-        recordingRef.current = null;
     };
 
     // Handle cancel
@@ -158,13 +161,13 @@ export default function VoiceRecorder({ onRecordingComplete, onCancel, disabled,
     };
 
     // Mouse/Touch handlers
-    const handlePressIn = (e) => {
+    const handlePressIn = () => {
         if (disabled || isRecording) return;
         touchStartTimeRef.current = Date.now();
         startRecording();
     };
 
-    const handlePressOut = (e) => {
+    const handlePressOut = () => {
         if (!isRecording) return;
         const holdTime = Date.now() - touchStartTimeRef.current;
 
@@ -181,20 +184,23 @@ export default function VoiceRecorder({ onRecordingComplete, onCancel, disabled,
         }
     };
 
-    // Cleanup on unmount
+    // Cleanup on unmount — avoid touching a released shared AudioRecorder object.
     useEffect(() => {
-        return async () => {
+        return () => {
             if (timerRef.current) {
                 clearInterval(timerRef.current);
+                timerRef.current = null;
             }
-            if (recordingRef.current) {
-                try {
-                    await recordingRef.current.stopAndUnloadAsync();
-                } catch (err) {
-                    console.error('Error cleaning up recording:', err);
+            try {
+                if (audioRecorder?.isRecording) {
+                    audioRecorder.stop().catch(() => {});
                 }
+            } catch (_) {
+                // SharedObject may already be released during unmount.
             }
         };
+        // Intentionally empty deps: only run this cleanup on true unmount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Expose stopRecordingAndSend function to parent via ref
