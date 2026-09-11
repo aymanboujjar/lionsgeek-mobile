@@ -1,9 +1,40 @@
-import { View, Text, FlatList, Pressable } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View, Text, FlatList, Pressable, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, getAccentIconColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAppContext } from '@/context';
+import { eventsInfoImageSource } from '@/utils/eventsConfig';
+import { getParticipantPhotoUrl } from '@/utils/infoSessionHelpers';
 
-function ParticipantRow({ participant, index, total, onParticipantPress, accentIcon }) {
+function ParticipantAvatar({ participant, token }) {
+  const [failed, setFailed] = useState(false);
+  const photoUrl = useMemo(() => getParticipantPhotoUrl(participant?.image), [participant?.image]);
+  const photoSource = useMemo(() => eventsInfoImageSource(photoUrl, token), [photoUrl, token]);
+  const initial = (participant?.name || '?').charAt(0).toUpperCase();
+
+  if (photoUrl && photoSource && !failed) {
+    return (
+      <View className="w-10 h-10 rounded-full overflow-hidden bg-beta/15 dark:bg-alpha/15">
+        <Image
+          source={photoSource}
+          className="w-full h-full"
+          resizeMode="cover"
+          onError={() => setFailed(true)}
+          accessibilityLabel={`${participant?.name || 'Participant'} photo`}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View className="w-10 h-10 rounded-full bg-beta/15 dark:bg-alpha/15 items-center justify-center">
+      <Text className="text-sm font-bold text-beta dark:text-alpha">{initial}</Text>
+    </View>
+  );
+}
+
+function ParticipantRow({ participant, index, total, onParticipantPress, accentIcon, token }) {
   return (
     <Pressable
       onPress={() => onParticipantPress?.(participant)}
@@ -12,11 +43,7 @@ function ParticipantRow({ participant, index, total, onParticipantPress, accentI
         index < total - 1 ? 'border-b border-beta/6 dark:border-light/6' : ''
       }`}
     >
-      <View className="w-10 h-10 rounded-full bg-beta/15 dark:bg-alpha/15 items-center justify-center">
-        <Text className="text-sm font-bold text-beta dark:text-alpha">
-          {(participant.name || '?').charAt(0).toUpperCase()}
-        </Text>
-      </View>
+      <ParticipantAvatar participant={participant} token={token} />
       <View className="flex-1 min-w-0">
         <Text className="text-sm font-semibold text-beta dark:text-light" numberOfLines={1}>
           {participant.name}
@@ -43,6 +70,7 @@ function ParticipantRow({ participant, index, total, onParticipantPress, accentI
 }
 
 export default function ParticipantsList({ participants = [], emptyMessage, onParticipantPress }) {
+  const { token } = useAppContext();
   const isDark = useColorScheme() === 'dark';
   const accentIcon = getAccentIconColor(isDark);
 
@@ -69,6 +97,7 @@ export default function ParticipantsList({ participants = [], emptyMessage, onPa
       total={participants.length}
       onParticipantPress={onParticipantPress}
       accentIcon={accentIcon}
+      token={token}
     />
   );
 

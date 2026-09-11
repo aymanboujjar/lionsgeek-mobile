@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { useAppContext } from '@/context';
-import StoriesTray from './Partials/StoriesTray';
+// HIDDEN FOR NOW — restore stories tray later:
+// import StoriesTray from './Partials/StoriesTray';
 import FeedItem from './Partials/FeedItem';
 import CreatePost from './Partials/CreatePost';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -272,7 +273,9 @@ export default function HomeScreen() {
 
   const listHeader = (
     <>
+      {/* HIDDEN FOR NOW — restore stories tray later:
       <StoriesTray refreshKey={refreshing ? Date.now() : 0} />
+      */}
       <View
         style={{
           backgroundColor: isDark ? '#1c1c1c' : '#ffffff',
@@ -345,6 +348,22 @@ export default function HomeScreen() {
               onPostDeleted: (postId) => {
                 setPosts((prev) => prev.filter((p) => p.id !== postId));
               },
+            }}
+            onUserBlocked={(blockedUserId) => {
+              const id = Number(blockedUserId);
+              setPosts((prev) =>
+                prev.filter((p) => {
+                  const authorId = Number(
+                    p?.user?.id ??
+                      p?.user_id ??
+                      p?.repost_of?.user?.id ??
+                      p?.repost_of?.user_id ??
+                      0
+                  );
+                  const entryAuthorId = Number(p?.user?.id ?? p?.user_id ?? 0);
+                  return authorId !== id && entryAuthorId !== id;
+                })
+              );
             }}
           />
         )}

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, Text, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import MessageItem from './MessageItem';
@@ -9,6 +9,8 @@ import RecordingIndicator from './RecordingIndicator';
 export default function MessageList({
     messages,
     loading,
+    loadingOlder = false,
+    onLoadOlder,
     /** When true, skip the full message skeleton after thread skeleton (single loading phase). */
     suppressInitialLoadingSkeleton,
     currentUser,
@@ -16,10 +18,9 @@ export default function MessageList({
     isPlayingAudio,
     audioProgress,
     audioDuration,
-    showMenuForMessage,
+    onLongPressMessage,
+    onReactToMessage,
     onPlayAudio,
-    onDeleteMessage,
-    onMenuToggle,
     onPreviewAttachment,
     onDownloadAttachment,
     formatMessageTime,
@@ -57,9 +58,85 @@ export default function MessageList({
         </View>
     );
 
+    const renderItem = useCallback(({ item: message, index }) => {
+        const isCurrentUser = isCurrentUserMessage(message.sender_id);
+        const showDateSeparator =
+            index === 0 ||
+            new Date(message.created_at).toDateString() !==
+            new Date(messages[index - 1]?.created_at).toDateString();
+
+        return (
+            <MessageItem
+                message={message}
+                isCurrentUser={isCurrentUser}
+                currentUser={currentUser}
+                otherUser={conversation.other_user}
+                showDateSeparator={showDateSeparator}
+                isPlayingAudio={isPlayingAudio}
+                audioProgress={audioProgress}
+                audioDuration={audioDuration}
+                onLongPressMessage={onLongPressMessage}
+                onReactToMessage={onReactToMessage}
+                onPlayAudio={onPlayAudio}
+                onPreviewAttachment={onPreviewAttachment}
+                onDownloadAttachment={onDownloadAttachment}
+                formatMessageTime={formatMessageTime}
+                formatSeenTime={formatSeenTime}
+            />
+        );
+    }, [
+        messages,
+        currentUser,
+        conversation.other_user,
+        isPlayingAudio,
+        audioProgress,
+        audioDuration,
+        onLongPressMessage,
+        onReactToMessage,
+        onPlayAudio,
+        onPreviewAttachment,
+        onDownloadAttachment,
+        formatMessageTime,
+        formatSeenTime,
+    ]);
+
+    const listFooter = (
+        <View>
+            {typingUsers.length > 0 &&
+                typingUsers.map((userId) => {
+                    const user = userId === conversation.other_user.id ? conversation.other_user : null;
+                    return user ? (
+                        <TypingIndicator key={userId} userName={user.name} isCurrentUser={false} />
+                    ) : null;
+                })}
+            {recordingUsers.length > 0 &&
+                recordingUsers.map((userId) => {
+                    const user = userId === conversation.other_user.id ? conversation.other_user : null;
+                    return user ? (
+                        <RecordingIndicator key={userId} userName={user.name} isCurrentUser={false} />
+                    ) : null;
+                })}
+        </View>
+    );
+
+    if (loading && messages.length === 0 && !suppressInitialLoadingSkeleton) {
+        return (
+            <View className={`flex-1 bg-[#ebe8e2] dark:bg-[#101010] px-4 py-3 ${showToolbox && !previewAttachment ? 'w-2/3' : 'w-full'}`}>
+                <MessageSkeleton />
+            </View>
+        );
+    }
+
+    if (loading && messages.length === 0 && suppressInitialLoadingSkeleton) {
+        return <View className="flex-1 min-h-[200px] bg-[#ebe8e2] dark:bg-[#101010]" />;
+    }
+
     return (
-        <ScrollView
+        <FlatList
             ref={messagesEndRef}
+            data={messages}
+            keyExtractor={(item) => String(item.id ?? item.tempId)}
+            renderItem={renderItem}
             className={`flex-1 bg-[#ebe8e2] dark:bg-[#101010] ${showToolbox && !previewAttachment ? 'w-2/3' : 'w-full'}`}
             style={{ flex: 1 }}
             contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 16, paddingVertical: 14, paddingBottom: 8 }}
@@ -67,71 +144,34 @@ export default function MessageList({
             keyboardDismissMode="interactive"
             onScroll={onScroll}
             scrollEventThrottle={16}
-        >
-            {loading && messages.length === 0 && !suppressInitialLoadingSkeleton ? (
-                <MessageSkeleton />
-            ) : loading && messages.length === 0 && suppressInitialLoadingSkeleton ? (
-                <View className="flex-1 min-h-[200px] bg-[#ebe8e2] dark:bg-[#101010]" />
-            ) : messages.length === 0 ? (
+            onStartReached={onLoadOlder}
+            onStartReachedThreshold={0.2}
+            ListHeaderComponent={
+                loadingOlder ? (
+                    <View className="py-3 items-center">
+                        <Text className="text-xs text-black/40 dark:text-white/40">Loading earlier messages…</Text>
+                    </View>
+                ) : null
+            }
+            initialNumToRender={16}
+            maxToRenderPerBatch={12}
+            windowSize={9}
+            removeClippedSubviews
+            ListEmptyComponent={
                 <View className="flex-1 items-center justify-center min-h-[220px] px-6">
                     <View className="w-full max-w-xs rounded-3xl border border-dashed border-black/15 dark:border-white/15 bg-white/60 dark:bg-zinc-900/60 px-6 py-10 items-center">
                         <View className="rotate-6 mb-4">
                             <Ionicons name="reader-outline" size={48} color={isDark ? '#ffc801' : '#b38a00'} />
                         </View>
                         <Text className="text-base font-bold text-black dark:text-white text-center">Blank page</Text>
-                        <Text className="text-sm text-black/50 dark:text-dark_gray0 text-center mt-2 leading-5">
+                        <Text className="text-sm text-black/50 dark:text-white text-center mt-2 leading-5">
                             This thread has no lines yet. Send the first note — it will sit on the left rail like a margin
                             sketch.
                         </Text>
                     </View>
                 </View>
-            ) : (
-                <View className="gap-1 pb-2">
-                    {messages.map((message, index) => {
-                        const isCurrentUser = isCurrentUserMessage(message.sender_id);
-                        const showDateSeparator =
-                            index === 0 ||
-                            new Date(message.created_at).toDateString() !==
-                            new Date(messages[index - 1].created_at).toDateString();
-
-                        return (
-                            <MessageItem
-                                key={message.id}
-                                message={message}
-                                isCurrentUser={isCurrentUser}
-                                currentUser={currentUser}
-                                otherUser={conversation.other_user}
-                                showDateSeparator={showDateSeparator}
-                                isPlayingAudio={isPlayingAudio}
-                                audioProgress={audioProgress}
-                                audioDuration={audioDuration}
-                                showMenuForMessage={showMenuForMessage}
-                                onPlayAudio={onPlayAudio}
-                                onDeleteMessage={onDeleteMessage}
-                                onMenuToggle={onMenuToggle}
-                                onPreviewAttachment={onPreviewAttachment}
-                                onDownloadAttachment={onDownloadAttachment}
-                                formatMessageTime={formatMessageTime}
-                                formatSeenTime={formatSeenTime}
-                            />
-                        );
-                    })}
-                    {typingUsers.length > 0 &&
-                        typingUsers.map((userId) => {
-                            const user = userId === conversation.other_user.id ? conversation.other_user : null;
-                            return user ? (
-                                <TypingIndicator key={userId} userName={user.name} isCurrentUser={false} />
-                            ) : null;
-                        })}
-                    {recordingUsers.length > 0 &&
-                        recordingUsers.map((userId) => {
-                            const user = userId === conversation.other_user.id ? conversation.other_user : null;
-                            return user ? (
-                                <RecordingIndicator key={userId} userName={user.name} isCurrentUser={false} />
-                            ) : null;
-                        })}
-                </View>
-            )}
-        </ScrollView>
+            }
+            ListFooterComponent={listFooter}
+        />
     );
 }

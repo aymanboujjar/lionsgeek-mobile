@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, RefreshControl } from 'react-native';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import AppLayout from '@/components/layout/AppLayout';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import API from '@/api';
 import { formatDistanceToNow } from 'date-fns';
 import Skeleton from '@/components/ui/Skeleton';
@@ -30,11 +30,13 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const canTestPush = getUserRoles(user).includes('admin');
 
-  useEffect(() => {
-    if (token) {
-      fetchNotifications();
-    }
-  }, [token]);
+  useFocusEffect(
+    useCallback(() => {
+      if (token) {
+        fetchNotifications();
+      }
+    }, [token])
+  );
 
   useEffect(() => {
     if (!token) return;
@@ -65,7 +67,7 @@ export default function NotificationsScreen() {
           });
         });
       } catch (_error) {
-        // If Ably token fails, notifications still work via polling.
+        // Ably unavailable — focus/pull-to-refresh still refresh the list.
       }
     };
 
@@ -214,6 +216,9 @@ export default function NotificationsScreen() {
       color,
       link: notif.link,
       mobileLink: notif.mobile_link,
+      post_id: notif.post_id ?? null,
+      event_id: notif.event_id ?? notif.lionsgeek_event_id ?? null,
+      report_id: notif.report_id ?? null,
       // Store original notification data for mark as read
       notificationType: notif.type,
       notificationId: notif.id,
@@ -348,11 +353,17 @@ export default function NotificationsScreen() {
         'appointment': 'appointment',
         'post': 'post',
         'post-report': 'post-report',
+        'user-report': 'user-report',
+        'user-block': 'user-block',
         'follow': 'follow',
         'project-status': 'project-status',
         'task-assignment': 'task-assignment',
         'project-message': 'project-message',
+        'job-application': 'job-application',
         'announcement': 'announcement',
+        'event': 'event',
+        'attendance_reminder': 'attendance_reminder',
+        'attendance-reminder': 'attendance-reminder',
       };
 
       const prefix = parts.slice(0, -1).join('-'); // Get all parts except the last one
@@ -376,14 +387,21 @@ export default function NotificationsScreen() {
 
   const markAllAsRead = async () => {
     if (!token) return;
+    if (!notifications.some((n) => !n.read)) return;
+
+    const previous = notifications;
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
     try {
       await API.postWithAuth('mobile/notifications/mark-all-read', {}, token);
-
-      // Update local state
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      const response = await API.getWithAuth('mobile/notifications', token);
+      if (response?.data?.notifications) {
+        setNotifications(response.data.notifications.map(formatNotificationForMobile));
+      }
     } catch (error) {
+      setNotifications(previous);
       if (__DEV__) console.error('[NOTIFICATIONS] Error marking all as read:', error);
+      Alert.alert('Could not mark all as read', 'Please try again.');
     }
   };
 
@@ -428,38 +446,74 @@ export default function NotificationsScreen() {
     // Navigate based on notification type and link
     const targetLink = notification.mobileLink || notification.link;
     if (targetLink) {
-      // Handle different link formats
-      if (targetLink.startsWith('/admin/')) {
-        // Admin links - might not be accessible in mobile, just show notification
-      } else if (targetLink.startsWith('/posts/')) {
+      if (targetLink.startsWith('/events/')) {
+        const id = targetLink.split('/')[2] || notification.event_id;
+        if (id) {
+          router.push(`/(tabs)/events/${id}`);
+          return;
+        }
+      }
+      if (targetLink.startsWith('/profile/')) {
+        const id = targetLink.split('/')[2];
+        if (id) {
+          router.push({ pathname: '/(tabs)/profile', params: { userId: String(id) } });
+          return;
+        }
+      }
+      if (targetLink.startsWith('/admin/reservations') || targetLink.includes('reservations')) {
+        router.push('/(tabs)/reservations');
+        return;
+      }
+      if (targetLink.startsWith('/admin/appointments') || targetLink.includes('appointments')) {
+        router.push('/(tabs)/reservations');
+        return;
+      }
+      if (targetLink.startsWith('/posts/')) {
         router.push(`/(tabs)${targetLink}`);
-      } else if (targetLink.startsWith('/students/')) {
-        // Student profile or project links
+        return;
+      }
+      if (targetLink.startsWith('/students/')) {
         const parts = targetLink.split('/');
         if (parts.includes('project')) {
           router.push('/(tabs)/projects-hub');
+          return;
         }
-      } else if (targetLink.startsWith('/feed')) {
-        // Feed link
-        router.push('/(tabs)/home');
-      } else if (targetLink.includes('reservations')) {
-        router.push('/(tabs)/reservations');
-      } else if (notification.type === 'reservation' || notification.type === 'appointment') {
-        router.push('/(tabs)/reservations');
-      } else if (notification.type === 'project_submission' || notification.type === 'project_status') {
-        router.push('/(tabs)/projects-hub');
       }
-    } else {
-      // Fallback navigation based on type
+      if (targetLink.startsWith('/feed') || targetLink === '/home' || targetLink.startsWith('/home')) {
+        router.push('/(tabs)/home');
+        return;
+      }
+      if (targetLink.startsWith('/projects')) {
+        router.push('/(tabs)/projects-hub');
+        return;
+      }
+      if (targetLink.startsWith('/training')) {
+        router.push(targetLink.includes('check-in') ? '/(tabs)/training/check-in' : '/(tabs)/training');
+        return;
+      }
       if (notification.type === 'reservation' || notification.type === 'appointment') {
         router.push('/(tabs)/reservations');
-      } else if (notification.type === 'project_submission' || notification.type === 'project_status') {
-        router.push('/(tabs)/projects-hub');
-      } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
-        router.push('/(tabs)/home');
-      } else if (notification.type === 'post_report' && notification?.post_id) {
-        router.push(`/(tabs)/posts/${notification.post_id}${notification.report_id ? `?reportId=${notification.report_id}` : ''}`);
+        return;
       }
+      if (notification.type === 'project_submission' || notification.type === 'project_status') {
+        router.push('/(tabs)/projects-hub');
+        return;
+      }
+    }
+
+    // Fallback navigation based on type
+    if (notification.type === 'reservation' || notification.type === 'appointment') {
+      router.push('/(tabs)/reservations');
+    } else if (notification.type === 'project_submission' || notification.type === 'project_status' || notification.type === 'task_assignment' || notification.type === 'project_message') {
+      router.push('/(tabs)/projects-hub');
+    } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
+      router.push('/(tabs)/home');
+    } else if (notification.type === 'post_report' && notification?.post_id) {
+      router.push(`/(tabs)/posts/${notification.post_id}${notification.report_id ? `?reportId=${notification.report_id}` : ''}`);
+    } else if (notification.type === 'event' && notification?.event_id) {
+      router.push(`/(tabs)/events/${notification.event_id}`);
+    } else if (notification.type === 'attendance_reminder') {
+      router.push('/(tabs)/training/check-in');
     }
   };
 
@@ -503,9 +557,9 @@ export default function NotificationsScreen() {
               </TouchableOpacity>
               <View>
                 <Text className="text-2xl font-bold text-black dark:text-white">Notifications</Text>
-                {unreadCount > 0 && (
+                {unreadCount > 0 ? (
                   <Text className="text-sm text-black/60 dark:text-white/60 mt-1">{unreadCount} unread</Text>
-                )}
+                ) : null}
               </View>
             </View>
             <View className="flex-row items-center gap-2">
@@ -523,14 +577,15 @@ export default function NotificationsScreen() {
                 >
                   <Ionicons name="notifications" size={16} color="#10b981" />
                 </TouchableOpacity>
-              ) : null}              {unreadCount > 0 && (
+              ) : null}
+              {unreadCount > 0 ? (
                 <TouchableOpacity
                   onPress={markAllAsRead}
                   className="bg-alpha/20 dark:bg-alpha/30 rounded-full px-4 py-2"
                 >
                   <Text className="text-alpha text-sm font-bold">Mark all read</Text>
                 </TouchableOpacity>
-              )}
+              ) : null}
             </View>
           </View>
         </View>
@@ -604,7 +659,7 @@ export default function NotificationsScreen() {
                 {/* Today Section (Unread) */}
                 {visibleNotifications.filter((n) => !n.read).length > 0 && (
                   <View className="mb-4">
-                    <Text className="text-sm font-bold text-black/50 dark:text-dark_gray0 uppercase mb-3">Today</Text>
+                    <Text className="text-sm font-bold text-black/50 dark:text-white uppercase mb-3">Today</Text>
                     {visibleNotifications.filter((n) => !n.read).map((notification) => (
                       <TouchableOpacity
                         key={notification.id}
@@ -656,7 +711,7 @@ export default function NotificationsScreen() {
                                 size={12}
                                 color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
                               />
-                              <Text className="text-xs text-black/50 dark:text-dark_gray0 ml-1">
+                              <Text className="text-xs text-black/50 dark:text-white ml-1">
                                 {notification.time}
                               </Text>
                             </View>
@@ -673,7 +728,7 @@ export default function NotificationsScreen() {
                 {/* Earlier Section (Read) */}
                 {visibleNotifications.filter((n) => n.read).length > 0 && (
                   <View className="mt-4">
-                    <Text className="text-sm font-bold text-black/50 dark:text-dark_gray0 uppercase mb-3">Earlier</Text>
+                    <Text className="text-sm font-bold text-black/50 dark:text-white uppercase mb-3">Earlier</Text>
                     {visibleNotifications.filter((n) => n.read).map((notification) => (
                       <TouchableOpacity
                         key={notification.id}

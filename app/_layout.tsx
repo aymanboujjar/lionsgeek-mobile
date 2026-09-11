@@ -81,6 +81,14 @@ function RootLayoutNav() {
         name="auth/reset-password"
         options={stackHeaderOptions('Reset password', stackBg, colorScheme)}
       />
+      <Stack.Screen
+        name="legal/terms"
+        options={stackHeaderOptions('Terms of Use', stackBg, colorScheme)}
+      />
+      <Stack.Screen
+        name="legal/privacy"
+        options={stackHeaderOptions('Privacy Policy', stackBg, colorScheme)}
+      />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="+not-found" />
     </Stack>

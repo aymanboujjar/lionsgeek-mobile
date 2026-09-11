@@ -529,6 +529,7 @@ export default function More() {
             right={chevron}
             pill={<ProPill />}
           />
+          {/* HIDDEN FOR NOW — coming soon rows (restore later):
           <RowDivider />
           <SettingRow
             icon="volume-high-outline"
@@ -571,6 +572,7 @@ export default function More() {
             right={chevron}
             pill={<SoonPill />}
           />
+          */}
         </SettingsCard>
 
         {/* Community */}
@@ -599,6 +601,7 @@ export default function More() {
               }
             />
           )}
+          {/* HIDDEN FOR NOW — coming soon (restore later):
           <RowDivider />
           <SettingRow
             icon="share-social-outline"
@@ -608,6 +611,7 @@ export default function More() {
             right={chevron}
             pill={<SoonPill />}
           />
+          */}
         </SettingsCard>
 
         {/* Power user */}
@@ -621,6 +625,7 @@ export default function More() {
             right={chevron}
             pill={<ProPill />}
           />
+          {/* HIDDEN FOR NOW — coming soon power tools (restore later):
           <RowDivider />
           <SettingRow
             icon="link-outline"
@@ -666,6 +671,7 @@ export default function More() {
             right={chevron}
             pill={<SoonPill />}
           />
+          */}
         </SettingsCard>
 
         {/* Admin & coach insights */}
@@ -687,6 +693,7 @@ export default function More() {
                 right={chevron}
                 pill={<ProPill />}
               />
+              {/* HIDDEN FOR NOW — coming soon admin/coach rows (restore later):
               <RowDivider />
               <SettingRow
                 icon="reader-outline"
@@ -709,6 +716,7 @@ export default function More() {
                   />
                 </>
               ) : null}
+              */}
             </SettingsCard>
           </>
         ) : null}
@@ -732,6 +740,7 @@ export default function More() {
         {/* Help & legal */}
         <SectionLabel title="Help & legal" />
         <SettingsCard>
+          {/* HIDDEN FOR NOW — coming soon (restore later):
           <SettingRow
             icon="sparkles-outline"
             label="What’s new"
@@ -741,6 +750,7 @@ export default function More() {
             pill={<SoonPill />}
           />
           <RowDivider />
+          */}
           <SettingRow
             icon="chatbox-ellipses-outline"
             label="Send feedback"
