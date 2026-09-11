@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, Pressable, TextInput, Alert, Platform, Image } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, TextInput, Alert, Platform, Image, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabOverflow } from '@/components/ui/TabBarBackground';
 import * as DocumentPicker from 'expo-document-picker';
 import AudioRecorder from './AudioRecorder';
 import VoiceRecorder from './VoiceRecorder';
@@ -46,8 +47,27 @@ export default function MessageInput({
 }) {
     const colorScheme = useColorScheme();
     const insets = useSafeAreaInsets();
+    const tabBarHeight = useBottomTabOverflow();
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
     const isDark = colorScheme === 'dark';
     const ph = isDark ? '#737373' : '#737373';
+    // Above tab bar when idle; drop that inset while typing so composer sits on the keyboard.
+    const composerBottomPad = keyboardVisible
+        ? 6
+        : tabBarHeight > 0
+            ? tabBarHeight + 6
+            : Math.max(insets.bottom, 6);
+
+    useEffect(() => {
+        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+        const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+        const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+        return () => {
+            showSub.remove();
+            hideSub.remove();
+        };
+    }, []);
 
     // Typing indicator management
     const typingTimeoutRef = useRef(null);
@@ -270,7 +290,7 @@ export default function MessageInput({
     return (
         <View
             className="px-3 pt-2 border-t border-black/[0.07] dark:border-white/[0.08] bg-[#ebe8e2] dark:bg-[#101010]"
-            style={{ paddingBottom: Math.max(insets.bottom, 6) }}
+            style={{ paddingBottom: composerBottomPad }}
         >
             {attachment && (
                 <View className="mb-2 rounded-2xl overflow-hidden border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-zinc-900 shadow-sm shadow-black/10">

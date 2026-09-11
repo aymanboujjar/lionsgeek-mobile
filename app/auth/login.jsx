@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, Keyboard, KeyboardAvoidingView, Platform, TouchableOpacity, TouchableWithoutFeedback, Linking } from 'react-native';
+import { View, Text, Keyboard, KeyboardAvoidingView, Platform, TouchableOpacity, TouchableWithoutFeedback, Linking, Pressable } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import API from '@/api';
 import { useAppContext } from '@/context';
@@ -8,6 +9,8 @@ import { Home as LogoIcon } from '@/components/logo';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input } from '@/components/ui';
 import { getAuthToken } from '@/utils/authTokenStorage';
+
+const TERMS_ACCEPTED_KEY = 'terms_accepted_v1';
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
@@ -18,9 +21,35 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(TERMS_ACCEPTED_KEY)
+      .then((value) => {
+        if (value === '1') setTermsAccepted(true);
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleTermsAccepted = async () => {
+    const next = !termsAccepted;
+    setTermsAccepted(next);
+    try {
+      if (next) {
+        await AsyncStorage.setItem(TERMS_ACCEPTED_KEY, '1');
+      } else {
+        await AsyncStorage.removeItem(TERMS_ACCEPTED_KEY);
+      }
+    } catch {
+      // Persist best-effort; checkbox state still gates login.
+    }
+  };
 
   const submit = async () => {
     if (!email || !password) return setError('Please enter your credentials');
+    if (!termsAccepted) {
+      return setError('Please agree to the Terms of Use and Privacy Policy');
+    }
     setLoading(true);
     setError('');
     try {
@@ -93,7 +122,6 @@ export default function LoginScreen() {
         className={`flex-1 ${isDark ? 'bg-black' : 'bg-white'}`}
       >
         <View className={`flex-1 px-6 ${isKeyboardVisible ? 'pt-10 pb-6' : 'pt-16 pb-12'}`}>
-          {/* Top Section - Logo (hide on keyboard to keep inputs visible) */}
           {!isKeyboardVisible && (
             <View className="items-center mt-4">
               <LogoIcon color={isDark ? '#fff' : '#000'} width={80} height={80} />
@@ -101,7 +129,6 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* Middle Section - Login Form (no ScrollView; must fit above keyboard) */}
           <View className="flex-1 justify-center max-w-md w-full mx-auto">
             {!isKeyboardVisible && (
               <View className="items-center mb-8">
@@ -151,9 +178,50 @@ export default function LoginScreen() {
               }
             />
 
+            <Pressable
+              onPress={toggleTermsAccepted}
+              className="flex-row items-start gap-3 mt-1 mb-3"
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: termsAccepted }}
+            >
+              <View
+                className={`w-5 h-5 mt-0.5 rounded border items-center justify-center ${
+                  termsAccepted
+                    ? 'bg-alpha border-alpha'
+                    : 'border-gray-400 dark:border-gray-500 bg-transparent'
+                }`}
+              >
+                {termsAccepted ? (
+                  <Ionicons name="checkmark" size={14} color="#000" />
+                ) : null}
+              </View>
+              <Text className="flex-1 text-sm text-gray-700 dark:text-gray-300 leading-5">
+                I agree to the{' '}
+                <Text
+                  className="text-alpha font-semibold"
+                  onPress={(e) => {
+                    e?.stopPropagation?.();
+                    router.push('/legal/terms');
+                  }}
+                >
+                  Terms of Use
+                </Text>
+                {' '}and{' '}
+                <Text
+                  className="text-alpha font-semibold"
+                  onPress={(e) => {
+                    e?.stopPropagation?.();
+                    router.push('/legal/privacy');
+                  }}
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </Pressable>
+
             <Button
               onPress={submit}
-              disabled={loading}
+              disabled={loading || !termsAccepted}
               loading={loading}
               variant="default"
               size="lg"
@@ -163,7 +231,6 @@ export default function LoginScreen() {
             </Button>
           </View>
 
-          {/* Bottom Section - Links (hide while keyboard is open) */}
           {!isKeyboardVisible && (
             <View className="items-center pb-4">
               <Link href="/auth/forgot-password" asChild>
@@ -191,6 +258,3 @@ export default function LoginScreen() {
     </TouchableWithoutFeedback>
   );
 }
-
-
-

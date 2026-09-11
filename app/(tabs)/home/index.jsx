@@ -346,6 +346,22 @@ export default function HomeScreen() {
                 setPosts((prev) => prev.filter((p) => p.id !== postId));
               },
             }}
+            onUserBlocked={(blockedUserId) => {
+              const id = Number(blockedUserId);
+              setPosts((prev) =>
+                prev.filter((p) => {
+                  const authorId = Number(
+                    p?.user?.id ??
+                      p?.user_id ??
+                      p?.repost_of?.user?.id ??
+                      p?.repost_of?.user_id ??
+                      0
+                  );
+                  const entryAuthorId = Number(p?.user?.id ?? p?.user_id ?? 0);
+                  return authorId !== id && entryAuthorId !== id;
+                })
+              );
+            }}
           />
         )}
       />
