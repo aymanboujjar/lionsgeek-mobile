@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Vibration, Platform } from 'react-native';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 
 /**
  * useCallRinger – plays a looped ringtone and vibrates the device while
@@ -17,11 +17,11 @@ import { Audio } from 'expo-av';
  *   - the component unmounting
  *
  * In Expo Go on iOS the ringtone plays through the EARPIECE by default
- * unless playsInSilentModeIOS is true – we configure the audio mode here
+ * unless playsInSilentMode is true – we configure the audio mode here
  * so the ring is loud and audible even when the silent switch is on.
  */
 export function useCallRinger({ enabled, mode = 'incoming' }) {
-    const soundRef = useRef(null);
+    const playerRef = useRef(null);
     const isMountedRef = useRef(true);
 
     useEffect(() => {
@@ -62,11 +62,11 @@ export function useCallRinger({ enabled, mode = 'incoming' }) {
         (async () => {
             try {
                 // Make sure the ringtone is loud even with silent switch on.
-                await Audio.setAudioModeAsync({
-                    allowsRecordingIOS: false,
-                    playsInSilentModeIOS: true,
-                    staysActiveInBackground: false,
-                    shouldDuckAndroid: true,
+                await setAudioModeAsync({
+                    allowsRecording: false,
+                    playsInSilentMode: true,
+                    shouldPlayInBackground: false,
+                    interruptionMode: 'duckOthers',
                 });
 
                 const asset =
@@ -74,23 +74,19 @@ export function useCallRinger({ enabled, mode = 'incoming' }) {
                         ? require('../assets/sounds/ringtone.mp3')
                         : require('../assets/sounds/calling.mp3');
 
-                const { sound } = await Audio.Sound.createAsync(
-                    asset,
-                    {
-                        shouldPlay: true,
-                        isLooping: true,
-                        volume: mode === 'incoming' ? 1.0 : 0.6,
-                    }
-                );
+                const player = createAudioPlayer(asset);
+                player.loop = true;
+                player.volume = mode === 'incoming' ? 1.0 : 0.6;
+                player.play();
 
                 if (cancelled || !isMountedRef.current) {
                     // The hook was torn down while the sound was loading.
-                    try { await sound.unloadAsync(); } catch (_) {}
+                    try { player.pause(); } catch (_) {}
+                    try { player.release(); } catch (_) {}
                     return;
                 }
 
-                soundRef.current = sound;
-                try { await sound.playAsync(); } catch (_) {}
+                playerRef.current = player;
             } catch (e) {
                 // Sound loading failed (file missing, codec issue, etc.) –
                 // fall back to vibration-only. We log so a dev can see it.
@@ -105,13 +101,11 @@ export function useCallRinger({ enabled, mode = 'incoming' }) {
                 clearInterval(iosVibrateInterval);
                 iosVibrateInterval = null;
             }
-            const s = soundRef.current;
-            soundRef.current = null;
-            if (s) {
-                (async () => {
-                    try { await s.stopAsync(); } catch (_) {}
-                    try { await s.unloadAsync(); } catch (_) {}
-                })();
+            const player = playerRef.current;
+            playerRef.current = null;
+            if (player) {
+                try { player.pause(); } catch (_) {}
+                try { player.release(); } catch (_) {}
             }
         };
     }, [enabled, mode]);

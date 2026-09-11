@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Pressable, Image, ScrollView, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
-import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from './resolveAttachmentUrl';
+import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from '@/utils/resolveAttachmentUrl';
 
 // Panel dial preview f right side dial chatbox
 export default function PreviewPanel({ attachment, onClose, onPrevious, onNext, hasMultiple, currentIndex, totalCount }) {

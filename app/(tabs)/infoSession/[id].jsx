@@ -29,7 +29,7 @@ import {
   getSessionAvailabilityLabel,
   getSessionStatusLabel,
   mapInfoParticipants,
-} from './_helpers';
+} from '@/utils/infoSessionHelpers';
 
 function StatusBadge({ status }) {
   const isDark = useColorScheme() === 'dark';

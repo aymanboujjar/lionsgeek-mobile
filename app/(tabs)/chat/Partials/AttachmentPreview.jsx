@@ -3,7 +3,7 @@ import { View, Text, Pressable, Image, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import API from '@/api';
 import { useAppContext } from '@/context';
-import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from './resolveAttachmentUrl';
+import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from '@/utils/resolveAttachmentUrl';
 
 export default function AttachmentPreview({ attachment, onClose }) {
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -91,7 +91,7 @@ export default function AttachmentPreview({ attachment, onClose }) {
                     {isVideo && currentAttachment.path && (
                         <View className="w-full h-full items-center justify-center">
                             <Ionicons name="videocam" size={64} color="#fff" />
-                            <Text className="text-white mt-4">Video preview - use expo-av Video component</Text>
+                            <Text className="text-white mt-4">Video preview</Text>
                         </View>
                     )}
 

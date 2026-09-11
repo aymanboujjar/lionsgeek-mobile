@@ -431,8 +431,12 @@ export default function MessageInput({
                             }}
                             disabled={sending}
                             onSendAudioDirect={async (uri, duration, mimeType) => {
-                                setAudioBlob({ uri });
-                                setAudioURL(uri);
+                                await handleSendMessage(null, {
+                                    audioBlob: { uri },
+                                    audioURL: uri,
+                                    audioDuration: duration,
+                                    body: '',
+                                });
                             }}
                         />
                         <Pressable

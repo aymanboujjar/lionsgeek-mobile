@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, Pressable, Image, ScrollView, TextInput, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from "expo-router/react-navigation";
 import { router } from 'expo-router';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -381,8 +381,14 @@ function ConversationItem({ conversation, currentUserId, isSelected, onClick, on
         })();
 
         if (attachment_type === 'image') return prefix + '📷 Image';
-        if (attachment_type === 'video') return prefix + '🎥 Video';
         if (attachment_type === 'audio') return prefix + '🎤 Voice message';
+        if (attachment_type === 'video') {
+            const name = String(conversation.last_message?.attachment_name || '');
+            if (/\.(m4a|aac|caf|mp3|wav)$/i.test(name) || /voice-message|audio\./i.test(name)) {
+                return prefix + '🎤 Voice message';
+            }
+            return prefix + '🎥 Video';
+        }
         if (attachment_type === 'file') return prefix + '📎 File';
         if (isPostShare) return prefix + '📌 Post';
         if (body) {

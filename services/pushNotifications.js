@@ -1,13 +1,29 @@
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import API from '@/api';
 
+/**
+ * Remote push via expo-notifications was removed from Expo Go (Android) in SDK 53+.
+ * Never import/require expo-notifications while running inside Expo Go.
+ */
+export function isPushNotificationsAvailable() {
+  return Constants.appOwnership !== 'expo';
+}
+
+function loadNotifications() {
+  if (!isPushNotificationsAvailable()) {
+    return null;
+  }
+  // Lazy require so Expo Go never evaluates the native module at import time.
+  // eslint-disable-next-line global-require
+  return require('expo-notifications');
+}
+
 let notificationHandlerConfigured = false;
 
-function ensureNotificationHandler() {
-  if (notificationHandlerConfigured) return;
+function ensureNotificationHandler(Notifications) {
+  if (!Notifications || notificationHandlerConfigured) return;
   notificationHandlerConfigured = true;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -21,15 +37,19 @@ function ensureNotificationHandler() {
 }
 
 /**
- * Request notification permissions and get Expo push token
- * This should only be called on a physical device
+ * Request notification permissions and get Expo push token.
+ * Physical devices + development/production builds only (not Expo Go).
  */
 export async function registerForPushNotificationsAsync() {
-  ensureNotificationHandler();
+  const Notifications = loadNotifications();
+  if (!Notifications) {
+    return null;
+  }
+
+  ensureNotificationHandler(Notifications);
   let token = null;
 
   if (!Device.isDevice) {
-    console.warn('Push notifications only work on physical devices, not simulators');
     return null;
   }
 
@@ -47,9 +67,12 @@ export async function registerForPushNotificationsAsync() {
       return null;
     }
 
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: '0d0c0c8d-a116-439d-8892-5965ec3f1841',
-    });
+    const projectId =
+      Constants.easConfig?.projectId ??
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      '0d0c0c8d-a116-439d-8892-5965ec3f1841';
+
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
 
     token = tokenData.data;
 
@@ -68,7 +91,8 @@ export async function registerForPushNotificationsAsync() {
         lightColor: '#22c55e',
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
         bypassDnd: true,
-        sound: 'default',
+        // Omit `sound` so Android uses the system default.
+        // `sound: 'default'` is treated as a custom file and throws in SDK 57.
         enableVibrate: true,
         showBadge: false,
       });
@@ -108,12 +132,20 @@ export async function sendPushTokenToBackend(token, authToken) {
  * Setup notification listeners
  */
 export function setupNotificationListeners(navigation) {
-  ensureNotificationHandler();
+  const Notifications = loadNotifications();
+  if (!Notifications) {
+    return {
+      notificationListener: null,
+      responseListener: null,
+    };
+  }
+
+  ensureNotificationHandler(Notifications);
   const notificationListener = Notifications.addNotificationReceivedListener(() => {});
 
   const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
     const data = response.notification.request.content.data;
-    
+
     if (data && navigation) {
       handleNotificationNavigation(data, navigation);
     }
@@ -141,52 +173,52 @@ function handleNotificationNavigation(data) {
             router.push('/(tabs)/home');
           }
           break;
-        
+
         case 'follow':
           if (follower_id) {
             router.push(`/(tabs)/profile`);
           }
           break;
-        
+
         case 'project_status':
         case 'project_submission':
           if (project_id) {
             router.push('/(tabs)/reservations');
           }
           break;
-        
+
         case 'task_assignment':
           router.push('/(tabs)/reservations');
           break;
-        
+
         case 'project_message':
           if (project_id) {
             router.push('/(tabs)/reservations');
           }
           break;
-        
+
         case 'chat_message':
           if (conversation_id) {
             router.push('/(tabs)/chat');
           }
           break;
-        
+
         case 'reservation':
           router.push('/(tabs)/reservations');
           break;
-        
+
         case 'appointment':
           router.push('/(tabs)/reservations');
           break;
-        
+
         case 'access_request_response':
           router.push('/(tabs)/reservations');
           break;
-        
+
         case 'exercise_review':
           router.push('/(tabs)/reservations');
           break;
-        
+
         case 'discipline_change':
           router.push('/(tabs)/profile');
           break;
@@ -198,7 +230,7 @@ function handleNotificationNavigation(data) {
         case 'attendance_reminder':
           router.push('/(tabs)/training/check-in');
           break;
-        
+
         default:
           if (link) {
             console.log('Notification link:', link);

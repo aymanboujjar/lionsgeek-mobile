@@ -6,7 +6,7 @@ import { format, isToday, isYesterday } from 'date-fns';
 import API from '@/api';
 import VoiceMessage from './VoiceMessage';
 import { useAppContext } from '@/context';
-import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from './resolveAttachmentUrl';
+import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from '@/utils/resolveAttachmentUrl';
 
 function tryParsePostShare(body) {
     if (!body || typeof body !== 'string') return null;
@@ -80,6 +80,12 @@ export default function MessageItem({
     };
 
     const imageUrl = attachmentMediaUrl;
+    const attachmentName = String(message.attachment_name || message.attachment_path || '');
+    const looksLikeVoiceNote = /\.(m4a|aac|caf|mp3|wav)$/i.test(attachmentName)
+        || /voice-message|audio\./i.test(attachmentName);
+    const isAudioAttachment = message.attachment_type === 'audio'
+        || (message.attachment_type === 'video' && looksLikeVoiceNote);
+    const isVideoAttachment = message.attachment_type === 'video' && !looksLikeVoiceNote;
 
     const bubbleRadius = isCurrentUser
         ? {
@@ -189,7 +195,7 @@ export default function MessageItem({
                         </Pressable>
                     )}
 
-                    {message.attachment_type === 'video' && message.attachment_path && (
+                    {isVideoAttachment && message.attachment_path && (
                         <Pressable
                             onPress={() => onPreviewAttachment({ type: 'video', path: message.attachment_url || message.attachment_path, name: message.attachment_name })}
                             className="mt-2 w-full rounded-2xl overflow-hidden border border-black/[0.06] dark:border-white/[0.08] bg-zinc-900"
@@ -227,7 +233,7 @@ export default function MessageItem({
                         </Pressable>
                     )}
 
-                    {message.attachment_type === 'audio' && message.attachment_path && (
+                    {isAudioAttachment && message.attachment_path && (
                         <View
                             className={`mt-2 rounded-2xl overflow-hidden border ${isCurrentUser
                                 ? 'border-white/20 bg-black/10'

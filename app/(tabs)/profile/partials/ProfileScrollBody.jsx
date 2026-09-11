@@ -12,7 +12,7 @@ import EducationCard from './EducationCard';
 import ProfileTabBar from './ProfileTabBar';
 import PostsGridTab from './PostsGridTab';
 import RepostsGridTab from './RepostsGridTab';
-import { iconForSocialTitle } from './_helpers';
+import { iconForSocialTitle } from '@/utils/profileHelpers';
 import { useScrollTabPadding } from '@/hooks/useScrollTabPadding';
 
 function isHttpOrHttpsUrl(url) {

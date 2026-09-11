@@ -18,7 +18,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useScrollTabPadding } from '@/hooks/useScrollTabPadding';
 import API from '@/api';
 import ReservationDetailHeader from './ReservationDetailHeader';
-import { ReservationHistoryStatusBadge } from './reservationTheme';
+import { ReservationHistoryStatusBadge } from '@/utils/reservationTheme';
 
 function formatDayLabel(dayRaw) {
   if (!dayRaw) return '';

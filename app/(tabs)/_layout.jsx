@@ -4,7 +4,7 @@ import { Image, Platform, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as SystemUI from 'expo-system-ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomTabBar } from '@react-navigation/bottom-tabs';
+import { BottomTabBar } from "expo-router/js-tabs";
 
 import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';

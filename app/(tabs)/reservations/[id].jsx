@@ -11,7 +11,7 @@ import { getAccentIconColor } from '@/constants/Colors';
 import Skeleton from '@/components/ui/Skeleton';
 import SectionCard from '@/components/ui/SectionCard';
 import ReservationDetailHeader from './Partials/ReservationDetailHeader';
-import { ReservationStatusBadge } from './Partials/reservationTheme';
+import { ReservationStatusBadge } from '@/utils/reservationTheme';
 
 function DetailRow({ label, value, isDark, accentIcon, icon }) {
   return (

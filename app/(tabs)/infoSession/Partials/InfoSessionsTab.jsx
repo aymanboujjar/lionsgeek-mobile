@@ -12,7 +12,7 @@ import {
   normalizeInfoSessions,
   resolveInfoSessionError,
   sortSessionsByDate,
-} from '../_helpers';
+} from '@/utils/infoSessionHelpers';
 import { useScrollTabPadding } from '@/hooks/useScrollTabPadding';
 
 export default function InfoSessionsTab() {

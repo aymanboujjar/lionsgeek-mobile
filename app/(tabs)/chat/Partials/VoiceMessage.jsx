@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import { createAudioPlayer } from 'expo-audio';
 
 export default function VoiceMessage({ audioUrl, duration, isCurrentUser, onPlayStateChange, headers }) {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
-    const soundRef = useRef(null);
+    const playerRef = useRef(null);
+    const statusSubRef = useRef(null);
     const bars = useMemo(() => Array.from({ length: 28 }, (_, i) => i), []);
 
     const formatTime = (seconds) => {
@@ -20,40 +21,50 @@ export default function VoiceMessage({ audioUrl, duration, isCurrentUser, onPlay
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const releasePlayer = () => {
+        if (statusSubRef.current) {
+            try { statusSubRef.current.remove(); } catch (_) {}
+            statusSubRef.current = null;
+        }
+        if (playerRef.current) {
+            try { playerRef.current.pause(); } catch (_) {}
+            try { playerRef.current.release(); } catch (_) {}
+            playerRef.current = null;
+        }
+    };
+
     const togglePlayback = async () => {
         try {
-            if (!soundRef.current) {
+            if (!playerRef.current) {
                 const source = headers ? { uri: audioUrl, headers } : { uri: audioUrl };
-                const { sound } = await Audio.Sound.createAsync(source, { shouldPlay: true });
-                soundRef.current = sound;
+                const player = createAudioPlayer(source);
+                playerRef.current = player;
 
-                sound.setOnPlaybackStatusUpdate((status) => {
-                    if (status.isLoaded) {
-                        setCurrentTime(status.positionMillis / 1000);
-                        setIsPlaying(status.isPlaying);
+                statusSubRef.current = player.addListener('playbackStatusUpdate', (status) => {
+                    setCurrentTime(status.currentTime || 0);
+                    setIsPlaying(!!status.playing);
 
-                        if (status.didJustFinish) {
-                            setIsPlaying(false);
-                            setCurrentTime(0);
-                            onPlayStateChange?.(false);
-                        }
+                    if (status.didJustFinish || (!status.playing && status.currentTime > 0 && status.duration > 0 && status.currentTime >= status.duration - 0.05)) {
+                        setIsPlaying(false);
+                        setCurrentTime(0);
+                        onPlayStateChange?.(false);
+                        try { player.seekTo(0); } catch (_) {}
                     }
                 });
 
+                player.play();
                 setIsPlaying(true);
                 onPlayStateChange?.(true);
             } else {
-                const status = await soundRef.current.getStatusAsync();
-                if (status.isLoaded) {
-                    if (status.isPlaying) {
-                        await soundRef.current.pauseAsync();
-                        setIsPlaying(false);
-                        onPlayStateChange?.(false);
-                    } else {
-                        await soundRef.current.playAsync();
-                        setIsPlaying(true);
-                        onPlayStateChange?.(true);
-                    }
+                const player = playerRef.current;
+                if (player.playing) {
+                    player.pause();
+                    setIsPlaying(false);
+                    onPlayStateChange?.(false);
+                } else {
+                    player.play();
+                    setIsPlaying(true);
+                    onPlayStateChange?.(true);
                 }
             }
         } catch (error) {
@@ -62,10 +73,8 @@ export default function VoiceMessage({ audioUrl, duration, isCurrentUser, onPlay
     };
 
     useEffect(() => {
-        return async () => {
-            if (soundRef.current) {
-                await soundRef.current.unloadAsync();
-            }
+        return () => {
+            releasePlayer();
         };
     }, []);
 
