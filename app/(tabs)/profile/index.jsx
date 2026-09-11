@@ -594,7 +594,7 @@ export default function ProfileScreen() {
             <AppLayout showNavbar={false} skipTopInset>
                 <View className="flex-1 items-center justify-center bg-light dark:bg-dark">
                     <Ionicons name="person-circle-outline" size={64} color={isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'} />
-                    <Text className="text-black/50 dark:text-dark_gray0 mt-4 text-base">Profile not found</Text>
+                    <Text className="text-black/50 dark:text-white mt-4 text-base">Profile not found</Text>
                 </View>
             </AppLayout>
         );

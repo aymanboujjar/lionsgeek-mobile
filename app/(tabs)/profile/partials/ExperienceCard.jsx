@@ -167,7 +167,7 @@ export default function ExperienceCard({ profile, isDark, isOwnProfile, token, o
                         {/* Duration pill */}
                         {duration ? (
                           <View className="px-2 py-0.5 rounded-full bg-black/[0.05] dark:bg-white/[0.08]">
-                            <Text className="text-[10px] font-semibold text-black/50 dark:text-dark_gray0">
+                            <Text className="text-[10px] font-semibold text-black/50 dark:text-white">
                               {duration}
                             </Text>
                           </View>

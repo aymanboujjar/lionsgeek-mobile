@@ -37,6 +37,10 @@ export default function MessageInput({
     stopRecording,
     cancelRecording,
     handleSendMessage,
+    editingMessage = null,
+    onCancelEdit,
+    replyToMessage = null,
+    onCancelReply,
     isExpanded,
     audioDuration,
     onTypingStart,
@@ -293,7 +297,50 @@ export default function MessageInput({
             className="px-3 pt-2 border-t border-beta/10 dark:border-light/10 bg-light dark:bg-dark"
             style={{ paddingBottom: composerBottomPad }}
         >
-            {attachment && (
+            {editingMessage ? (
+                <View className="mb-2 flex-row items-center gap-2 px-3 py-2 rounded-2xl bg-alpha/20 border border-alpha/30">
+                    <Ionicons name="pencil" size={16} color="#ffc801" />
+                    <View className="flex-1 min-w-0">
+                        <Text className="text-[11px] font-bold uppercase tracking-wider text-beta/60 dark:text-light/60">
+                            Editing message
+                        </Text>
+                        <Text className="text-sm text-beta dark:text-light" numberOfLines={1}>
+                            {editingMessage.body}
+                        </Text>
+                    </View>
+                    <Pressable
+                        onPress={onCancelEdit}
+                        hitSlop={8}
+                        className="w-8 h-8 rounded-full bg-beta/10 dark:bg-light/10 items-center justify-center"
+                    >
+                        <Ionicons name="close" size={16} color={ph} />
+                    </Pressable>
+                </View>
+            ) : replyToMessage ? (
+                <View className="mb-2 flex-row items-center gap-2 px-3 py-2 rounded-2xl bg-beta/5 dark:bg-light/5 border border-beta/10 dark:border-light/10">
+                    <View className="w-1 self-stretch rounded-full bg-alpha" />
+                    <View className="flex-1 min-w-0">
+                        <Text className="text-[11px] font-bold uppercase tracking-wider text-alpha">
+                            Replying
+                        </Text>
+                        <Text className="text-sm text-beta dark:text-light" numberOfLines={1}>
+                            {replyToMessage.body
+                                || (replyToMessage.attachment_type === 'audio'
+                                    ? 'Voice message'
+                                    : replyToMessage.attachment_name || 'Message')}
+                        </Text>
+                    </View>
+                    <Pressable
+                        onPress={onCancelReply}
+                        hitSlop={8}
+                        className="w-8 h-8 rounded-full bg-beta/10 dark:bg-light/10 items-center justify-center"
+                    >
+                        <Ionicons name="close" size={16} color={ph} />
+                    </Pressable>
+                </View>
+            ) : null}
+
+            {attachment && !editingMessage && (
                 <View className="mb-2">
                     {isImageAttachment(attachment) ? (
                         <View className="relative rounded-[22px] overflow-hidden self-stretch">
@@ -348,7 +395,7 @@ export default function MessageInput({
                 </View>
             )}
 
-            {audioURL && audioBlob && (
+            {audioURL && audioBlob && !editingMessage && (
                 <View className="mb-2 rounded-[22px] overflow-hidden bg-alpha px-3 py-2.5">
                     <View className="flex-row items-center gap-2.5">
                         <Ionicons name="mic" size={22} color="#000" />
@@ -383,7 +430,7 @@ export default function MessageInput({
             )}
 
             {/* Recording Indicator - Instagram Style (parent-driven) */}
-            {isRecording ? (
+            {isRecording && !editingMessage ? (
                 <View className="mb-1">
                     <AudioRecorder
                         onSend={() => {
@@ -405,25 +452,31 @@ export default function MessageInput({
             ) : (
                 <View
                     className={
-                        voiceIsRecording
+                        voiceIsRecording && !editingMessage
                             ? 'w-full'
                             : 'flex-row gap-2 items-end bg-light dark:bg-dark rounded-[24px] border border-beta/10 dark:border-light/10 px-1.5 py-1.5'
                     }
                 >
-                    {!voiceIsRecording ? (
+                    {!voiceIsRecording || editingMessage ? (
                         <>
-                            <Pressable
-                                onPress={showAttachmentMenu}
-                                className="w-10 h-10 rounded-2xl bg-beta/5 dark:bg-light/5 items-center justify-center active:opacity-70"
-                            >
-                                <Ionicons name="add" size={22} color="#ffc801" />
-                            </Pressable>
+                            {!editingMessage ? (
+                                <Pressable
+                                    onPress={showAttachmentMenu}
+                                    className="w-10 h-10 rounded-2xl bg-beta/5 dark:bg-light/5 items-center justify-center active:opacity-70"
+                                >
+                                    <Ionicons name="add" size={22} color="#ffc801" />
+                                </Pressable>
+                            ) : (
+                                <View className="w-10 h-10 rounded-2xl bg-alpha/20 items-center justify-center">
+                                    <Ionicons name="pencil" size={18} color="#ffc801" />
+                                </View>
+                            )}
 
                             <View className="flex-1">
                                 <TextInput
                                     value={newMessage}
                                     onChangeText={handleInputChange}
-                                    placeholder="Write a message…"
+                                    placeholder={editingMessage ? 'Edit message…' : 'Write a message…'}
                                     placeholderTextColor={ph}
                                     className="min-h-10 text-[15px] px-2 py-2 text-beta dark:text-light"
                                     editable={!sending}
@@ -434,36 +487,46 @@ export default function MessageInput({
                         </>
                     ) : null}
 
-                    <View className={voiceIsRecording ? 'w-full' : undefined}>
-                      <VoiceRecorder
-                        onRecordingComplete={(uri) => {
-                            setAudioBlob({ uri });
-                            setAudioURL(uri);
-                        }}
-                        onCancel={() => {
-                            setAudioBlob(null);
-                            setAudioURL(null);
-                            setVoiceIsRecording(false);
-                        }}
-                        onRecordingChange={setVoiceIsRecording}
-                        disabled={sending}
-                        onSendAudioDirect={async (uri, duration) => {
-                            await handleSendMessage(null, {
-                                audioBlob: { uri },
-                                audioURL: uri,
-                                audioDuration: duration,
-                                body: '',
-                            });
-                        }}
-                      />
-                    </View>
+                    {!editingMessage ? (
+                        <View className={voiceIsRecording ? 'w-full' : undefined}>
+                          <VoiceRecorder
+                            onRecordingComplete={(uri) => {
+                                setAudioBlob({ uri });
+                                setAudioURL(uri);
+                            }}
+                            onCancel={() => {
+                                setAudioBlob(null);
+                                setAudioURL(null);
+                                setVoiceIsRecording(false);
+                            }}
+                            onRecordingChange={setVoiceIsRecording}
+                            disabled={sending}
+                            onSendAudioDirect={async (uri, duration) => {
+                                await handleSendMessage(null, {
+                                    audioBlob: { uri },
+                                    audioURL: uri,
+                                    audioDuration: duration,
+                                    body: '',
+                                });
+                            }}
+                          />
+                        </View>
+                    ) : null}
 
-                    {!voiceIsRecording ? (
+                    {(!voiceIsRecording || editingMessage) ? (
                         <Pressable
                             onPress={handleSendMessage}
-                            disabled={sending || (!newMessage.trim() && !attachment && !audioBlob)}
+                            disabled={
+                                sending
+                                || (editingMessage
+                                    ? !newMessage.trim()
+                                    : (!newMessage.trim() && !attachment && !audioBlob))
+                            }
                             className={`w-11 h-11 rounded-2xl items-center justify-center border ${
-                                sending || (!newMessage.trim() && !attachment && !audioBlob)
+                                sending
+                                || (editingMessage
+                                    ? !newMessage.trim()
+                                    : (!newMessage.trim() && !attachment && !audioBlob))
                                     ? 'bg-neutral-200 dark:bg-zinc-800 opacity-55 border-transparent'
                                     : 'bg-alpha active:opacity-90 border-black/10'
                             }`}
@@ -471,7 +534,11 @@ export default function MessageInput({
                             {sending ? (
                                 <Skeleton width={16} height={16} borderRadius={8} isDark={isDark} />
                             ) : (
-                                <Ionicons name="arrow-up" size={22} color="#000" />
+                                <Ionicons
+                                    name={editingMessage ? 'checkmark' : 'arrow-up'}
+                                    size={22}
+                                    color="#000"
+                                />
                             )}
                         </Pressable>
                     ) : null}

@@ -604,7 +604,7 @@ export default function NotificationsScreen() {
                 {/* Today Section (Unread) */}
                 {visibleNotifications.filter((n) => !n.read).length > 0 && (
                   <View className="mb-4">
-                    <Text className="text-sm font-bold text-black/50 dark:text-dark_gray0 uppercase mb-3">Today</Text>
+                    <Text className="text-sm font-bold text-black/50 dark:text-white uppercase mb-3">Today</Text>
                     {visibleNotifications.filter((n) => !n.read).map((notification) => (
                       <TouchableOpacity
                         key={notification.id}
@@ -656,7 +656,7 @@ export default function NotificationsScreen() {
                                 size={12}
                                 color={isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)'}
                               />
-                              <Text className="text-xs text-black/50 dark:text-dark_gray0 ml-1">
+                              <Text className="text-xs text-black/50 dark:text-white ml-1">
                                 {notification.time}
                               </Text>
                             </View>
@@ -673,7 +673,7 @@ export default function NotificationsScreen() {
                 {/* Earlier Section (Read) */}
                 {visibleNotifications.filter((n) => n.read).length > 0 && (
                   <View className="mt-4">
-                    <Text className="text-sm font-bold text-black/50 dark:text-dark_gray0 uppercase mb-3">Earlier</Text>
+                    <Text className="text-sm font-bold text-black/50 dark:text-white uppercase mb-3">Earlier</Text>
                     {visibleNotifications.filter((n) => n.read).map((notification) => (
                       <TouchableOpacity
                         key={notification.id}

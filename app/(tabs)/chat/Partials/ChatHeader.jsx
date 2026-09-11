@@ -96,7 +96,7 @@ export default function ChatHeader({ conversation, onBack }) {
                         <Text className="text-base font-extrabold text-black dark:text-white tracking-tight" numberOfLines={1}>
                             {conversation.other_user?.name || 'User'}
                         </Text>
-                        <Text className="text-[11px] mt-0.5 uppercase tracking-[0.14em] text-black/50 dark:text-dark_gray0" numberOfLines={1}>
+                        <Text className="text-[11px] mt-0.5 uppercase tracking-[0.14em] text-black/50 dark:text-white" numberOfLines={1}>
                             {statusLine || 'Offline'}
                         </Text>
                     </Pressable>

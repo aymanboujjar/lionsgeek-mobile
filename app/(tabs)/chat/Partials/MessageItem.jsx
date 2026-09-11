@@ -3,6 +3,7 @@ import { View, Text, Pressable, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { format, isToday, isYesterday } from 'date-fns';
+import * as Haptics from 'expo-haptics';
 import API from '@/api';
 import VoiceMessage from './VoiceMessage';
 import { useAppContext } from '@/context';
@@ -37,6 +38,15 @@ function tryParseStoryReply(body) {
     return parsed;
 }
 
+export function isPlainTextMessage(message) {
+    if (!message) return false;
+    if (message.attachment_path || message.attachment_type) return false;
+    const body = typeof message.body === 'string' ? message.body.trim() : '';
+    if (!body) return false;
+    if (tryParsePostShare(body) || tryParseStoryReply(body)) return false;
+    return true;
+}
+
 function resolveImageUrl(value) {
     if (!value || typeof value !== 'string') return null;
     if (value.startsWith('http://') || value.startsWith('https://')) return value;
@@ -63,10 +73,9 @@ export default function MessageItem({
     isPlayingAudio,
     audioProgress,
     audioDuration,
-    showMenuForMessage,
+    onLongPressMessage,
+    onReactToMessage,
     onPlayAudio,
-    onDeleteMessage,
-    onMenuToggle,
     onPreviewAttachment,
     onDownloadAttachment,
     formatMessageTime,
@@ -81,19 +90,14 @@ export default function MessageItem({
         ? { Authorization: `Bearer ${token}` }
         : undefined;
 
-    // Format file size
-    const formatFileSize = (bytes) => {
-        if (!bytes) return '';
-        const units = ['B', 'KB', 'MB', 'GB'];
-        let size = bytes;
-        let unitIndex = 0;
-
-        while (size >= 1024 && unitIndex < units.length - 1) {
-            size /= 1024;
-            unitIndex++;
+    const handleLongPress = () => {
+        if (message?.pending) return;
+        try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        } catch {
+            // optional
         }
-
-        return `${size.toFixed(1)} ${units[unitIndex]}`;
+        onLongPressMessage?.(message);
     };
 
     const imageUrl = attachmentMediaUrl;
@@ -130,9 +134,33 @@ export default function MessageItem({
     const isVideoOnly = isVideoAttachment && message.attachment_path && !hasTextBody;
     const isAudioOnly = isAudioAttachment && message.attachment_path && !hasTextBody;
     const isMediaBubble = isImageOnly || isVideoOnly;
+    const isEdited = Boolean(message.edited)
+        || (
+            message.updated_at
+            && message.created_at
+            && new Date(message.updated_at).getTime() !== new Date(message.created_at).getTime()
+        );
+
+    const formatFileSize = (bytes) => {
+        if (!bytes) return '';
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+        }
+        return `${size.toFixed(1)} ${units[unitIndex]}`;
+    };
+
+    const replyPreview = message.reply_preview;
+    const reactions = Array.isArray(message.reactions) ? message.reactions : [];
 
     const metaRow = (
         <View className={`flex-row items-center gap-1 ${isCurrentUser ? 'justify-end' : 'justify-start'} mt-1 px-1`}>
+            {isEdited ? (
+                <Text className="text-[11px] text-beta/45 dark:text-light/45">Edited</Text>
+            ) : null}
             <Text className="text-[11px] text-beta/45 dark:text-light/45">
                 {formatMessageTime(message.created_at)}
             </Text>
@@ -197,14 +225,8 @@ export default function MessageItem({
                                         name: message.attachment_name,
                                     })
                                 }
-                                onLongPress={
-                                    isCurrentUser
-                                        ? () =>
-                                              onMenuToggle(
-                                                  showMenuForMessage === message.id ? null : message.id
-                                              )
-                                        : undefined
-                                }
+                                onLongPress={handleLongPress}
+                                delayLongPress={280}
                                 className="rounded-[22px] overflow-hidden bg-neutral-200 dark:bg-zinc-800"
                                 style={{ width: 260, maxWidth: '100%' }}
                             >
@@ -222,24 +244,12 @@ export default function MessageItem({
                                     </View>
                                 )}
                             </Pressable>
-                            {isCurrentUser && showMenuForMessage === message.id ? (
-                                <View className="absolute top-2 right-2 rounded-xl border border-beta/10 dark:border-light/10 p-1 bg-light dark:bg-dark z-10">
-                                    <Pressable
-                                        onPress={() => {
-                                            onDeleteMessage(message.id);
-                                            onMenuToggle(null);
-                                        }}
-                                        className="flex-row items-center px-3 py-2"
-                                    >
-                                        <Ionicons name="trash" size={12} color="#ef4444" />
-                                        <Text className="ml-2 text-xs text-error">Delete</Text>
-                                    </Pressable>
-                                </View>
-                            ) : null}
                             {metaRow}
                         </View>
                     ) : (
-                        <View
+                        <Pressable
+                            onLongPress={handleLongPress}
+                            delayLongPress={280}
                             className={`rounded-[22px] overflow-hidden ${
                                 isCurrentUser
                                     ? 'bg-alpha'
@@ -250,6 +260,30 @@ export default function MessageItem({
                             style={bubbleRadius}
                         >
                             <View className={isAudioOnly ? 'px-3 py-2.5' : 'px-3.5 py-3'}>
+                                {replyPreview ? (
+                                    <View
+                                        className={`mb-2 pl-2.5 border-l-2 ${
+                                            isCurrentUser ? 'border-black/35' : 'border-alpha'
+                                        }`}
+                                    >
+                                        <Text
+                                            className={`text-[11px] font-semibold ${
+                                                isCurrentUser ? 'text-black/55' : 'text-alpha'
+                                            }`}
+                                            numberOfLines={1}
+                                        >
+                                            {replyPreview.sender_name || 'Reply'}
+                                        </Text>
+                                        <Text
+                                            className={`text-[12px] ${
+                                                isCurrentUser ? 'text-black/70' : 'text-black/60 dark:text-white/60'
+                                            }`}
+                                            numberOfLines={2}
+                                        >
+                                            {replyPreview.body || 'Message'}
+                                        </Text>
+                                    </View>
+                                ) : null}
                                 {postShare ? (
                                     <Pressable
                                         onPress={() => router.push(`/(tabs)/posts/${postShare.post_id}`)}
@@ -426,6 +460,15 @@ export default function MessageItem({
 
                                 {!isAudioOnly ? (
                                     <View className="flex-row items-center gap-1.5 justify-end mt-1.5">
+                                        {isEdited ? (
+                                            <Text
+                                                className={`text-[11px] ${
+                                                    isCurrentUser ? 'text-black/55' : 'text-black/40 dark:text-white/40'
+                                                }`}
+                                            >
+                                                Edited
+                                            </Text>
+                                        ) : null}
                                         <Text
                                             className={`text-[11px] ${
                                                 isCurrentUser ? 'text-black/60' : 'text-black/45 dark:text-white/45'
@@ -446,40 +489,36 @@ export default function MessageItem({
                                         ) : null}
                                     </View>
                                 ) : null}
-
-                                {isCurrentUser && showMenuForMessage === message.id ? (
-                                    <View className="absolute top-2 right-2 rounded-xl shadow-lg border border-beta/10 dark:border-light/10 p-1 bg-light dark:bg-dark z-10">
-                                        <Pressable
-                                            onPress={() => {
-                                                onDeleteMessage(message.id);
-                                                onMenuToggle(null);
-                                            }}
-                                            className="flex-row items-center px-3 py-2"
-                                        >
-                                            <Ionicons name="trash" size={12} color="#ef4444" />
-                                            <Text className="ml-2 text-xs text-error">Delete</Text>
-                                        </Pressable>
-                                    </View>
-                                ) : null}
-
-                                {isCurrentUser ? (
-                                    <Pressable
-                                        onPress={() =>
-                                            onMenuToggle(showMenuForMessage === message.id ? null : message.id)
-                                        }
-                                        className="absolute top-2 right-2 p-1"
-                                    >
-                                        <Ionicons
-                                            name="ellipsis-vertical"
-                                            size={14}
-                                            color={isCurrentUser ? '#333' : '#aaa'}
-                                        />
-                                    </Pressable>
-                                ) : null}
                             </View>
                             {isAudioOnly ? metaRow : null}
-                        </View>
+                        </Pressable>
                     )}
+                    {reactions.length > 0 ? (
+                        <View
+                            className={`flex-row flex-wrap gap-1 mt-1 ${
+                                isCurrentUser ? 'justify-end' : 'justify-start'
+                            }`}
+                        >
+                            {reactions.map((item) => (
+                                <Pressable
+                                    key={item.reaction}
+                                    onPress={() => onReactToMessage?.(message, item.reaction)}
+                                    className={`flex-row items-center px-2 py-0.5 rounded-full border ${
+                                        message.my_reaction === item.reaction
+                                            ? 'bg-alpha/25 border-alpha/50'
+                                            : 'bg-black/5 dark:bg-white/10 border-black/10 dark:border-white/10'
+                                    }`}
+                                >
+                                    <Text className="text-[13px]">{item.reaction}</Text>
+                                    {item.count > 1 ? (
+                                        <Text className="ml-1 text-[11px] text-beta/60 dark:text-light/60">
+                                            {item.count}
+                                        </Text>
+                                    ) : null}
+                                </Pressable>
+                            ))}
+                        </View>
+                    ) : null}
                 </View>
 
                 {isCurrentUser && (

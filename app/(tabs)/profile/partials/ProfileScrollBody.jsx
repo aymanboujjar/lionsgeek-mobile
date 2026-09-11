@@ -226,7 +226,7 @@ export default function ProfileScrollBody(props) {
           </Text>
         ) : null}
         {profile?.promo ? (
-          <Text className="text-sm text-black/50 dark:text-dark_gray0 mt-0.5">
+          <Text className="text-sm text-black/50 dark:text-white mt-0.5">
             Promo {profile.promo}
           </Text>
         ) : null}
