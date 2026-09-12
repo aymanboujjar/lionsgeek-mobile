@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withDelay, withSpring, withTiming } from 'react-native-reanimated';
 import { resolveAvatarUrl } from '@/components/helpers/helpers';
+import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 
 const CAPTION_PREVIEW_LENGTH = 60;
 const SHARE_PAYLOAD_MAX_LEN = 4500;
@@ -374,7 +375,7 @@ function RepostIcon({ size = 26, color, strokeWidth = 2 }) {
   );
 }
 
-export default function FeedItem({ item, onPress, initialFocusCommentId = null }) {
+export default function FeedItem({ item, onPress, initialFocusCommentId = null, onUserBlocked }) {
   const { token, user } = useAppContext();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -427,8 +428,8 @@ export default function FeedItem({ item, onPress, initialFocusCommentId = null }
   const [showLikes, setShowLikes] = useState(false);
   const [showPostMenu, setShowPostMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [reportReason, setReportReason] = useState('');
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [blockSubmitting, setBlockSubmitting] = useState(false);
   const [repostedByMe, setRepostedByMe] = useState(Boolean(item.isReposted || item.is_reposted_by_user));
   const [repostCount, setRepostCount] = useState((sourcePost?.reposts ?? item?.reposts) || 0);
   const [repostLoading, setRepostLoading] = useState(false);
@@ -755,11 +756,10 @@ export default function FeedItem({ item, onPress, initialFocusCommentId = null }
 
   const handleOpenReport = () => {
     setShowPostMenu(false);
-    setReportReason('');
     setShowReportModal(true);
   };
 
-  const handleSubmitReport = async () => {
+  const handleSubmitReport = async (reason) => {
     if (!token) {
       Alert.alert('Error', 'Authentication required');
       return;
@@ -768,7 +768,11 @@ export default function FeedItem({ item, onPress, initialFocusCommentId = null }
 
     setReportSubmitting(true);
     try {
-      await API.postWithAuth(`mobile/posts/${effectivePostId}/report`, { reason: reportReason?.trim() || null }, token);
+      await API.postWithAuth(
+        `mobile/posts/${effectivePostId}/report`,
+        { reason: String(reason || '').trim() },
+        token
+      );
       setShowReportModal(false);
       Alert.alert('Reported', 'Thanks. Our team will review this post.');
     } catch (error) {
@@ -782,6 +786,51 @@ export default function FeedItem({ item, onPress, initialFocusCommentId = null }
     } finally {
       setReportSubmitting(false);
     }
+  };
+
+  const handleBlockUser = () => {
+    setShowPostMenu(false);
+    if (!profileUserId) {
+      Alert.alert('Error', 'Unable to identify this user.');
+      return;
+    }
+    if (!token) {
+      Alert.alert('Error', 'Authentication required');
+      return;
+    }
+
+    Alert.alert(
+      'Block user',
+      `Block ${displayName}? You will no longer see their posts in your feed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            if (blockSubmitting) return;
+            setBlockSubmitting(true);
+            try {
+              await API.postWithAuth(`mobile/users/${profileUserId}/block`, {}, token);
+              onUserBlocked?.(Number(profileUserId));
+              item?.onUserBlocked?.(Number(profileUserId));
+              Alert.alert('Blocked', `${displayName} has been blocked.`);
+            } catch (error) {
+              const data = error?.response?.data;
+              const msg =
+                (data && typeof data === 'object' && (data.message || data.error)) ||
+                (typeof data === 'string' ? data : null) ||
+                error?.message ||
+                'Failed to block this user. Please try again.';
+              Alert.alert('Error', String(msg));
+            } finally {
+              setBlockSubmitting(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   return (
@@ -1138,6 +1187,14 @@ export default function FeedItem({ item, onPress, initialFocusCommentId = null }
                 <Ionicons name="flag" size={18} color="#ef4444" />
                 <Text style={{ color: '#ef4444', fontWeight: '900' }}>Report</Text>
               </Pressable>
+              <View style={{ height: 0.5, backgroundColor: isDark ? '#2e2e2e' : '#e8e5e0' }} />
+              <Pressable
+                onPress={handleBlockUser}
+                style={{ paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+              >
+                <Ionicons name="ban" size={18} color="#ef4444" />
+                <Text style={{ color: '#ef4444', fontWeight: '900' }}>Block user</Text>
+              </Pressable>
             </>
           )}
           <View style={{ height: 8, backgroundColor: 'transparent' }} />
@@ -1148,76 +1205,14 @@ export default function FeedItem({ item, onPress, initialFocusCommentId = null }
       </Modal>
 
       {/* Report modal */}
-      <Modal
-        transparent
-        animationType="slide"
+      <ReportReasonModal
         visible={showReportModal}
-        onRequestClose={() => setShowReportModal(false)}
-      >
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setShowReportModal(false)} />
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            maxHeight: '70%',
-            backgroundColor: modalBg,
-            borderTopLeftRadius: 18,
-            borderTopRightRadius: 18,
-            borderTopWidth: 0.5,
-            borderColor: modalBorder,
-            overflow: 'hidden',
-          }}
-        >
-          <View style={{ paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 0.5, borderColor: modalBorder }}>
-            <View style={{ alignItems: 'center', marginBottom: 10 }}>
-              <View style={{ width: 44, height: 4, borderRadius: 999, backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)' }} />
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <TouchableOpacity onPress={() => setShowReportModal(false)} style={{ padding: 6 }}>
-                <Text style={{ color: mutedColor, fontWeight: '900' }}>Cancel</Text>
-              </TouchableOpacity>
-              <Text style={{ color: textColor, fontWeight: '900', fontSize: 16 }}>Report post</Text>
-              <TouchableOpacity
-                onPress={handleSubmitReport}
-                disabled={reportSubmitting}
-                style={{ padding: 6, opacity: reportSubmitting ? 0.6 : 1 }}
-              >
-                <Text style={{ color: '#ef4444', fontWeight: '900' }}>
-                  {reportSubmitting ? 'Sending…' : 'Send'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={{ padding: 14, gap: 10 }}>
-            <Text style={{ color: mutedColor, fontWeight: '800', fontSize: 12 }}>
-              Tell us what’s wrong (optional)
-            </Text>
-            <View
-              style={{
-                borderWidth: 0.5,
-                borderColor: modalBorder,
-                backgroundColor: isDark ? '#1d1d1d' : '#f5f5f5',
-                borderRadius: 16,
-                paddingHorizontal: 12,
-                paddingVertical: 10,
-              }}
-            >
-              <TextInput
-                value={reportReason}
-                onChangeText={setReportReason}
-                placeholder="Spam, harassment, inappropriate content…"
-                placeholderTextColor={mutedColor}
-                style={{ color: textColor, fontWeight: '700', minHeight: 90 }}
-                multiline
-                maxLength={2000}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowReportModal(false)}
+        onSubmit={handleSubmitReport}
+        submitting={reportSubmitting}
+        title="Report post"
+        isDark={isDark}
+      />
 
       {/* Send post modal (Instagram-like) */}
       <Modal

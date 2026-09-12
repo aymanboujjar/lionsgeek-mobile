@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, Pressable, TextInput, Alert, Platform, Image } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, TextInput, Alert, Platform, Image, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabOverflow } from '@/components/ui/TabBarBackground';
 import * as DocumentPicker from 'expo-document-picker';
 import AudioRecorder from './AudioRecorder';
 import VoiceRecorder from './VoiceRecorder';
@@ -36,6 +37,10 @@ export default function MessageInput({
     stopRecording,
     cancelRecording,
     handleSendMessage,
+    editingMessage = null,
+    onCancelEdit,
+    replyToMessage = null,
+    onCancelReply,
     isExpanded,
     audioDuration,
     onTypingStart,
@@ -46,8 +51,28 @@ export default function MessageInput({
 }) {
     const colorScheme = useColorScheme();
     const insets = useSafeAreaInsets();
+    const tabBarHeight = useBottomTabOverflow();
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
+    const [voiceIsRecording, setVoiceIsRecording] = useState(false);
     const isDark = colorScheme === 'dark';
     const ph = isDark ? '#737373' : '#737373';
+    // Above tab bar when idle; drop that inset while typing so composer sits on the keyboard.
+    const composerBottomPad = keyboardVisible
+        ? 6
+        : tabBarHeight > 0
+            ? tabBarHeight + 6
+            : Math.max(insets.bottom, 6);
+
+    useEffect(() => {
+        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+        const showSub = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
+        const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
+        return () => {
+            showSub.remove();
+            hideSub.remove();
+        };
+    }, []);
 
     // Typing indicator management
     const typingTimeoutRef = useRef(null);
@@ -269,23 +294,61 @@ export default function MessageInput({
 
     return (
         <View
-            className="px-3 pt-2 border-t border-black/[0.07] dark:border-white/[0.08] bg-[#ebe8e2] dark:bg-[#101010]"
-            style={{ paddingBottom: Math.max(insets.bottom, 6) }}
+            className="px-3 pt-2 border-t border-beta/10 dark:border-light/10 bg-light dark:bg-dark"
+            style={{ paddingBottom: composerBottomPad }}
         >
-            {attachment && (
-                <View className="mb-2 rounded-2xl overflow-hidden border border-black/[0.08] dark:border-white/[0.12] bg-white dark:bg-zinc-900 shadow-sm shadow-black/10">
+            {editingMessage ? (
+                <View className="mb-2 flex-row items-center gap-2 px-3 py-2 rounded-2xl bg-alpha/20 border border-alpha/30">
+                    <Ionicons name="pencil" size={16} color="#ffc801" />
+                    <View className="flex-1 min-w-0">
+                        <Text className="text-[11px] font-bold uppercase tracking-wider text-beta/60 dark:text-light/60">
+                            Editing message
+                        </Text>
+                        <Text className="text-sm text-beta dark:text-light" numberOfLines={1}>
+                            {editingMessage.body}
+                        </Text>
+                    </View>
+                    <Pressable
+                        onPress={onCancelEdit}
+                        hitSlop={8}
+                        className="w-8 h-8 rounded-full bg-beta/10 dark:bg-light/10 items-center justify-center"
+                    >
+                        <Ionicons name="close" size={16} color={ph} />
+                    </Pressable>
+                </View>
+            ) : replyToMessage ? (
+                <View className="mb-2 flex-row items-center gap-2 px-3 py-2 rounded-2xl bg-beta/5 dark:bg-light/5 border border-beta/10 dark:border-light/10">
+                    <View className="w-1 self-stretch rounded-full bg-alpha" />
+                    <View className="flex-1 min-w-0">
+                        <Text className="text-[11px] font-bold uppercase tracking-wider text-alpha">
+                            Replying
+                        </Text>
+                        <Text className="text-sm text-beta dark:text-light" numberOfLines={1}>
+                            {replyToMessage.body
+                                || (replyToMessage.attachment_type === 'audio'
+                                    ? 'Voice message'
+                                    : replyToMessage.attachment_name || 'Message')}
+                        </Text>
+                    </View>
+                    <Pressable
+                        onPress={onCancelReply}
+                        hitSlop={8}
+                        className="w-8 h-8 rounded-full bg-beta/10 dark:bg-light/10 items-center justify-center"
+                    >
+                        <Ionicons name="close" size={16} color={ph} />
+                    </Pressable>
+                </View>
+            ) : null}
+
+            {attachment && !editingMessage && (
+                <View className="mb-2">
                     {isImageAttachment(attachment) ? (
-                        <View className="relative">
+                        <View className="relative rounded-[22px] overflow-hidden self-stretch">
                             <Image
                                 source={{ uri: attachment.uri }}
-                                style={{ width: '100%', height: 200 }}
+                                style={{ width: '100%', height: 220 }}
                                 resizeMode="cover"
                             />
-                            <View className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-black/45">
-                                <Text className="text-xs font-semibold text-white" numberOfLines={1}>
-                                    {attachment.name || 'Photo'}
-                                </Text>
-                            </View>
                             <Pressable
                                 onPress={() => setAttachment(null)}
                                 hitSlop={10}
@@ -295,16 +358,11 @@ export default function MessageInput({
                             </Pressable>
                         </View>
                     ) : isVideoAttachment(attachment) ? (
-                        <View className="relative w-full h-48 bg-zinc-900">
+                        <View className="relative w-full h-44 rounded-[22px] overflow-hidden bg-black">
                             <View className="absolute inset-0 items-center justify-center">
-                                <View className="w-16 h-16 rounded-full bg-white/15 items-center justify-center border border-white/25">
-                                    <Ionicons name="play" size={34} color="#fff" style={{ marginLeft: 4 }} />
+                                <View className="w-14 h-14 rounded-full bg-white/20 items-center justify-center border border-white/30">
+                                    <Ionicons name="play" size={28} color="#fff" style={{ marginLeft: 3 }} />
                                 </View>
-                            </View>
-                            <View className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-black/55">
-                                <Text className="text-xs font-semibold text-white" numberOfLines={1}>
-                                    {attachment.name || 'Video'}
-                                </Text>
                             </View>
                             <Pressable
                                 onPress={() => setAttachment(null)}
@@ -315,21 +373,21 @@ export default function MessageInput({
                             </Pressable>
                         </View>
                     ) : (
-                        <View className="flex-row items-center gap-3 px-3 py-3">
-                            <View className="w-14 h-14 rounded-xl bg-alpha/20 items-center justify-center border border-alpha/35">
-                                <Ionicons name="document-text" size={28} color="#ffc801" />
+                        <View className="flex-row items-center gap-3 px-3 py-3 rounded-2xl border border-beta/10 dark:border-light/10">
+                            <View className="w-12 h-12 rounded-xl bg-alpha/20 items-center justify-center border border-alpha/30">
+                                <Ionicons name="document-text" size={24} color="#ffc801" />
                             </View>
                             <View className="flex-1 min-w-0">
-                                <Text className="text-sm font-semibold text-black dark:text-white" numberOfLines={2}>
+                                <Text className="text-sm font-semibold text-beta dark:text-light" numberOfLines={2}>
                                     {attachment.name || 'File'}
                                 </Text>
                                 {attachment.size ? (
-                                    <Text className="text-[11px] text-black/45 dark:text-white/45 mt-0.5">
+                                    <Text className="text-[11px] text-beta/50 dark:text-light/50 mt-0.5">
                                         {(attachment.size / 1024).toFixed(1)} KB
                                     </Text>
                                 ) : null}
                             </View>
-                            <Pressable onPress={() => setAttachment(null)} hitSlop={8} className="p-2 rounded-full bg-black/[0.06] dark:bg-white/[0.08]">
+                            <Pressable onPress={() => setAttachment(null)} hitSlop={8} className="p-2 rounded-full bg-beta/10 dark:bg-light/10">
                                 <Ionicons name="close" size={20} color={ph} />
                             </Pressable>
                         </View>
@@ -337,47 +395,43 @@ export default function MessageInput({
                 </View>
             )}
 
-            {audioURL && audioBlob && (
-                <View className="mb-2 rounded-2xl overflow-hidden border border-alpha/35 bg-alpha/8 dark:bg-alpha/10">
-                    <View className="flex-row items-center gap-3 px-3 py-3">
-                        <View className="w-12 h-12 rounded-2xl bg-alpha items-center justify-center shadow-sm shadow-black/20">
-                            <Ionicons name="mic" size={22} color="#000" />
-                        </View>
-                        <View className="flex-1 min-w-0">
-                            <Text className="text-sm font-bold text-black dark:text-white">Voice message</Text>
-                            <Text className="text-[11px] text-black/50 dark:text-dark_gray0 mt-0.5">Ready to send</Text>
-                            {audioDuration ? (
-                                <Text className="text-xs text-alpha font-semibold tabular-nums mt-1">
-                                    {formatAudioDuration(audioDuration)}
-                                </Text>
-                            ) : null}
-                        </View>
-                        <View className="flex-row items-end gap-[2px] h-9 px-1">
-                            {Array.from({ length: 16 }, (_, i) => (
+            {audioURL && audioBlob && !editingMessage && (
+                <View className="mb-2 rounded-[22px] overflow-hidden bg-alpha px-3 py-2.5">
+                    <View className="flex-row items-center gap-2.5">
+                        <Ionicons name="mic" size={22} color="#000" />
+                        <View className="flex-1 flex-row items-center gap-[2.5px] h-8">
+                            {Array.from({ length: 28 }, (_, i) => (
                                 <View
                                     key={i}
-                                    className="w-[3px] rounded-full bg-alpha/80"
-                                    style={{ height: 8 + (i % 5) * 4, opacity: 0.35 + ((i * 7) % 5) * 0.12 }}
+                                    style={{
+                                        width: 2.5,
+                                        height: 8 + (i % 6) * 3.5,
+                                        borderRadius: 999,
+                                        backgroundColor: 'rgba(0,0,0,0.75)',
+                                    }}
                                 />
                             ))}
                         </View>
+                        <Text className="text-[12px] font-semibold text-black/65 tabular-nums w-9 text-right">
+                            {audioDuration ? formatAudioDuration(audioDuration) : '0:00'}
+                        </Text>
                         <Pressable
                             onPress={() => {
                                 setAudioBlob(null);
                                 setAudioURL(null);
                             }}
                             hitSlop={8}
-                            className="w-9 h-9 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center"
+                            className="w-8 h-8 rounded-full bg-black/10 items-center justify-center"
                         >
-                            <Ionicons name="trash-outline" size={18} color={ph} />
+                            <Ionicons name="close" size={16} color="#000" />
                         </Pressable>
                     </View>
                 </View>
             )}
 
-            {/* Recording Indicator - Instagram Style */}
-            {isRecording && (
-                <View className="mb-2">
+            {/* Recording Indicator - Instagram Style (parent-driven) */}
+            {isRecording && !editingMessage ? (
+                <View className="mb-1">
                     <AudioRecorder
                         onSend={() => {
                             stopRecording();
@@ -395,42 +449,59 @@ export default function MessageInput({
                         recordingTime={recordingTime}
                     />
                 </View>
-            )}
-
-            <View className="flex-row gap-2 items-end bg-white dark:bg-zinc-900 rounded-[24px] border border-black/[0.08] dark:border-white/[0.1] px-1.5 py-1.5 shadow-sm shadow-black/10">
-                <Pressable
-                    onPress={showAttachmentMenu}
-                    className="w-10 h-10 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] items-center justify-center active:opacity-70"
+            ) : (
+                <View
+                    className={
+                        voiceIsRecording && !editingMessage
+                            ? 'w-full'
+                            : 'flex-row gap-2 items-end bg-light dark:bg-dark rounded-[24px] border border-beta/10 dark:border-light/10 px-1.5 py-1.5'
+                    }
                 >
-                    <Ionicons name="add" size={22} color="#ffc801" />
-                </Pressable>
+                    {!voiceIsRecording || editingMessage ? (
+                        <>
+                            {!editingMessage ? (
+                                <Pressable
+                                    onPress={showAttachmentMenu}
+                                    className="w-10 h-10 rounded-2xl bg-beta/5 dark:bg-light/5 items-center justify-center active:opacity-70"
+                                >
+                                    <Ionicons name="add" size={22} color="#ffc801" />
+                                </Pressable>
+                            ) : (
+                                <View className="w-10 h-10 rounded-2xl bg-alpha/20 items-center justify-center">
+                                    <Ionicons name="pencil" size={18} color="#ffc801" />
+                                </View>
+                            )}
 
-                <View className="flex-1">
-                    <TextInput
-                        value={newMessage}
-                        onChangeText={handleInputChange}
-                        placeholder="Write a line…"
-                        placeholderTextColor={ph}
-                        className="min-h-10 text-[15px] px-2 py-2 text-black dark:text-white"
-                        editable={!sending && !isRecording}
-                        multiline
-                        style={{ maxHeight: 100 }}
-                    />
-                </View>
+                            <View className="flex-1">
+                                <TextInput
+                                    value={newMessage}
+                                    onChangeText={handleInputChange}
+                                    placeholder={editingMessage ? 'Edit message…' : 'Write a message…'}
+                                    placeholderTextColor={ph}
+                                    className="min-h-10 text-[15px] px-2 py-2 text-beta dark:text-light"
+                                    editable={!sending}
+                                    multiline
+                                    style={{ maxHeight: 100 }}
+                                />
+                            </View>
+                        </>
+                    ) : null}
 
-                {!isRecording ? (
-                    <>
-                        <VoiceRecorder
-                            onRecordingComplete={(uri, duration, mimeType) => {
+                    {!editingMessage ? (
+                        <View className={voiceIsRecording ? 'w-full' : undefined}>
+                          <VoiceRecorder
+                            onRecordingComplete={(uri) => {
                                 setAudioBlob({ uri });
                                 setAudioURL(uri);
                             }}
                             onCancel={() => {
                                 setAudioBlob(null);
                                 setAudioURL(null);
+                                setVoiceIsRecording(false);
                             }}
+                            onRecordingChange={setVoiceIsRecording}
                             disabled={sending}
-                            onSendAudioDirect={async (uri, duration, mimeType) => {
+                            onSendAudioDirect={async (uri, duration) => {
                                 await handleSendMessage(null, {
                                     audioBlob: { uri },
                                     audioURL: uri,
@@ -438,24 +509,41 @@ export default function MessageInput({
                                     body: '',
                                 });
                             }}
-                        />
+                          />
+                        </View>
+                    ) : null}
+
+                    {(!voiceIsRecording || editingMessage) ? (
                         <Pressable
                             onPress={handleSendMessage}
-                            disabled={sending || (!newMessage.trim() && !attachment && !audioBlob)}
-                            className={`w-11 h-11 rounded-2xl items-center justify-center border ${sending || (!newMessage.trim() && !attachment && !audioBlob)
-                                ? 'bg-neutral-200 dark:bg-zinc-800 opacity-55 border-transparent'
-                                : 'bg-alpha active:opacity-90 border-black/10'
-                                }`}
+                            disabled={
+                                sending
+                                || (editingMessage
+                                    ? !newMessage.trim()
+                                    : (!newMessage.trim() && !attachment && !audioBlob))
+                            }
+                            className={`w-11 h-11 rounded-2xl items-center justify-center border ${
+                                sending
+                                || (editingMessage
+                                    ? !newMessage.trim()
+                                    : (!newMessage.trim() && !attachment && !audioBlob))
+                                    ? 'bg-neutral-200 dark:bg-zinc-800 opacity-55 border-transparent'
+                                    : 'bg-alpha active:opacity-90 border-black/10'
+                            }`}
                         >
                             {sending ? (
                                 <Skeleton width={16} height={16} borderRadius={8} isDark={isDark} />
                             ) : (
-                                <Ionicons name="arrow-up" size={22} color="#000" />
+                                <Ionicons
+                                    name={editingMessage ? 'checkmark' : 'arrow-up'}
+                                    size={22}
+                                    color="#000"
+                                />
                             )}
                         </Pressable>
-                    </>
-                ) : null}
-            </View>
+                    ) : null}
+                </View>
+            )}
         </View>
     );
 }

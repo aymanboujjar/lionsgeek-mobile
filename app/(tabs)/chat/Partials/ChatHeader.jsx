@@ -68,7 +68,12 @@ export default function ChatHeader({ conversation, onBack }) {
                 )}
                 <View className="flex-1 flex-row items-center min-w-0 gap-3">
                     <Pressable
-                        onPress={() => router.push(`/students/${conversation.other_user.id}`)}
+                        onPress={() =>
+                            router.push({
+                                pathname: '/(tabs)/profile',
+                                params: { userId: String(conversation.other_user.id) },
+                            })
+                        }
                         className="relative"
                     >
                         {conversation.other_user?.image ? (
@@ -90,13 +95,18 @@ export default function ChatHeader({ conversation, onBack }) {
                         />
                     </Pressable>
                     <Pressable
-                        onPress={() => router.push(`/students/${conversation.other_user.id}`)}
+                        onPress={() =>
+                            router.push({
+                                pathname: '/(tabs)/profile',
+                                params: { userId: String(conversation.other_user.id) },
+                            })
+                        }
                         className="flex-1 min-w-0"
                     >
                         <Text className="text-base font-extrabold text-black dark:text-white tracking-tight" numberOfLines={1}>
                             {conversation.other_user?.name || 'User'}
                         </Text>
-                        <Text className="text-[11px] mt-0.5 uppercase tracking-[0.14em] text-black/50 dark:text-dark_gray0" numberOfLines={1}>
+                        <Text className="text-[11px] mt-0.5 uppercase tracking-[0.14em] text-black/50 dark:text-white" numberOfLines={1}>
                             {statusLine || 'Offline'}
                         </Text>
                     </Pressable>

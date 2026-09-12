@@ -2,6 +2,7 @@ import React from 'react';
 import { View, ScrollView, Pressable, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useBottomTabOverflow } from '@/components/ui/TabBarBackground';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import Skeleton from '@/components/ui/Skeleton';
 
@@ -10,10 +11,13 @@ import Skeleton from '@/components/ui/Skeleton';
  */
 export default function ChatThreadSkeleton({ onBack }) {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabOverflow();
   const { width: screenW } = useWindowDimensions();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const fg = isDark ? '#fff' : '#000';
+  const composerBottomPad =
+    tabBarHeight > 0 ? tabBarHeight + 6 : Math.max(insets.bottom, 12);
 
   const bubbleMax = Math.min(320, Math.max(200, screenW * 0.72));
   const rows = [
@@ -78,7 +82,7 @@ export default function ChatThreadSkeleton({ onBack }) {
 
       <View
         className="border-t border-black/[0.06] dark:border-white/[0.08] bg-light dark:bg-dark px-3 pt-2"
-        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
+        style={{ paddingBottom: composerBottomPad }}
       >
         <Skeleton width="100%" height={48} borderRadius={24} isDark={isDark} />
       </View>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Alert, AppState, Linking, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Alert, AppState, Linking, KeyboardAvoidingView, Platform, Share, Text } from 'react-native';
 import { format, isToday, isYesterday } from 'date-fns';
+import * as Clipboard from 'expo-clipboard';
 import { useAppContext } from '@/context';
 import API from '@/api';
 import ChatHeader from './ChatHeader';
@@ -10,6 +11,8 @@ import PreviewPanel from './PreviewPanel';
 import ChatToolbox from './ChatToolbox';
 import TypingIndicator from './TypingIndicator';
 import RecordingIndicator from './RecordingIndicator';
+import MessageActionsOverlay from './MessageActionsOverlay';
+import { isPlainTextMessage } from './MessageItem';
 import { isGatedChatAttachmentUrl, resolveAttachmentUrl } from '@/utils/resolveAttachmentUrl';
 
 // Main ChatBox component - refactored b components so9or
@@ -20,6 +23,8 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
     const [newMessage, setNewMessage] = useState('');
     const [sending, setSending] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [loadingOlder, setLoadingOlder] = useState(false);
+    const [hasMoreOlder, setHasMoreOlder] = useState(true);
     const [attachment, setAttachment] = useState(null);
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
@@ -31,7 +36,10 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
     const [previewIndex, setPreviewIndex] = useState(0);
     const [audioProgress, setAudioProgress] = useState({});
     const [audioDuration, setAudioDuration] = useState({});
-    const [showMenuForMessage, setShowMenuForMessage] = useState(null);
+    const [sessionMessageIds, setSessionMessageIds] = useState(() => new Set());
+    const [editingMessage, setEditingMessage] = useState(null);
+    const [replyToMessage, setReplyToMessage] = useState(null);
+    const [contextMessage, setContextMessage] = useState(null);
     const [showToolbox, setShowToolbox] = useState(false);
     const [typingUsers, setTypingUsers] = useState([]);
     const [recordingUsers, setRecordingUsers] = useState([]);
@@ -41,22 +49,32 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
     const typingTimeoutRef = useRef(null);
     const shouldAutoScrollRef = useRef(true);
     const nearBottomRef = useRef(true);
+    const sendingRef = useRef(false);
 
-    // Poll for new messages
+    // Reset session + fetch when conversation changes (single effect).
     useEffect(() => {
-        fetchMessages();
-        //  fetchMessages();
-        // return () => clearInterval(interval);
-    }, [conversation.id]);
-
-    // Fetch messages - b3d ma y3tiw 3la conversation
-    useEffect(() => {
+        setSessionMessageIds(new Set());
+        setEditingMessage(null);
+        setReplyToMessage(null);
+        setContextMessage(null);
+        setNewMessage('');
         setMessages(prev => {
             return prev.filter(m => m.pending && pendingTempIdsRef.current.has(m.tempId));
         });
         shouldAutoScrollRef.current = true;
+        setHasMoreOlder(true);
         fetchMessages();
     }, [conversation.id]);
+
+    const trackSessionMessage = useCallback((id, replaceId = null) => {
+        if (id == null && replaceId == null) return;
+        setSessionMessageIds((prev) => {
+            const next = new Set(prev);
+            if (replaceId != null) next.delete(replaceId);
+            if (id != null) next.add(id);
+            return next;
+        });
+    }, []);
 
     useEffect(() => {
         if (shouldAutoScrollRef.current) {
@@ -88,7 +106,7 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
     const fetchMessages = async () => {
         try {
             setLoading(true);
-            const response = await API.getWithAuth(`mobile/chat/conversation/${conversation.id}/messages`, token);
+            const response = await API.getWithAuth(`mobile/chat/conversation/${conversation.id}/messages?limit=150`, token);
 
             if (response && response.data) {
                 const fetchedMessages = response.data.messages || [];
@@ -99,6 +117,7 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
                     const stillPending = pendingMessages.filter(m => !existingIds.has(m.tempId));
                     return [...fetchedMessages, ...stillPending];
                 });
+                setHasMoreOlder(fetchedMessages.length >= 150);
                 shouldAutoScrollRef.current = nearBottomRef.current;
 
                 // Mark messages as read when conversation is opened
@@ -114,9 +133,40 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         }
     };
 
+    const loadOlderMessages = async () => {
+        if (loadingOlder || !hasMoreOlder || !messages.length) return;
+        const oldestId = messages.find((m) => m.id != null && !m.pending)?.id;
+        if (!oldestId) return;
+
+        try {
+            setLoadingOlder(true);
+            const response = await API.getWithAuth(
+                `mobile/chat/conversation/${conversation.id}/messages?limit=50&before_id=${oldestId}`,
+                token
+            );
+            const older = response?.data?.messages || [];
+            if (older.length === 0) {
+                setHasMoreOlder(false);
+                return;
+            }
+            setMessages((prev) => {
+                const existing = new Set(prev.map((m) => m.id));
+                const uniqueOlder = older.filter((m) => m.id != null && !existing.has(m.id));
+                return [...uniqueOlder, ...prev];
+            });
+            setHasMoreOlder(older.length >= 50);
+        } catch (error) {
+            console.error('Failed to load older messages:', error);
+        } finally {
+            setLoadingOlder(false);
+        }
+    };
+
     const scrollToBottom = () => {
         if (messagesEndRef.current) {
-            messagesEndRef.current.scrollToEnd({ animated: true });
+            if (typeof messagesEndRef.current.scrollToEnd === 'function') {
+                messagesEndRef.current.scrollToEnd({ animated: true });
+            }
         }
     };
 
@@ -146,13 +196,15 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         const nextAttachment = overrides?.attachment ?? attachment;
         const nextMessageBody = overrides?.body !== undefined ? overrides.body : newMessage.trim();
 
-        if ((!nextMessageBody && !nextAttachment && !nextAudioBlob) || sending) return;
+        if ((!nextMessageBody && !nextAttachment && !nextAudioBlob) || sending || sendingRef.current) return;
 
+        sendingRef.current = true;
         const messageBody = typeof nextMessageBody === 'string' ? nextMessageBody.trim() : '';
         const tempId = Date.now();
         pendingTempIdsRef.current.add(tempId);
         
         // Create optimistic message
+        const replyTarget = overrides?.replyTo ?? replyToMessage;
         const optimisticMessage = {
             id: tempId,
             tempId: tempId,
@@ -164,6 +216,20 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
                 name: currentUser.name,
                 image: currentUser.image,
             },
+            reply_to: replyTarget?.id ?? null,
+            reply_preview: replyTarget
+                ? {
+                    id: replyTarget.id,
+                    body: replyTarget.body || (replyTarget.attachment_type ? 'Attachment' : 'Message'),
+                    sender_id: replyTarget.sender_id,
+                    sender_name:
+                        replyTarget.sender?.name
+                        || (String(replyTarget.sender_id) === String(currentUser.id)
+                            ? currentUser.name
+                            : conversation?.other_user?.name),
+                    attachment_type: replyTarget.attachment_type,
+                }
+                : null,
             attachment_path: null,
             attachment_type: null,
             attachment_name: null,
@@ -171,6 +237,8 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
             is_read: false,
             read_at: null,
             created_at: new Date().toISOString(),
+            reactions: [],
+            my_reaction: null,
         };
 
         if (nextAttachment) {
@@ -198,6 +266,7 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         }
 
         setMessages(prev => [...prev, optimisticMessage]);
+        trackSessionMessage(tempId);
         shouldAutoScrollRef.current = true;
 
         const formMessageBody = messageBody;
@@ -211,13 +280,16 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         setAudioBlob(null);
         setAudioURL(null);
         setRecordingTime(0);
+        setReplyToMessage(null);
 
         setSending(true);
         
         try {
             const formData = new FormData();
             formData.append('body', formMessageBody || '');
-            
+            if (replyTarget?.id) {
+                formData.append('reply_to', String(replyTarget.id));
+            }            
             if (formAttachment) {
                 // React Native FormData format for file uploads
                 // Laravel expects the file to have uri, type, and name properties
@@ -325,6 +397,7 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
                 });
 
                 pendingTempIdsRef.current.delete(tempId);
+                trackSessionMessage(newMessageData.id, tempId);
                 scrollToBottom();
             } else {
                 throw new Error('Failed to send message');
@@ -332,10 +405,140 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         } catch (error) {
             setMessages(prev => prev.filter(msg => msg.tempId !== tempId));
             pendingTempIdsRef.current.delete(tempId);
+            trackSessionMessage(null, tempId);
             Alert.alert('Error', error.message || 'Failed to send message. Please try again.');
+        } finally {
+            sendingRef.current = false;
+            setSending(false);
+        }
+    };
+
+    const handleStartEditMessage = (message) => {
+        if (!message || message.pending) return;
+        if (!sessionMessageIds.has(message.id) || !isPlainTextMessage(message)) {
+            Alert.alert('Unavailable', 'You can only edit text messages you sent in this open conversation.');
+            return;
+        }
+        setReplyToMessage(null);
+        setEditingMessage(message);
+        setNewMessage(message.body || '');
+        setAttachment(null);
+        setAudioBlob(null);
+        setAudioURL(null);
+    };
+
+    const handleCancelEditMessage = () => {
+        setEditingMessage(null);
+        setNewMessage('');
+    };
+
+    const handleStartReply = (message) => {
+        if (!message || message.pending) return;
+        setEditingMessage(null);
+        setReplyToMessage(message);
+    };
+
+    const handleCancelReply = () => {
+        setReplyToMessage(null);
+    };
+
+    const handleCopyMessage = async (message) => {
+        const text = typeof message?.body === 'string' ? message.body.trim() : '';
+        if (!text || text.startsWith('{')) {
+            Alert.alert('Copy', 'Nothing to copy from this message.');
+            return;
+        }
+        try {
+            await Clipboard.setStringAsync(text);
+        } catch {
+            Alert.alert('Error', 'Failed to copy message.');
+        }
+    };
+
+    const handleForwardMessage = async (message) => {
+        const text = typeof message?.body === 'string' ? message.body.trim() : '';
+        const payload = text && !text.startsWith('{')
+            ? text
+            : message?.attachment_name
+                ? `Shared attachment: ${message.attachment_name}`
+                : 'Shared a chat message';
+        try {
+            await Share.share({ message: payload });
+        } catch {
+            // user dismissed share sheet
+        }
+    };
+
+    const handleReactToMessage = async (message, reaction) => {
+        if (!message?.id || message.pending) return;
+        if (reaction === '➕') {
+            Alert.alert('React', 'Pick a reaction', [
+                { text: '🔥', onPress: () => handleReactToMessage(message, '🔥') },
+                { text: '👏', onPress: () => handleReactToMessage(message, '👏') },
+                { text: '🙌', onPress: () => handleReactToMessage(message, '🙌') },
+                { text: 'Cancel', style: 'cancel' },
+            ]);
+            return;
+        }
+        try {
+            const response = await API.postWithAuth(
+                `mobile/chat/message/${message.id}/react`,
+                { reaction },
+                token
+            );
+            const updated = response?.data?.message;
+            if (updated) {
+                setMessages((prev) =>
+                    prev.map((msg) => (msg.id === message.id ? { ...msg, ...updated } : msg))
+                );
+                setContextMessage((prev) =>
+                    prev?.id === message.id ? { ...prev, ...updated } : prev
+                );
+            }
+        } catch (error) {
+            Alert.alert('Error', error?.response?.data?.message || 'Failed to react');
+        }
+    };
+
+    const handleUpdateMessage = async () => {
+        if (!editingMessage || sending) return;
+        const body = newMessage.trim();
+        if (!body) {
+            Alert.alert('Error', 'Message cannot be empty.');
+            return;
+        }
+
+        setSending(true);
+        try {
+            const response = await API.put(
+                `mobile/chat/message/${editingMessage.id}`,
+                token,
+                { body }
+            );
+            const updated = response?.data?.message;
+            if (!updated) {
+                throw new Error('Failed to update message');
+            }
+
+            setMessages((prev) =>
+                prev.map((msg) => (msg.id === editingMessage.id ? { ...msg, ...updated } : msg))
+            );
+            setEditingMessage(null);
+            setNewMessage('');
+        } catch (error) {
+            const apiMessage = error?.response?.data?.message;
+            Alert.alert('Error', apiMessage || error.message || 'Failed to update message');
         } finally {
             setSending(false);
         }
+    };
+
+    const handleComposerSubmit = async (e, overrides = null) => {
+        if (editingMessage) {
+            await handleUpdateMessage();
+            return;
+        }
+        await handleSendMessage(e, overrides);
     };
 
     // Format message time
@@ -369,7 +572,26 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         setIsPlayingAudio(isPlayingAudio === messageId ? null : messageId);
     };
 
-    const handleDeleteMessage = async (messageId) => {
+    const handleDeleteMessage = async (messageOrId) => {
+        const messageId = typeof messageOrId === 'object' ? (messageOrId.id ?? messageOrId.tempId) : messageOrId;
+        const target = messages.find((msg) => msg.id === messageId || msg.tempId === messageId);
+        if (!target) return;
+
+        if (String(target.sender_id) !== String(currentUser.id)) {
+            return;
+        }
+
+        // Pending optimistic messages: remove locally only.
+        if (target.pending) {
+            setMessages((prev) => prev.filter((msg) => msg.tempId !== target.tempId && msg.id !== messageId));
+            pendingTempIdsRef.current.delete(target.tempId);
+            trackSessionMessage(null, target.tempId);
+            if (editingMessage?.id === messageId || editingMessage?.tempId === target.tempId) {
+                handleCancelEditMessage();
+            }
+            return;
+        }
+
         Alert.alert(
             'Delete Message',
             'Are you sure you want to delete this message?',
@@ -380,8 +602,12 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await API.remove(`mobile/chat/message/${messageId}`, token);
-                            setMessages(prev => prev.filter(msg => msg.id !== messageId));
+                            await API.remove(`mobile/chat/message/${target.id}`, token);
+                            setMessages((prev) => prev.filter((msg) => msg.id !== target.id));
+                            trackSessionMessage(null, target.id);
+                            if (editingMessage?.id === target.id) {
+                                handleCancelEditMessage();
+                            }
                         } catch (error) {
                             Alert.alert('Error', error.message || 'Failed to delete message');
                         }
@@ -482,6 +708,9 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
         const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
         const nearBottom = distanceFromBottom < 120;
         nearBottomRef.current = nearBottom;
+        if (contentOffset.y < 80) {
+            loadOlderMessages();
+        }
     };
 
     return (
@@ -504,16 +733,17 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
                     <MessageList
                         messages={messages}
                         loading={loading}
+                        loadingOlder={loadingOlder}
+                        onLoadOlder={loadOlderMessages}
                         suppressInitialLoadingSkeleton={suppressMessageListLoadingSkeleton}
                         currentUser={currentUser}
                         conversation={conversation}
                         isPlayingAudio={isPlayingAudio}
                         audioProgress={audioProgress}
                         audioDuration={audioDuration}
-                        showMenuForMessage={showMenuForMessage}
+                        onLongPressMessage={setContextMessage}
+                        onReactToMessage={handleReactToMessage}
                         onPlayAudio={handlePlayAudio}
-                        onDeleteMessage={handleDeleteMessage}
-                        onMenuToggle={setShowMenuForMessage}
                         onPreviewAttachment={handlePreviewAttachment}
                         onDownloadAttachment={handleDownloadAttachment}
                         formatMessageTime={formatMessageTime}
@@ -545,7 +775,11 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
                     startRecording={startRecording}
                     stopRecording={stopRecording}
                     cancelRecording={cancelRecording}
-                    handleSendMessage={handleSendMessage}
+                    handleSendMessage={handleComposerSubmit}
+                    editingMessage={editingMessage}
+                    onCancelEdit={handleCancelEditMessage}
+                    replyToMessage={replyToMessage}
+                    onCancelReply={handleCancelReply}
                     isExpanded={isExpanded}
                     audioDuration={audioDuration['preview']}
                     onTypingStart={startTyping}
@@ -555,6 +789,57 @@ export default function ChatBox({ conversation, onBack, isExpanded, onExpand, su
                     onResume={resumeRecording}
                 />
             </KeyboardAvoidingView>
+
+            <MessageActionsOverlay
+                visible={Boolean(contextMessage)}
+                message={contextMessage}
+                isCurrentUser={
+                    contextMessage
+                        ? String(contextMessage.sender_id) === String(currentUser.id)
+                        : false
+                }
+                canEdit={
+                    Boolean(
+                        contextMessage
+                        && String(contextMessage.sender_id) === String(currentUser.id)
+                        && sessionMessageIds.has(contextMessage.id)
+                        && isPlainTextMessage(contextMessage)
+                    )
+                }
+                onClose={() => setContextMessage(null)}
+                onReply={handleStartReply}
+                onForward={handleForwardMessage}
+                onCopy={handleCopyMessage}
+                onEdit={handleStartEditMessage}
+                onDelete={handleDeleteMessage}
+                onReact={(emoji) => {
+                    if (contextMessage) {
+                        handleReactToMessage(contextMessage, emoji).finally(() => {
+                            if (emoji !== '➕') setContextMessage(null);
+                        });
+                    }
+                }}
+                previewContent={
+                    <View className="px-3.5 py-3">
+                        <Text
+                            className={`text-[15px] leading-[21px] ${
+                                contextMessage
+                                && String(contextMessage.sender_id) === String(currentUser.id)
+                                    ? 'text-black'
+                                    : 'text-white'
+                            }`}
+                            numberOfLines={8}
+                        >
+                            {contextMessage?.body
+                                || (contextMessage?.attachment_type === 'audio'
+                                    ? 'Voice message'
+                                    : contextMessage?.attachment_type === 'image'
+                                        ? 'Photo'
+                                        : contextMessage?.attachment_name || 'Message')}
+                        </Text>
+                    </View>
+                }
+            />
 
             {/* Preview Panel - Full Width */}
             {previewAttachment && (

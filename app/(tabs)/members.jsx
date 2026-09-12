@@ -178,7 +178,7 @@ export default function MembersScreen() {
                       ) : null}
                       <View className="flex-row items-center mt-1">
                         {member.promo && (
-                          <Text className="text-xs text-black/50 dark:text-dark_gray0 mr-2">
+                          <Text className="text-xs text-black/50 dark:text-white mr-2">
                             {member.promo}
                           </Text>
                         )}

@@ -1,6 +1,7 @@
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import API from '@/api';
 
 /**
@@ -129,9 +130,73 @@ export async function sendPushTokenToBackend(token, authToken) {
 }
 
 /**
- * Setup notification listeners
+ * Setup notification listeners (tap + cold start).
+ * Navigation uses expo-router — no React Navigation ref required.
+ *
+ * Cold-start taps are stashed (not navigated immediately) so auth bootstrap
+ * in loading.jsx can route after login instead of replacing to Home.
  */
-export function setupNotificationListeners(navigation) {
+let pendingColdStartNotification = null;
+const HANDLED_NOTIFICATION_IDS_KEY = 'handled_push_notification_ids';
+
+async function wasNotificationAlreadyHandled(notificationId) {
+  if (!notificationId) return false;
+  try {
+    const raw = await AsyncStorage.getItem(HANDLED_NOTIFICATION_IDS_KEY);
+    const ids = raw ? JSON.parse(raw) : [];
+    return Array.isArray(ids) && ids.includes(notificationId);
+  } catch {
+    return false;
+  }
+}
+
+async function markNotificationHandled(notificationId) {
+  if (!notificationId) return;
+  try {
+    const raw = await AsyncStorage.getItem(HANDLED_NOTIFICATION_IDS_KEY);
+    const ids = raw ? JSON.parse(raw) : [];
+    const next = Array.isArray(ids) ? ids.filter((id) => id !== notificationId) : [];
+    next.push(notificationId);
+    // Keep a small rolling window to avoid unbounded growth.
+    await AsyncStorage.setItem(HANDLED_NOTIFICATION_IDS_KEY, JSON.stringify(next.slice(-40)));
+  } catch {
+    // ignore storage failures
+  }
+}
+
+/**
+ * Consume a cold-start notification payload (once). Returns data or null.
+ * Also re-reads getLastNotificationResponseAsync so auth bootstrap is not
+ * racing the listener setup stash.
+ */
+export async function consumePendingNotificationNavigation() {
+  let pending = pendingColdStartNotification;
+  pendingColdStartNotification = null;
+
+  if (!pending?.data) {
+    const Notifications = loadNotifications();
+    if (Notifications?.getLastNotificationResponseAsync) {
+      try {
+        const response = await Notifications.getLastNotificationResponseAsync();
+        const notificationId = response?.notification?.request?.identifier;
+        const data = response?.notification?.request?.content?.data;
+        if (data && notificationId && !(await wasNotificationAlreadyHandled(notificationId))) {
+          pending = { id: notificationId, data };
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  if (!pending?.data) return null;
+  if (pending.id) {
+    await markNotificationHandled(pending.id);
+  }
+  return pending.data;
+}
+
+export function setupNotificationListeners() {
   const Notifications = loadNotifications();
   if (!Notifications) {
     return {
@@ -143,13 +208,25 @@ export function setupNotificationListeners(navigation) {
   ensureNotificationHandler(Notifications);
   const notificationListener = Notifications.addNotificationReceivedListener(() => {});
 
-  const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-    const data = response.notification.request.content.data;
-
-    if (data && navigation) {
-      handleNotificationNavigation(data, navigation);
-    }
+  const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
+    const notificationId = response?.notification?.request?.identifier;
+    const data = response?.notification?.request?.content?.data;
+    if (!data) return;
+    markNotificationHandled(notificationId).finally(() => {
+      handleNotificationNavigation(data);
+    });
   });
+
+  // App opened from a killed state via notification tap — stash for loading.jsx.
+  Notifications.getLastNotificationResponseAsync?.()
+    .then(async (response) => {
+      const notificationId = response?.notification?.request?.identifier;
+      const data = response?.notification?.request?.content?.data;
+      if (!data || !notificationId) return;
+      if (await wasNotificationAlreadyHandled(notificationId)) return;
+      pendingColdStartNotification = { id: notificationId, data };
+    })
+    .catch(() => {});
 
   return {
     notificationListener,
@@ -160,63 +237,100 @@ export function setupNotificationListeners(navigation) {
 /**
  * Handle navigation based on notification data
  */
-function handleNotificationNavigation(data) {
+export function handleNotificationNavigation(data) {
   if (!data) return;
 
   try {
     import('expo-router').then(({ router }) => {
-      const { type, link, post_id, project_id, sender_id, follower_id, conversation_id } = data;
+      const {
+        type,
+        link,
+        mobile_link,
+        post_id,
+        project_id,
+        sender_id,
+        follower_id,
+        conversation_id,
+        other_user_id,
+        user_id,
+        event_id,
+      } = data;
+
+      const targetLink = mobile_link || link;
+
+      if (typeof targetLink === 'string' && targetLink.length > 0) {
+        if (targetLink.startsWith('/events/')) {
+          const id = targetLink.split('/')[2];
+          if (id) {
+            router.push(`/(tabs)/events/${id}`);
+            return;
+          }
+        }
+        if (targetLink.startsWith('/posts/')) {
+          router.push(`/(tabs)${targetLink}`);
+          return;
+        }
+        if (targetLink.startsWith('/profile/')) {
+          const id = targetLink.split('/')[2];
+          if (id) {
+            router.push({ pathname: '/(tabs)/profile', params: { userId: String(id) } });
+            return;
+          }
+        }
+        if (targetLink.includes('reservations') || targetLink.startsWith('/admin/reservations')) {
+          router.push('/(tabs)/reservations');
+          return;
+        }
+        if (targetLink.includes('appointments') || targetLink.startsWith('/admin/appointments')) {
+          router.push('/(tabs)/reservations');
+          return;
+        }
+      }
 
       switch (type) {
         case 'post_interaction':
           if (post_id) {
+            router.push(`/(tabs)/posts/${post_id}`);
+          } else {
             router.push('/(tabs)/home');
           }
           break;
 
-        case 'follow':
-          if (follower_id) {
-            router.push(`/(tabs)/profile`);
+        case 'follow': {
+          const profileId = follower_id || user_id || sender_id;
+          if (profileId) {
+            router.push({ pathname: '/(tabs)/profile', params: { userId: String(profileId) } });
+          } else {
+            router.push('/(tabs)/profile');
           }
           break;
+        }
 
         case 'project_status':
         case 'project_submission':
-          if (project_id) {
-            router.push('/(tabs)/reservations');
-          }
-          break;
-
         case 'task_assignment':
-          router.push('/(tabs)/reservations');
-          break;
-
         case 'project_message':
-          if (project_id) {
-            router.push('/(tabs)/reservations');
-          }
+          router.push('/(tabs)/projects-hub');
           break;
 
-        case 'chat_message':
-          if (conversation_id) {
+        case 'chat_message': {
+          const peerId = other_user_id || sender_id;
+          if (peerId) {
+            router.push(`/(tabs)/chat/${peerId}`);
+          } else {
             router.push('/(tabs)/chat');
           }
           break;
+        }
 
         case 'reservation':
-          router.push('/(tabs)/reservations');
-          break;
-
         case 'appointment':
-          router.push('/(tabs)/reservations');
-          break;
-
         case 'access_request_response':
           router.push('/(tabs)/reservations');
           break;
 
         case 'exercise_review':
-          router.push('/(tabs)/reservations');
+          router.push('/(tabs)/training');
           break;
 
         case 'discipline_change':
@@ -231,11 +345,16 @@ function handleNotificationNavigation(data) {
           router.push('/(tabs)/training/check-in');
           break;
 
-        default:
-          if (link) {
-            console.log('Notification link:', link);
+        case 'event':
+          if (event_id) {
+            router.push(`/(tabs)/events/${event_id}`);
+          } else {
+            router.push('/(tabs)/events');
           }
-          router.push('/(tabs)/home');
+          break;
+
+        default:
+          router.push('/(tabs)/notifications');
           break;
       }
     });

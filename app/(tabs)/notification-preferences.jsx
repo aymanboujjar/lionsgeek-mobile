@@ -66,7 +66,7 @@ export default function NotificationPreferencesScreen() {
               </View>
               <View className="flex-1 min-w-0">
                 <Text className="text-[15px] font-semibold text-black dark:text-white">View notification inbox</Text>
-                <Text className="mt-0.5 text-xs text-black/50 dark:text-dark_gray0" numberOfLines={2}>
+                <Text className="mt-0.5 text-xs text-black/50 dark:text-white" numberOfLines={2}>
                   Full list, mark read, and open related screens
                 </Text>
               </View>
@@ -87,7 +87,7 @@ export default function NotificationPreferencesScreen() {
                 <Text className="text-[15px] font-semibold text-black dark:text-white">
                   {Platform.OS === 'ios' ? 'iOS notification settings' : 'System notification settings'}
                 </Text>
-                <Text className="mt-0.5 text-xs text-black/50 dark:text-dark_gray0" numberOfLines={2}>
+                <Text className="mt-0.5 text-xs text-black/50 dark:text-white" numberOfLines={2}>
                   Sounds, banners, and lock screen for LionsGeek
                 </Text>
               </View>
