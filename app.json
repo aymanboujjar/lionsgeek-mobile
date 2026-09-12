@@ -40,8 +40,7 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.WAKE_LOCK"
       ],
-      "package": "com.lionsgeek_pro.lionsgeek",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.lionsgeek_pro.lionsgeek"
     },
     "web": {
       "bundler": "metro",
