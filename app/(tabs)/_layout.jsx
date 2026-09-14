@@ -50,7 +50,6 @@ export default function TabLayout() {
         setStoredToken(nextStoredToken);
 
         if (!nextStoredToken && !token) {
-          // No token in storage and no token in context - redirect to login
           router.replace('/auth/login');
         }
       } catch (error) {
@@ -64,7 +63,6 @@ export default function TabLayout() {
   }, [token]);
 
   useEffect(() => {
-    // Only redirect if we've finished checking and there's no token
     if (!isCheckingAuth && !token && !storedToken) {
       router.replace('/auth/login');
     }

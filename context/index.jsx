@@ -43,7 +43,6 @@ const AppProvider = ({ children }) => {
 
     useEffect(() => {
         (async () => {
-            // Restore auth session
             const t = await getAuthToken();
             const u = await AsyncStorage.getItem('auth_user');
             if (t) {

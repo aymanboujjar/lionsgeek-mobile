@@ -207,14 +207,6 @@ export default function More() {
     [setTheme],
   );
 
-  const handleBiometricComingSoon = () => {
-    Alert.alert(
-      "Biometric login",
-      "Biometric unlock will be available in a future update.",
-      [{ text: "OK", style: "default" }],
-    );
-  };
-
   const handleLogout = () => {
     Alert.alert(
       "Log out",
@@ -530,40 +522,6 @@ export default function More() {
             pill={<ProPill />}
           />
           {/* HIDDEN FOR NOW — coming soon rows (restore later):
-          <RowDivider />
-          <SettingRow
-            icon="volume-high-outline"
-            label="Sound & haptics"
-            sublabel="Feedback taps, chimes & focus mode"
-            onPress={comingSoon("Sound & haptics")}
-            right={chevron}
-            pill={<SoonPill />}
-          />
-          <RowDivider />
-          <SettingRow
-            icon="accessibility-outline"
-            label="Accessibility"
-            sublabel="Text size, contrast & motion"
-            onPress={comingSoon("Accessibility preferences")}
-            right={chevron}
-            pill={<SoonPill />}
-          />
-          <RowDivider />
-          <SettingRow
-            icon="finger-print-outline"
-            label="Biometric login"
-            sublabel="Face ID / fingerprint"
-            right={
-              <Switch
-                value={false}
-                onValueChange={handleBiometricComingSoon}
-                trackColor={{ false: "rgba(120,120,120,0.35)", true: ACCENT }}
-                thumbColor={Platform.OS === "android" ? "#fafafa" : undefined}
-                ios_backgroundColor="rgba(120,120,120,0.35)"
-              />
-            }
-          />
-          <RowDivider />
           <SettingRow
             icon="globe-outline"
             label="Language & region"
