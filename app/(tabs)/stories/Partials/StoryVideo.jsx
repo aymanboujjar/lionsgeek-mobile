@@ -9,16 +9,19 @@ export default function StoryVideo({
   uri,
   style,
   muted = false,
+  volume = 1,
   shouldPlay = true,
   isLooping = false,
   onReady,
   onEnd,
+  onError,
   playerRef: externalPlayerRef,
 }) {
   const internalRef = useRef(null);
   const player = useVideoPlayer(uri || null, (p) => {
     p.loop = isLooping;
     p.muted = muted;
+    if (typeof volume === 'number') p.volume = volume;
     if (shouldPlay && uri) p.play();
   });
 
@@ -34,7 +37,8 @@ export default function StoryVideo({
 
   useEffect(() => {
     player.muted = muted;
-  }, [muted, player]);
+    if (typeof volume === 'number') player.volume = volume;
+  }, [muted, volume, player]);
 
   useEffect(() => {
     player.loop = isLooping;
@@ -55,7 +59,9 @@ export default function StoryVideo({
         onReady?.();
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [uri]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -66,16 +72,25 @@ export default function StoryVideo({
 
   useEffect(() => {
     const endSub = player.addListener('playToEnd', () => {
-      onEnd?.();
+      if (!isLooping) onEnd?.();
     });
     const statusSub = player.addListener('statusChange', ({ status, error }) => {
-      if (status === 'error' || error) onReady?.();
+      if (status === 'error' || error) {
+        onReady?.();
+        onError?.();
+      }
     });
     return () => {
       endSub.remove();
       statusSub.remove();
     };
-  }, [player, onEnd, onReady]);
+  }, [player, onEnd, onReady, onError, isLooping]);
+
+  useEffect(() => {
+    return () => {
+      try { player.pause(); } catch (_) {}
+    };
+  }, [player]);
 
   if (!uri) return null;
 

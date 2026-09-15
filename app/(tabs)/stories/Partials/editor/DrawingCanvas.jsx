@@ -9,7 +9,7 @@ const COLORS = [
   '#ffffff', '#000000',
   '#ffc801', '#ef4444', '#22c55e',
   '#3b82f6', '#8b5cf6', '#ec4899',
-  '#f97316', '#06b6d4',
+  '#f97316', '#06b6d4', '#fde047', '#fb7185',
 ];
 const SIZES = [3, 6, 10, 16, 24];
 
@@ -42,6 +42,7 @@ export default function DrawingCanvas({
   const [strokes, setStrokes] = useState([]); // committed new strokes
   const [color, setColor] = useState('#ffffff');
   const [size, setSize] = useState(6);
+  const [brush, setBrush] = useState('pen'); // pen | highlighter | neon | eraser
   const [livePoints, setLivePoints] = useState([]); // current stroke (denorm px) for preview
 
   // Hold the raw points (normalized) for the in-progress stroke in a ref to
@@ -55,18 +56,26 @@ export default function DrawingCanvas({
     liveRef.current = [];
     setLivePoints([]);
     if (pts.length < 2) return;
+    if (brush === 'eraser') {
+      setStrokes((prev) => prev.slice(0, -1));
+      liveRef.current = [];
+      setLivePoints([]);
+      return;
+    }
     setStrokes((prev) => [
       ...prev,
       {
         id: `dw_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
         type: 'drawing',
         color,
-        stroke_width: size,
+        stroke_width: brush === 'highlighter' ? size * 2.2 : size,
+        brush,
+        opacity: brush === 'highlighter' ? 0.35 : 1,
         points: pts,
         x: 0.5, y: 0.5, scale: 1, rotation: 0,
       },
     ]);
-  }, [color, size]);
+  }, [color, size, brush]);
 
   const pushLivePoint = useCallback((x, y) => {
     const { width, height } = dimsRef.current || { width: 0, height: 0 };
@@ -148,6 +157,7 @@ export default function DrawingCanvas({
                 strokeWidth={Math.max(1, s.stroke_width)}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                strokeOpacity={s.opacity ?? 1}
                 fill="none"
               />
             ))}
@@ -199,6 +209,23 @@ export default function DrawingCanvas({
           alignItems: 'center', gap: 12,
         }}
       >
+        {/* Brush row */}
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+          {[
+            { id: 'pen', icon: 'pencil' },
+            { id: 'highlighter', icon: 'color-wand-outline' },
+            { id: 'neon', icon: 'sparkles-outline' },
+            { id: 'eraser', icon: 'backspace-outline' },
+          ].map((b) => (
+            <Pressable key={b.id} onPress={() => setBrush(b.id)} style={{
+              paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
+              backgroundColor: brush === b.id ? '#ffc801' : 'rgba(0,0,0,0.45)',
+            }}>
+              <Ionicons name={b.icon} size={16} color={brush === b.id ? '#000' : '#fff'} />
+            </Pressable>
+          ))}
+        </View>
+
         {/* Size dots */}
         <View style={{
           flexDirection: 'row', alignItems: 'center', gap: 14,
@@ -234,7 +261,7 @@ export default function DrawingCanvas({
           contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
           style={{ maxHeight: 44, alignSelf: 'stretch' }}
         >
-          {COLORS.map((c) => {
+            {COLORS.map((c) => {
             const isSelected = c.toLowerCase() === color.toLowerCase();
             return (
               <Pressable

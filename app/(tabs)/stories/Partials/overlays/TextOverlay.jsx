@@ -1,4 +1,4 @@
-import { View, Text } from 'react-native';
+import { View, Text, Platform } from 'react-native';
 
 /**
  * Single text overlay renderer.
@@ -23,9 +23,18 @@ export default function TextOverlay({ overlay, containerSize, selected = false, 
   const scale = overlay.scale ?? 1;
   const rotation = overlay.rotation ?? 0;
   const fontSize = 28 * scale;
+  const align = overlay.align || 'center';
+  const fontFamily = overlay.font === 'serif'
+    ? (Platform.OS === 'ios' ? 'Georgia' : 'serif')
+    : overlay.font === 'mono'
+      ? (Platform.OS === 'ios' ? 'Menlo' : 'monospace')
+      : undefined;
+  const fontWeight = overlay.font === 'bold' ? '900' : '800';
   const baseColor = overlay.color || '#ffffff';
   const hasBg = !!overlay.has_bg;
   const bgColor = overlay.bg_color || baseColor;
+  const measuredW = overlay.measured_width || overlay._measuredWidth || 0;
+  const measuredH = overlay.measured_height || overlay._measuredHeight || 0;
 
   return (
     <View
@@ -36,8 +45,8 @@ export default function TextOverlay({ overlay, containerSize, selected = false, 
           left: cx,
           top: cy,
           transform: [
-            { translateX: -0.5 * (overlay._measuredWidth || 0) },
-            { translateY: -0.5 * (overlay._measuredHeight || 0) },
+            { translateX: -0.5 * measuredW },
+            { translateY: -0.5 * measuredH },
             { rotate: `${rotation}deg` },
           ],
           maxWidth: containerSize.width - 20,
@@ -65,12 +74,14 @@ export default function TextOverlay({ overlay, containerSize, selected = false, 
           style={{
             color: hasBg ? pickContrastingText(bgColor) : baseColor,
             fontSize,
-            fontWeight: '800',
+            fontFamily,
+            fontWeight,
             textShadowColor: hasBg ? 'transparent' : 'rgba(0,0,0,0.55)',
             textShadowOffset: { width: 0, height: 1 },
             textShadowRadius: 3,
-            textAlign: 'center',
+            textAlign: align,
             lineHeight: fontSize * 1.15,
+            opacity: overlay.anim === 'pulse' ? 0.92 : 1,
           }}
         >
           {overlay.text}

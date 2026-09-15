@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, ScrollView, Pressable } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -47,6 +47,12 @@ export default function StoriesTray({ refreshKey = 0 }) {
 
   useEffect(() => { load(); }, [load, refreshKey]);
 
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
   const myGroup = groups.find((g) => Number(g.user?.id) === Number(user?.id));
   const others = groups.filter((g) => Number(g.user?.id) !== Number(user?.id));
 
@@ -76,13 +82,18 @@ export default function StoriesTray({ refreshKey = 0 }) {
         }}>
           Stories
         </Text>
-        <Ionicons
-          name="add-circle-outline"
-          size={22}
-          color="#ffc801"
+        <Pressable
           onPress={openCreate}
-          suppressHighlighting
-        />
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Add a story"
+        >
+          <Ionicons
+            name="add-circle-outline"
+            size={22}
+            color="#ffc801"
+          />
+        </Pressable>
       </View>
 
       <ScrollView
@@ -96,7 +107,9 @@ export default function StoriesTray({ refreshKey = 0 }) {
           isOwn
           hasStories={!!myGroup}
           hasUnseen={myGroup ? !!myGroup.has_unseen : false}
+          isCloseFriends={!!myGroup?.has_close_friends}
           onPress={() => (myGroup ? openViewer(user?.id) : openCreate())}
+          onLongPress={openCreate}
         />
 
         {loading ? (
@@ -116,6 +129,7 @@ export default function StoriesTray({ refreshKey = 0 }) {
               user={g.user}
               hasStories
               hasUnseen={!!g.has_unseen}
+              isCloseFriends={!!g.has_close_friends}
               onPress={() => openViewer(g.user.id)}
             />
           ))

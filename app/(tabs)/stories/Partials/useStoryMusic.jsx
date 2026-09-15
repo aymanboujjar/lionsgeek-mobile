@@ -26,6 +26,7 @@ export default function useStoryMusic(musicOverlay, { isPaused = false } = {}) {
   const previewUrl = musicOverlay?.preview_url;
   const startMs    = musicOverlay?.start_ms ?? 0;
   const endMs      = musicOverlay?.end_ms   ?? 60000;
+  const musicVolume = musicOverlay?.music_volume;
 
   // Configure audio mode once.
   useEffect(() => {
@@ -65,7 +66,7 @@ export default function useStoryMusic(musicOverlay, { isPaused = false } = {}) {
       try {
         const player = createAudioPlayer({ uri: previewUrl });
         player.loop = false; // we loop the window manually
-        player.volume = 1.0;
+        player.volume = typeof musicOverlay.music_volume === 'number' ? musicOverlay.music_volume : 1.0;
         player.seekTo(startMs / 1000);
         player.play();
 
@@ -98,7 +99,7 @@ export default function useStoryMusic(musicOverlay, { isPaused = false } = {}) {
     // Re-create when the *track* changes; the same track stays loaded
     // across simple pause toggles. Including startMs/endMs so retrimming
     // via remote-update (rare) is honoured.
-  }, [overlayId, previewUrl, startMs, endMs]);
+  }, [overlayId, previewUrl, startMs, endMs, musicVolume]);
 
   // Pause / resume — instant, doesn't tear down audio.
   useEffect(() => {

@@ -31,13 +31,23 @@ import EmojiReactionRow from './Partials/EmojiReactionRow';
 import StoryReplyInput from './Partials/StoryReplyInput';
 import SaveToHighlightSheet from './Partials/SaveToHighlightSheet';
 import OverlayRenderer from './Partials/OverlayRenderer';
+import StoryMediaFrame from './Partials/StoryMediaFrame';
 import useStoryMusic from './Partials/useStoryMusic';
 import { useStoryCaptureReport } from '@/hooks/useStoryCaptureReport';
+import ReportReasonModal from '@/components/moderation/ReportReasonModal';
+import UserPickerSheet from './Partials/editor/UserPickerSheet';
 
 const { width: WINDOW_W, height: WINDOW_H } = Dimensions.get('window');
 const TOP_INSET = (Platform.OS === 'ios' ? 54 : RNStatusBar.currentHeight ?? 24) + 6;
 const TAP_ZONE_WIDTH = WINDOW_W * 0.30; // left/right tap zones
 const SWIPE_DOWN_THRESHOLD = 120;
+const SWIPE_UP_THRESHOLD = 80;
+
+function firstUnseenIndex(group) {
+  const stories = group?.stories || [];
+  const idx = stories.findIndex((s) => !s.has_viewed);
+  return idx >= 0 ? idx : 0;
+}
 
 /**
  * Premium-feel story viewer.
@@ -81,6 +91,9 @@ export default function StoryViewerScreen() {
   const [reactionOverride, setReactionOverride] = useState({}); // { [storyId]: emoji }
   const [reactionCountOverride, setReactionCountOverride] = useState({}); // { [storyId]: count }
   const [mentionRepostBusy, setMentionRepostBusy] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const videoRef = useRef(null);
   const progress = useSharedValue(0); // 0..1 for the current story
@@ -88,6 +101,8 @@ export default function StoryViewerScreen() {
   const lastTickRef = useRef(0);
   const animatingExitRef = useRef(false);
   const sentViewIds = useRef(new Set());
+  const advancingRef = useRef(false);
+  const [mediaFailed, setMediaFailed] = useState(false);
 
   // Animated translateY for swipe-down dismiss.
   const translateY = useSharedValue(0);
@@ -99,7 +114,7 @@ export default function StoryViewerScreen() {
 
   // Play the story's music sticker (if any). Looped to its trim window and
   // tied to the story's pause state. Hook handles null overlays gracefully.
-  useStoryMusic(musicOverlay, { isPaused: musicPaused });
+  useStoryMusic(musicOverlay, { isPaused: musicPaused || muted });
 
   const onCaptureReport = useCallback((storyId, kind, tok) => {
     API.reportStoryCaptureEvent(storyId, kind, tok).catch(() => {});
@@ -124,10 +139,14 @@ export default function StoryViewerScreen() {
         if (cancelled) return;
         const g = Array.isArray(data?.groups) ? data.groups : [];
         setGroups(g);
+        if (g.length === 0) return;
+        let idx = 0;
         if (startUserId != null) {
-          const idx = g.findIndex((x) => String(x.user?.id) === String(startUserId));
-          if (idx >= 0) setUserIdx(idx);
+          const found = g.findIndex((x) => String(x.user?.id) === String(startUserId));
+          if (found >= 0) idx = found;
         }
+        setUserIdx(idx);
+        setStoryIdx(firstUnseenIndex(g[idx]));
       } catch (e) {
         console.warn('[viewer] load failed', e?.message);
       } finally {
@@ -152,29 +171,28 @@ export default function StoryViewerScreen() {
   // Progress animation
   // ────────────────────────────────────────────────────────────────────
   const advance = useCallback(() => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
     setStoryIdx((idx) => {
       const total = groups[userIdx]?.stories?.length || 0;
       if (idx + 1 < total) {
         return idx + 1;
       }
-      // last story of this user – jump to next user
       const nextUser = userIdx + 1;
       if (nextUser < groups.length) {
         setUserIdx(nextUser);
-        return 0;
+        return firstUnseenIndex(groups[nextUser]);
       }
-      // last of last → close
       doClose();
       return idx;
     });
   }, [groups, userIdx]);
 
-  const restartProgress = useCallback(() => {
+  const startProgress = useCallback((durationMs) => {
     if (!currentStory) return;
     cancelAnimation(progress);
     progress.value = 0;
-    setVideoReady(false);
-    const duration = Math.max(1500, currentStory.duration_ms || 5000);
+    const duration = Math.max(1500, durationMs || 5000);
     progress.value = withTiming(1, {
       duration,
       easing: Easing.linear,
@@ -183,11 +201,38 @@ export default function StoryViewerScreen() {
     });
   }, [currentStory, advance]);
 
-  // Trigger / restart progress whenever the active story changes
   useEffect(() => {
-    restartProgress();
+    advancingRef.current = false;
+    setMediaFailed(false);
+    if (!currentStory) return undefined;
+
+    if (currentStory.media_type === 'video') {
+      setVideoReady(false);
+      cancelAnimation(progress);
+      progress.value = 0;
+      return () => cancelAnimation(progress);
+    }
+
+    startProgress(currentStory.duration_ms || 5000);
     return () => cancelAnimation(progress);
-  }, [restartProgress]);
+  }, [currentStory?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!currentStory || currentStory.media_type !== 'video' || !videoReady) return undefined;
+    startProgress(currentStory.duration_ms || 15000);
+    return () => cancelAnimation(progress);
+  }, [currentStory?.id, videoReady, startProgress]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!currentStory?.expires_at) return undefined;
+    const remaining = new Date(currentStory.expires_at).getTime() - Date.now();
+    if (remaining <= 0) {
+      advance();
+      return undefined;
+    }
+    const timer = setTimeout(() => advance(), remaining);
+    return () => clearTimeout(timer);
+  }, [currentStory?.id, currentStory?.expires_at, advance]);
 
   const pause = useCallback(() => {
     if (isPausedRef.current) return;
@@ -240,6 +285,14 @@ export default function StoryViewerScreen() {
 
   const goNext = useCallback(() => advance(), [advance]);
 
+  const onSwipeUp = useCallback(() => {
+    if (currentStory?.is_mine) {
+      setViewerSheetOpen(true);
+      return;
+    }
+    resume();
+  }, [currentStory, resume]);
+
   const doClose = useCallback(() => {
     if (animatingExitRef.current) return;
     animatingExitRef.current = true;
@@ -269,8 +322,7 @@ export default function StoryViewerScreen() {
     .onTouchesUp(() => { runOnJS(resume)(); });
 
   const panGesture = Gesture.Pan()
-    .activeOffsetY(15)
-    .failOffsetY(-15)
+    .activeOffsetY([-20, 20])
     .onStart(() => { runOnJS(pause)(); })
     .onUpdate((e) => {
       if (e.translationY > 0) translateY.value = e.translationY;
@@ -278,6 +330,9 @@ export default function StoryViewerScreen() {
     .onEnd((e) => {
       if (e.translationY > SWIPE_DOWN_THRESHOLD || e.velocityY > 800) {
         runOnJS(doClose)();
+      } else if (e.translationY < -SWIPE_UP_THRESHOLD) {
+        runOnJS(onSwipeUp)();
+        translateY.value = withTiming(0, { duration: 200 });
       } else {
         translateY.value = withTiming(0, { duration: 200 });
         runOnJS(resume)();
@@ -366,6 +421,114 @@ export default function StoryViewerScreen() {
     }
   }, [currentStory, token, mentionRepostBusy, pause, resume]);
 
+  const handleInteract = useCallback(async (overlayId, value) => {
+    if (!currentStory || !token || currentStory.is_mine) return;
+    pause();
+    try {
+      const data = await API.interactWithStory(currentStory.id, overlayId, value, token);
+      const next = data?.interaction;
+      if (!next) return;
+      setGroups((prev) => prev.map((g, gi) => {
+        if (gi !== userIdx) return g;
+        return {
+          ...g,
+          stories: g.stories.map((s, si) => {
+            if (si !== storyIdx) return s;
+            const existing = Array.isArray(s.interactions) ? s.interactions : [];
+            const idx = existing.findIndex((x) => x.overlay_id === overlayId);
+            const interactions = idx >= 0
+              ? existing.map((x, i) => (i === idx ? next : x))
+              : [...existing, next];
+            return { ...s, interactions };
+          }),
+        };
+      }));
+    } catch (e) {
+      if (e?.response?.status !== 409) {
+        Alert.alert('Could not send', e?.message || 'Try again.');
+      }
+    } finally {
+      resume();
+    }
+  }, [currentStory, token, pause, resume, userIdx, storyIdx]);
+
+  const confirmBlock = useCallback(() => {
+    const targetId = currentGroup?.user?.id;
+    if (!targetId || !token) {
+      resume();
+      return;
+    }
+    Alert.alert(
+      'Block this person?',
+      'You will no longer see each other\'s stories or be able to interact.',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: resume },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await API.blockUser(targetId, token);
+              const remaining = groups.filter((g, i) => i !== userIdx);
+              if (remaining.length === 0) {
+                doClose();
+                return;
+              }
+              setGroups(remaining);
+              setUserIdx((u) => Math.min(u, remaining.length - 1));
+              setStoryIdx(0);
+            } catch (e) {
+              Alert.alert('Could not block', e?.message || 'Try again.');
+              resume();
+            }
+          },
+        },
+      ],
+    );
+  }, [currentGroup, token, groups, userIdx, resume, doClose]);
+
+  const openSafetyMenu = useCallback(() => {
+    if (!currentStory || currentStory.is_mine) return;
+    pause();
+    Alert.alert(
+      currentGroup?.user?.name || 'Story',
+      'Report, block, or send this story in chat.',
+      [
+        { text: 'Report', onPress: () => setReportOpen(true) },
+        { text: 'Block', style: 'destructive', onPress: confirmBlock },
+        { text: 'Send in chat', onPress: () => setShareOpen(true) },
+        { text: 'Cancel', style: 'cancel', onPress: resume },
+      ],
+    );
+  }, [currentStory, currentGroup, pause, confirmBlock, resume]);
+
+  const handleReport = useCallback(async (reason) => {
+    if (!currentStory || !token) return;
+    setReportBusy(true);
+    try {
+      await API.reportStory(currentStory.id, reason, token);
+      setReportOpen(false);
+      Alert.alert('Report sent', 'Thanks. Our team will review this story.');
+      resume();
+    } catch (e) {
+      Alert.alert('Could not report', e?.message || 'Try again.');
+    } finally {
+      setReportBusy(false);
+    }
+  }, [currentStory, token, resume]);
+
+  const handleSharePick = useCallback(async (picked) => {
+    if (!picked?.id || !currentStory || !token) return;
+    try {
+      await API.shareStory(currentStory.id, picked.id, token);
+      setShareOpen(false);
+      Alert.alert('Sent', 'The story was shared in chat.');
+      resume();
+    } catch (e) {
+      Alert.alert('Could not share', e?.message || 'This story may not be visible to them.');
+    }
+  }, [currentStory, token, resume]);
+
   // ────────────────────────────────────────────────────────────────────
   // Delete (own stories only)
   // ────────────────────────────────────────────────────────────────────
@@ -434,8 +597,8 @@ export default function StoryViewerScreen() {
 
   const ownerAvatar = resolveAvatarUrl(currentGroup?.user?.avatar);
   const isMine = !!currentStory.is_mine;
-  // Auto-mute the underlying video when a music overlay is playing.
-  const videoIsMuted = muted || !!musicOverlay;
+  const origVol = typeof musicOverlay?.original_volume === 'number' ? musicOverlay.original_volume : (musicOverlay ? 0 : 1);
+  const videoIsMuted = muted || origVol <= 0.01;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
@@ -450,23 +613,27 @@ export default function StoryViewerScreen() {
           <View style={{ flex: 1 }}>
             {/* Media layer — sole target for tap / pan / long-press */}
             <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' }}>
-              {currentStory.media_type === 'video' ? (
-                <StoryVideo
-                  key={currentStory.id}
-                  uri={currentStory.media_url}
-                  style={{ width: WINDOW_W, height: WINDOW_H }}
-                  shouldPlay={!isPausedRef.current}
-                  muted={videoIsMuted}
-                  playerRef={videoRef}
-                  onReady={() => setVideoReady(true)}
-                  onEnd={advance}
-                />
+              {mediaFailed ? (
+                <View style={{ alignItems: 'center', paddingHorizontal: 32 }}>
+                  <Ionicons name="image-outline" size={48} color="rgba(255,255,255,0.45)" />
+                  <Text style={{ color: 'rgba(255,255,255,0.7)', marginTop: 12, textAlign: 'center' }}>
+                    This photo could not be loaded.
+                  </Text>
+                </View>
               ) : (
-                <Image
+                <StoryMediaFrame
                   key={currentStory.id}
-                  source={{ uri: currentStory.media_url }}
+                  story={currentStory}
                   style={{ width: WINDOW_W, height: WINDOW_H }}
-                  resizeMode="cover"
+                  videoProps={{
+                    shouldPlay: !isPausedRef.current,
+                    muted: videoIsMuted,
+                    playerRef: videoRef,
+                    onReady: () => setVideoReady(true),
+                    onEnd: advance,
+                    onError: () => setMediaFailed(true),
+                  }}
+                  onImageError={() => setMediaFailed(true)}
                 />
               )}
 
@@ -481,6 +648,9 @@ export default function StoryViewerScreen() {
               <OverlayRenderer
                 overlays={currentStory.overlays}
                 musicAnimated={!musicPaused}
+                interactions={currentStory.interactions}
+                isMine={isMine}
+                onInteract={handleInteract}
                 onMentionPress={(o) => {
                   if (!o?.user_id) return;
                   pause();
@@ -559,21 +729,40 @@ export default function StoryViewerScreen() {
                   flexDirection: 'row', alignItems: 'center', gap: 4,
                   paddingHorizontal: 7, paddingVertical: 3,
                   borderRadius: 999,
-                  backgroundColor: 'rgba(34,197,94,0.85)',
+                  backgroundColor: '#ffc801',
                 }}>
-                  <Ionicons name="star" size={10} color="#fff" />
-                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>
-                    Close
+                  <Ionicons name="star" size={10} color="#000" />
+                  <Text style={{ color: '#000', fontSize: 10, fontWeight: '800' }}>
+                    Close friends
                   </Text>
                 </View>
               ) : null}
 
               <View style={{ flex: 1 }} />
 
+              {!isMine ? (
+                <Pressable
+                  onPress={openSafetyMenu}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Story options"
+                  style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    backgroundColor: 'rgba(0,0,0,0.35)',
+                    alignItems: 'center', justifyContent: 'center',
+                    marginRight: 6,
+                  }}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={18} color="#fff" />
+                </Pressable>
+              ) : null}
+
               {currentStory.media_type === 'video' || !!musicOverlay ? (
                 <Pressable
                   onPress={() => setMuted((m) => !m)}
                   hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={muted ? 'Unmute' : 'Mute'}
                   style={{
                     width: 36, height: 36, borderRadius: 18,
                     backgroundColor: 'rgba(0,0,0,0.35)',
@@ -588,6 +777,8 @@ export default function StoryViewerScreen() {
               <Pressable
                 onPress={doClose}
                 hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Close stories"
                 style={{
                   width: 36, height: 36, borderRadius: 18,
                   backgroundColor: 'rgba(0,0,0,0.35)',
@@ -632,6 +823,8 @@ export default function StoryViewerScreen() {
               <Pressable
                 onPress={() => setViewerSheetOpen(true)}
                 hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={`${currentStory.views_count ?? 0} viewers`}
                 style={({ pressed }) => [{
                   flexDirection: 'row', alignItems: 'center', gap: 6,
                   backgroundColor: 'rgba(0,0,0,0.45)',
@@ -662,6 +855,8 @@ export default function StoryViewerScreen() {
                 <Pressable
                   onPress={handleDelete}
                   hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete story"
                   style={{
                     width: 40, height: 40, borderRadius: 20,
                     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -744,6 +939,22 @@ export default function StoryViewerScreen() {
         ownerId={user?.id}
         onClose={() => { setSaveSheetOpen(false); resume(); }}
         onSaved={() => { setSaveSheetOpen(false); resume(); }}
+      />
+
+      <ReportReasonModal
+        visible={reportOpen}
+        onClose={() => { setReportOpen(false); resume(); }}
+        onSubmit={handleReport}
+        submitting={reportBusy}
+        title="Report story"
+        isDark
+      />
+
+      <UserPickerSheet
+        visible={shareOpen}
+        title="Send in chat"
+        onClose={() => { setShareOpen(false); resume(); }}
+        onPick={handleSharePick}
       />
     </GestureHandlerRootView>
   );

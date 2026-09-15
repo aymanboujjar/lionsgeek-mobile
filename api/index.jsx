@@ -325,18 +325,32 @@ const listStories = async (token) => {
     return response?.data;
 };
 
-const createStory = async ({ uri, type, durationMs, width, height, mimeType, audience, overlays }, token) => {
+const createStory = async ({ uri, type, durationMs, width, height, mimeType, audience, overlays, textStory, bgColor, audio, stickers, layoutCells, boomerang }, token) => {
     const form = new FormData();
     const isVideo = type === 'video';
-    const fallbackName = isVideo ? `story_${Date.now()}.mp4` : `story_${Date.now()}.jpg`;
-    const fallbackMime = isVideo ? 'video/mp4' : 'image/jpeg';
-    form.append('media', {
-        uri,
-        name: fallbackName,
-        type: mimeType || fallbackMime,
-    });
-    form.append('media_type', isVideo ? 'video' : 'image');
-    if (durationMs) form.append('duration_ms', String(Math.round(durationMs)));
+    if (textStory) {
+        form.append('text_story', '1');
+        form.append('media_type', 'image');
+        if (bgColor) form.append('bg_color', bgColor);
+    } else {
+        const fallbackName = isVideo ? `story_${Date.now()}.mp4` : `story_${Date.now()}.jpg`;
+        const fallbackMime = isVideo ? 'video/mp4' : 'image/jpeg';
+        let uploadUri = uri;
+        if (typeof uploadUri === 'string' && uploadUri.startsWith('/') && !uploadUri.startsWith('file://')) {
+            uploadUri = `file://${uploadUri}`;
+        }
+        form.append('media', {
+            uri: uploadUri,
+            name: fallbackName,
+            type: mimeType || fallbackMime,
+        });
+        form.append('media_type', isVideo ? 'video' : 'image');
+    }
+    if (durationMs) {
+        let ms = Number(durationMs);
+        if (Number.isFinite(ms) && ms > 0 && ms < 1000) ms = Math.round(ms * 1000);
+        if (Number.isFinite(ms) && ms > 0) form.append('duration_ms', String(Math.round(ms)));
+    }
     if (width)      form.append('width', String(Math.round(width)));
     if (height)     form.append('height', String(Math.round(height)));
     if (audience === 'close_friends' || audience === 'public') {
@@ -345,7 +359,79 @@ const createStory = async ({ uri, type, durationMs, width, height, mimeType, aud
     if (Array.isArray(overlays) && overlays.length > 0) {
         form.append('overlays', JSON.stringify(overlays));
     }
+    if (audio?.uri) {
+        form.append('audio', {
+            uri: audio.uri,
+            name: audio.name || `story_audio_${Date.now()}.m4a`,
+            type: audio.mimeType || 'audio/mpeg',
+        });
+    }
+    if (stickers && typeof stickers === 'object') {
+        Object.entries(stickers).forEach(([id, file]) => {
+            if (!file?.uri) return;
+            form.append(`sticker_${id}`, {
+                uri: file.uri,
+                name: file.name || `sticker_${id}.jpg`,
+                type: file.mimeType || 'image/jpeg',
+            });
+        });
+    }
+    if (Array.isArray(layoutCells)) {
+        layoutCells.forEach((file, i) => {
+            if (!file?.uri) return;
+            form.append(`layout_cell_${i}`, {
+                uri: file.uri,
+                name: file.name || `layout_${i}.jpg`,
+                type: file.mimeType || 'image/jpeg',
+            });
+        });
+    }
+    if (Array.isArray(boomerang)) {
+        boomerang.forEach((file) => {
+            if (!file?.uri) return;
+            form.append('boomerang[]', {
+                uri: file.uri,
+                name: file.name || `boom.jpg`,
+                type: file.mimeType || 'image/jpeg',
+            });
+        });
+    }
     const response = await post('mobile/stories', form, token);
+    return response?.data;
+};
+
+const reportStory = async (storyId, reason, token) => {
+    const response = await post(`mobile/stories/${storyId}/report`, { reason }, token);
+    return response?.data;
+};
+
+const listStoryArchive = async (token) => {
+    const response = await get('mobile/stories/archive', token);
+    return response?.data;
+};
+
+const reshareStory = async (storyId, token) => {
+    const response = await post(`mobile/stories/${storyId}/reshare`, {}, token);
+    return response?.data;
+};
+
+const shareStory = async (storyId, userId, token) => {
+    const response = await post(`mobile/stories/${storyId}/share`, { user_id: userId }, token);
+    return response?.data;
+};
+
+const interactWithStory = async (storyId, overlayId, value, token) => {
+    const response = await post(`mobile/stories/${storyId}/interact`, { overlay_id: overlayId, value }, token);
+    return response?.data;
+};
+
+const getStoryInteractions = async (storyId, token) => {
+    const response = await get(`mobile/stories/${storyId}/interactions`, token);
+    return response?.data;
+};
+
+const blockUser = async (userId, token) => {
+    const response = await post(`mobile/users/${userId}/block`, {}, token);
     return response?.data;
 };
 
@@ -431,6 +517,14 @@ const deleteHighlight = async (highlightId, token) => {
     return response?.data;
 };
 
+const updateHighlight = async (highlightId, { title, coverStoryId }, token) => {
+    const payload = {};
+    if (title) payload.title = title;
+    if (coverStoryId) payload.cover_story_id = coverStoryId;
+    const response = await put(`mobile/highlights/${highlightId}`, token, payload);
+    return response?.data;
+};
+
 // ─── Close friends ────────────────────────────────────────────────────────
 const listCloseFriends = async (token) => {
     const response = await get(`mobile/close-friends`, token);
@@ -511,12 +605,20 @@ export default {
     replyToStory,
     repostStoryFromMention,
     reportStoryCaptureEvent,
+    reportStory,
+    listStoryArchive,
+    reshareStory,
+    shareStory,
+    interactWithStory,
+    getStoryInteractions,
+    blockUser,
     listHighlights,
     getHighlight,
     createHighlight,
     addStoryToHighlight,
     removeStoryFromHighlight,
     deleteHighlight,
+    updateHighlight,
     listCloseFriends,
     addCloseFriend,
     removeCloseFriend,

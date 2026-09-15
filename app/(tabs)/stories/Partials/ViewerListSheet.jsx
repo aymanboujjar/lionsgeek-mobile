@@ -43,6 +43,7 @@ export default function ViewerListSheet({ visible, storyId, onClose, onPause, on
   const [reactionsCount, setReactionsCount] = useState(0);
   const [captureScreenshots, setCaptureScreenshots] = useState(0);
   const [captureRecordings, setCaptureRecordings] = useState(0);
+  const [insights, setInsights] = useState([]);
 
   // Open/close animation
   useEffect(() => {
@@ -67,6 +68,12 @@ export default function ViewerListSheet({ visible, storyId, onClose, onPause, on
         setReactionsCount(Number(data?.reactions_count || 0));
         setCaptureScreenshots(Number(data?.capture_screenshots ?? 0));
         setCaptureRecordings(Number(data?.capture_recordings ?? 0));
+        try {
+          const ix = await API.getStoryInteractions(storyId, token);
+          if (!cancelled) setInsights(Array.isArray(ix?.interactions) ? ix.interactions : []);
+        } catch (_) {
+          if (!cancelled) setInsights([]);
+        }
       } catch (e) {
         if (cancelled) return;
         setViewers([]);
@@ -174,19 +181,41 @@ export default function ViewerListSheet({ visible, storyId, onClose, onPause, on
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 <ActivityIndicator color="#fff" />
               </View>
-            ) : viewers.length === 0 ? (
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 }}>
-                <Ionicons name="eye-off-outline" size={36} color="rgba(255,255,255,0.45)" />
-                <Text style={{ color: 'rgba(255,255,255,0.65)', marginTop: 12, textAlign: 'center' }}>
-                  No one has viewed this story yet.
-                </Text>
-              </View>
             ) : (
               <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 6, paddingBottom: Platform.OS === 'ios' ? 34 : 24 }}
               >
-                {viewers.map((v) => (
+                {insights.length > 0 ? (
+                  <View style={{ marginBottom: 12, paddingHorizontal: 6 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.55)', fontWeight: '800', fontSize: 11, marginBottom: 8 }}>
+                      STICKER ACTIVITY
+                    </Text>
+                    {insights.map((item) => (
+                      <View key={item.overlay_id} style={{ marginBottom: 10 }}>
+                        <Text style={{ color: '#fff', fontWeight: '600' }}>
+                          {item.type}: {item.responses_count ?? 0}
+                          {item.average != null ? ` · avg ${Math.round(item.average)}` : ''}
+                        </Text>
+                        {item.type === 'question' && Array.isArray(item.responses)
+                          ? item.responses.slice(0, 20).map((r, i) => (
+                              <Text key={`${item.overlay_id}-${i}`} style={{ color: 'rgba(255,255,255,0.7)', marginTop: 4, fontSize: 13 }}>
+                                {r.name || 'Someone'}: {r.text || ''}
+                              </Text>
+                            ))
+                          : null}
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+                {viewers.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 36, paddingHorizontal: 28 }}>
+                    <Ionicons name="eye-off-outline" size={36} color="rgba(255,255,255,0.45)" />
+                    <Text style={{ color: 'rgba(255,255,255,0.65)', marginTop: 12, textAlign: 'center' }}>
+                      No one has viewed this story yet.
+                    </Text>
+                  </View>
+                ) : viewers.map((v) => (
                   <ViewerRow key={v.id} viewer={v} />
                 ))}
               </ScrollView>

@@ -7,6 +7,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TextInput,
+  Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -26,6 +29,8 @@ export default function HighlightsRow({ userId, isOwnProfile, isDark, refreshKey
   const { token } = useAppContext();
   const [loading, setLoading] = useState(true);
   const [highlights, setHighlights] = useState([]);
+  const [renameTarget, setRenameTarget] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
 
   const load = useCallback(async () => {
     if (!userId || !token) return;
@@ -52,6 +57,13 @@ export default function HighlightsRow({ userId, isOwnProfile, isDark, refreshKey
       'What do you want to do with this highlight?',
       [
         { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Rename',
+          onPress: () => {
+            setRenameTarget(h);
+            setRenameValue(h.title || '');
+          },
+        },
         {
           text: 'Delete',
           style: 'destructive',
@@ -83,13 +95,13 @@ export default function HighlightsRow({ userId, isOwnProfile, isDark, refreshKey
         {showNewTile ? (
           <Pressable
             onPress={() => {
-              // Tell the user how to add — they can't create from scratch
-              // without an existing story.
               Alert.alert(
                 'Add to highlights',
                 'Open one of your active stories and tap the bookmark icon to save it as a new highlight.',
               );
             }}
+            accessibilityRole="button"
+            accessibilityLabel="How to add a highlight"
             style={({ pressed }) => [tileWrap, { opacity: pressed ? 0.7 : 1 }]}
           >
             <View style={[circle, {
@@ -97,7 +109,7 @@ export default function HighlightsRow({ userId, isOwnProfile, isDark, refreshKey
               backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
               alignItems: 'center', justifyContent: 'center',
             }]}>
-              <Ionicons name="add" size={28} color={isDark ? '#fff' : '#000'} />
+              <Ionicons name="add" size={28} color="#ffc801" />
             </View>
             <Text
               numberOfLines={1}
@@ -110,7 +122,7 @@ export default function HighlightsRow({ userId, isOwnProfile, isDark, refreshKey
 
         {loading && highlights.length === 0 ? (
           <View style={{ paddingVertical: 16, paddingHorizontal: 6 }}>
-            <ActivityIndicator color={isDark ? '#fff' : '#000'} />
+            <ActivityIndicator color="#ffc801" />
           </View>
         ) : null}
 
@@ -120,6 +132,8 @@ export default function HighlightsRow({ userId, isOwnProfile, isDark, refreshKey
             onPress={() => router.push(`/(tabs)/stories/highlight/${h.id}`)}
             onLongPress={() => handleLongPress(h)}
             delayLongPress={400}
+            accessibilityRole="button"
+            accessibilityLabel={h.title || 'Highlight'}
             style={({ pressed }) => [tileWrap, { opacity: pressed ? 0.7 : 1 }]}
           >
             <View style={[circle, {
@@ -147,6 +161,35 @@ export default function HighlightsRow({ userId, isOwnProfile, isDark, refreshKey
           </Pressable>
         ))}
       </ScrollView>
+      <Modal visible={!!renameTarget} transparent animationType="fade" onRequestClose={() => setRenameTarget(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' }} onPress={() => setRenameTarget(null)} />
+        <View style={{ position: 'absolute', left: 24, right: 24, top: '35%', backgroundColor: isDark ? '#1c1c1c' : '#fff', borderRadius: 16, padding: 16 }}>
+          <Text style={{ fontWeight: '800', fontSize: 16, color: isDark ? '#fff' : '#111', marginBottom: 10 }}>Rename highlight</Text>
+          <TextInput
+            value={renameValue}
+            onChangeText={setRenameValue}
+            placeholder="Title"
+            placeholderTextColor="rgba(127,127,127,0.8)"
+            style={{ borderWidth: 1, borderColor: isDark ? '#333' : '#ddd', borderRadius: 10, paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 12 : 8, color: isDark ? '#fff' : '#111', marginBottom: 12 }}
+          />
+          <Pressable
+            onPress={async () => {
+              const title = renameValue.trim();
+              if (!title || !renameTarget) return;
+              try {
+                await API.updateHighlight(renameTarget.id, { title }, token);
+                setHighlights((prev) => prev.map((x) => x.id === renameTarget.id ? { ...x, title } : x));
+                setRenameTarget(null);
+              } catch (e) {
+                Alert.alert('Error', e?.message || 'Could not rename.');
+              }
+            }}
+            style={{ backgroundColor: '#ffc801', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#000', fontWeight: '800' }}>Save</Text>
+          </Pressable>
+        </View>
+      </Modal>
     </View>
   );
 }

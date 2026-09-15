@@ -54,13 +54,15 @@ export default function MentionOverlay({ overlay, containerSize, selected = fals
     </View>
   );
 
+  const measuredW = overlay.measured_width || overlay._measuredWidth || 0;
+  const measuredH = overlay.measured_height || overlay._measuredHeight || 0;
   const wrapperStyle = {
     position: 'absolute',
     left: cx,
     top: cy,
     transform: [
-      { translateX: -((overlay._measuredWidth || 0) / 2) || 0 },
-      { translateY: -((overlay._measuredHeight || 0) / 2) || 0 },
+      { translateX: -(measuredW / 2) || 0 },
+      { translateY: -(measuredH / 2) || 0 },
       { rotate: `${rotation}deg` },
     ],
   };

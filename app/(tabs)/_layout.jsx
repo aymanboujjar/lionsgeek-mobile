@@ -229,6 +229,12 @@ export default function TabLayout() {
       index: filteredIndex >= 0 ? filteredIndex : lastVisibleTabIndexRef.current,
     };
 
+    // Custom tabBar ignores per-screen tabBarStyle, so hide it here for
+    // immersive routes (stories, chat, settings, …). Keep it on More.
+    if (onHiddenRoute && activeRouteName !== 'more') {
+      return null;
+    }
+
     return (
       <BottomTabBar
         {...props}

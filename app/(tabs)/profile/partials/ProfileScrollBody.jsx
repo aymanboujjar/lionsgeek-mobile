@@ -3,8 +3,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Rolegard from '@/components/Rolegard';
-// HIDDEN FOR NOW — restore story highlights later:
-// import HighlightsRow from '../../stories/Partials/HighlightsRow';
+import HighlightsRow from '../../stories/Partials/HighlightsRow';
 import OnlineBadge from './OnlineBadge';
 import StatColumn from './StatColumn';
 import AboutCard from './AboutCard';
@@ -383,7 +382,6 @@ export default function ProfileScrollBody(props) {
         </View>
       </Rolegard>
 
-      {/* HIDDEN FOR NOW — restore story highlights later:
       {profile?.id ? (
         <HighlightsRow
           userId={profile.id}
@@ -392,7 +390,6 @@ export default function ProfileScrollBody(props) {
           refreshKey={refreshing ? Date.now() : 0}
         />
       ) : null}
-      */}
 
       {/* ─── Profile Tabs ─── */}
       <ProfileTabBar activeTab={activeTab} onTabChange={setActiveTab} isDark={isDark} />

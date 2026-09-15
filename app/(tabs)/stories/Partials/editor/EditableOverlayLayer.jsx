@@ -58,19 +58,21 @@ export default function EditableOverlayLayer({
   onEditText,
   onEditMention,
 }) {
-  if (!containerSize || containerSize.width <= 0) return null;
-
   const [trashZoneLit, setTrashZoneLit] = useState(false);
   const backdropTap = Gesture.Tap().onEnd(() => runOnJS(onDeselect)());
 
+  if (!containerSize || containerSize.width <= 0) return null;
+
   return (
-    <View style={{ position: 'absolute', inset: 0 }}>
+    <View pointerEvents="box-none" style={{ position: 'absolute', inset: 0 }}>
       <GestureDetector gesture={backdropTap}>
         <View style={{ position: 'absolute', inset: 0 }} />
       </GestureDetector>
 
       {overlays.map((o) => {
         if (o.type === 'drawing') return null;
+        if (o.type === 'filter') return null;
+        if (['layout', 'boomerang', 'media_transform', 'blur', 'gradient'].includes(o.type)) return null;
         return (
           <DraggableOverlay
             key={o.id}
@@ -300,12 +302,14 @@ function DraggableOverlay({
             { rotate: `${baseRotation}deg` },
           ],
         }}>
-          {overlay.type === 'text' ? (
+          {overlay.type === 'text' || overlay.type === 'hashtag' || overlay.type === 'location' ? (
             <TextOverlayEditorView overlay={overlay} isSelected={isSelected} />
           ) : overlay.type === 'mention' ? (
             <MentionEditorView overlay={overlay} isSelected={isSelected} />
           ) : overlay.type === 'music' ? (
             <MusicEditorView overlay={overlay} isSelected={isSelected} />
+          ) : ['poll', 'question', 'quiz', 'slider', 'countdown', 'link'].includes(overlay.type) ? (
+            <InteractiveEditorView overlay={overlay} isSelected={isSelected} />
           ) : (
             <StickerOverlayEditorView overlay={overlay} isSelected={isSelected} />
           )}
@@ -317,9 +321,10 @@ function DraggableOverlay({
 
 function TextOverlayEditorView({ overlay, isSelected }) {
   const fontSize = 28;
+  const isChip = overlay.type === 'hashtag' || overlay.type === 'location';
   const baseColor = overlay.color || '#ffffff';
-  const hasBg = !!overlay.has_bg;
-  const bgColor = overlay.bg_color || baseColor;
+  const hasBg = !!overlay.has_bg || isChip;
+  const bgColor = overlay.bg_color || (isChip ? '#ffc801' : baseColor);
 
   return (
     <View style={{
@@ -345,14 +350,15 @@ function TextOverlayEditorView({ overlay, isSelected }) {
           lineHeight: fontSize * 1.15,
         }}
       >
-        {overlay.text}
+        {overlay.text || (overlay.type === 'hashtag' ? `#${overlay.tag || ''}` : overlay.label) || ''}
       </Text>
     </View>
   );
 }
 
 function StickerOverlayEditorView({ overlay, isSelected }) {
-  const size = 56;
+  const size = overlay.image_uri || overlay.image_url ? 72 : 56;
+  const imageUri = overlay.image_url || overlay.image_uri;
   return (
     <View
       style={{
@@ -361,22 +367,27 @@ function StickerOverlayEditorView({ overlay, isSelected }) {
         borderWidth: isSelected ? 2.5 : 0,
         borderColor: isSelected ? 'rgba(255,200,1,0.95)' : 'transparent',
         borderStyle: 'solid',
-        borderRadius: 8,
+        borderRadius: overlay.cutout ? size / 2 : 8,
+        overflow: 'hidden',
         transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
       }}
     >
-      <Text
-        style={{
-          fontSize: size * 0.85,
-          lineHeight: size,
-          textAlign: 'center',
-          textShadowColor: 'rgba(0,0,0,0.35)',
-          textShadowOffset: { width: 0, height: 1 },
-          textShadowRadius: 4,
-        }}
-      >
-        {overlay.emoji}
-      </Text>
+      {imageUri ? (
+        <Image source={{ uri: imageUri }} style={{ width: '100%', height: '100%' }} />
+      ) : (
+        <Text
+          style={{
+            fontSize: size * 0.85,
+            lineHeight: size,
+            textAlign: 'center',
+            textShadowColor: 'rgba(0,0,0,0.35)',
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 4,
+          }}
+        >
+          {overlay.emoji}
+        </Text>
+      )}
     </View>
   );
 }
@@ -397,7 +408,7 @@ function MusicEditorView({ overlay, isSelected }) {
           transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
         }}
       >
-        <Ionicons name="headset" size={20} color="#1DB954" />
+        <Ionicons name="headset" size={20} color="#ffc801" />
       </View>
     );
   }
@@ -493,6 +504,30 @@ function MentionEditorView({ overlay, isSelected }) {
         textShadowRadius: 3,
       }}>
         @{overlay.username}
+      </Text>
+    </View>
+  );
+}
+
+function InteractiveEditorView({ overlay, isSelected }) {
+  const label = overlay.question || overlay.prompt || overlay.title || overlay.label || overlay.type;
+  return (
+    <View style={{
+      minWidth: 140,
+      maxWidth: 220,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: 14,
+      backgroundColor: 'rgba(0,0,0,0.72)',
+      borderWidth: isSelected ? 2 : 1,
+      borderColor: isSelected ? '#ffc801' : 'rgba(255,200,1,0.45)',
+      transform: [{ translateX: '-50%' }, { translateY: '-50%' }],
+    }}>
+      <Text style={{ color: '#ffc801', fontWeight: '800', fontSize: 11, textTransform: 'uppercase' }}>
+        {overlay.type}
+      </Text>
+      <Text numberOfLines={2} style={{ color: '#fff', fontWeight: '700', marginTop: 4 }}>
+        {label}
       </Text>
     </View>
   );

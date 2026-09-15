@@ -10,12 +10,17 @@ import {
   Platform,
   StatusBar as RNStatusBar,
   StyleSheet,
+  Dimensions,
+  ScrollView,
+  useWindowDimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import StoryVideo from './Partials/StoryVideo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppContext } from '@/context';
@@ -26,27 +31,82 @@ import EmojiPickerSheet from './Partials/editor/EmojiPickerSheet';
 import DrawingCanvas from './Partials/editor/DrawingCanvas';
 import UserPickerSheet from './Partials/editor/UserPickerSheet';
 import MusicPickerSheet from './Partials/editor/MusicPickerSheet';
+import InteractiveStickerSheet from './Partials/editor/InteractiveStickerSheet';
+import CameraCapture from './Partials/editor/CameraCapture';
+import CollagePicker from './Partials/editor/CollagePicker';
+import MediaTransformLayer from './Partials/editor/MediaTransformLayer';
+import BoomerangPreview from './Partials/BoomerangPreview';
+import CollageOverlay from './Partials/overlays/CollageOverlay';
 import OverlayRenderer from './Partials/OverlayRenderer';
 import GradientOverlay from '@/components/ui/GradientOverlay';
 import { resolveAvatarUrl } from '@/components/helpers/helpers';
+import { Image as ExpoImage } from 'expo-image';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+const { width: WINDOW_W, height: WINDOW_H } = Dimensions.get('window');
+const TEXT_STORY_COLORS = ['#1c1c1c', '#111111', '#2b2110', '#ffc801', '#3a3a3a'];
+const TEXT_STORY_GRADIENTS = [
+  ['#1c1c1c', '#111111'],
+  ['#ffc801', '#b45309'],
+  ['#0f172a', '#1d4ed8'],
+  ['#4c1d95', '#db2777'],
+  ['#14532d', '#166534'],
+];
+const STORY_FILTERS = [
+  { id: 'none', label: 'Original', color: null, opacity: 0 },
+  { id: 'gold', label: 'Gold', color: '#ffc801', opacity: 0.22 },
+  { id: 'warm', label: 'Warm', color: '#ff8c3c', opacity: 0.24 },
+  { id: 'cool', label: 'Cool', color: '#4c8cff', opacity: 0.20 },
+  { id: 'soft', label: 'Soft', color: '#ffffff', opacity: 0.16 },
+  { id: 'night', label: 'Night', color: '#0a1028', opacity: 0.32 },
+  { id: 'rose', label: 'Rose', color: '#fb7185', opacity: 0.22 },
+  { id: 'forest', label: 'Forest', color: '#166534', opacity: 0.28 },
+  { id: 'vintage', label: 'Vintage', color: '#d6b48a', opacity: 0.26 },
+];
+
+function pickerMediaTypes() {
+  return ImagePicker.MediaTypeOptions?.All
+    ?? (ImagePicker.MediaType?.All && [ImagePicker.MediaType.Images, ImagePicker.MediaType.Videos])
+    ?? ['images', 'videos'];
+}
+
+function toDurationMs(raw, isVideo) {
+  const fallback = isVideo ? 15000 : 5000;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  if (n < 1000) return Math.round(n * 1000);
+  return Math.round(n);
+}
+
+function toUploadUri(uri) {
+  if (!uri || typeof uri !== 'string') return uri;
+  if (uri.startsWith('/') && !uri.startsWith('file://')) return `file://${uri}`;
+  return uri;
+}
 
 /**
  * Story creation screen.
  *
  * Flow:
- *  1. User lands on a black sheet with two big actions: Camera / Gallery.
- *  2. After picking a photo or video, we preview it full-screen with a
- *     "Send" button.
- *  3. On Send, we upload to /api/mobile/stories (multipart) and pop back.
- *
- * No drawing / text / stickers in this MVP – just clean capture & upload.
+ *  1. User lands on a black sheet with Camera / Gallery / Text.
+ *  2. After picking media (or a text background), they edit overlays.
+ *  3. On Send, we upload to /api/mobile/stories and pop back.
  */
 export default function CreateStoryScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { token, user } = useAppContext();
   const insets = useSafeAreaInsets();
+  const { height: winH, width: winW } = useWindowDimensions();
 
   const [media, setMedia] = useState(null); // { uri, type, duration, width, height, mimeType }
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [collageAssets, setCollageAssets] = useState(null);
+  const [sequenceQueue, setSequenceQueue] = useState([]);
+  const [transformMode, setTransformMode] = useState(false);
+  const [mediaTransform, setMediaTransform] = useState({ x: 0.5, y: 0.5, scale: 1, rotation: 0 });
+  const [blurOn, setBlurOn] = useState(false);
+  const [gradientIdx, setGradientIdx] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [postingAudience, setPostingAudience] = useState(null); // 'public' | 'close_friends' | null
   const [overlays, setOverlays] = useState([]); // creative layer
@@ -55,13 +115,14 @@ export default function CreateStoryScreen() {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [mentionOpen, setMentionOpen] = useState(false);
   const [musicOpen, setMusicOpen] = useState(false);
+  const [interactiveOpen, setInteractiveOpen] = useState(false);
   const [drawingMode, setDrawingMode] = useState(false);
   /** When set, picking a user replaces this mention overlay instead of adding a new one. */
   const [mentionEditingId, setMentionEditingId] = useState(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [caption, setCaption] = useState('');
-  const [toolsExpanded, setToolsExpanded] = useState(false);
   const videoRef = useRef(null);
+  const uploadingRef = useRef(false);
   const previewSoundRef = useRef(null);
   const hasMusicOverlay = overlays.some((o) => o.type === 'music');
 
@@ -106,7 +167,7 @@ export default function CreateStoryScreen() {
       try {
         const player = createAudioPlayer({ uri: musicOverlay.preview_url });
         player.loop = false;
-        player.volume = 0.85;
+        player.volume = typeof musicOverlay.music_volume === 'number' ? musicOverlay.music_volume : 0.85;
         const start = musicOverlay.start_ms || 0;
         player.seekTo(start / 1000);
         player.play();
@@ -142,7 +203,49 @@ export default function CreateStoryScreen() {
   }, [overlays.find((o) => o.type === 'music')?.preview_url,
       overlays.find((o) => o.type === 'music')?.start_ms,
       overlays.find((o) => o.type === 'music')?.end_ms,
+      overlays.find((o) => o.type === 'music')?.music_volume,
       musicOpen]);
+
+  useEffect(() => {
+    const image = typeof params.postImage === 'string' ? params.postImage : '';
+    const text = typeof params.postText === 'string' ? params.postText : '';
+    if (!image && !text) return;
+    if (image) {
+      setMedia({
+        uri: image,
+        type: 'image',
+        durationMs: 5000,
+        mimeType: 'image/jpeg',
+      });
+    } else {
+      setMedia({
+        type: 'text',
+        uri: null,
+        durationMs: 5000,
+        bgColor: TEXT_STORY_COLORS[0],
+      });
+    }
+    if (text.trim()) {
+      setOverlays((prev) => {
+        if (prev.some((o) => o.type === 'text' && o.text === text.trim())) return prev;
+        return [...prev, {
+          id: `${Date.now().toString(36)}_post`,
+          type: 'text',
+          x: 0.5,
+          y: 0.72,
+          scale: 1,
+          rotation: 0,
+          text: text.trim().slice(0, 300),
+          color: '#ffffff',
+          has_bg: true,
+          bg_color: '#ffc801',
+          font: 'default',
+          align: 'center',
+          anim: 'none',
+        }];
+      });
+    }
+  }, [params.postImage, params.postText]);
 
   // Cleanup audio on unmount
   useEffect(() => {
@@ -157,16 +260,50 @@ export default function CreateStoryScreen() {
 
   const normaliseAsset = (asset) => {
     if (!asset) return null;
-    const isVideo = (asset.type === 'video') || /\.(mp4|mov|m4v|webm|mkv)$/i.test(asset.uri || '');
+    const uri = asset.uri || asset.localUri;
+    if (!uri) return null;
+    const mime = String(asset.mimeType || asset.type || '');
+    const isVideo = mime.startsWith('video')
+      || asset.type === 'video'
+      || asset.type === 'pairedVideo'
+      || /\.(mp4|mov|m4v|webm|mkv)$/i.test(uri);
     return {
-      uri: asset.uri,
+      uri,
       type: isVideo ? 'video' : 'image',
-      durationMs: asset.duration ? Math.round(asset.duration) : (isVideo ? 15000 : 5000),
+      durationMs: toDurationMs(asset.duration, isVideo),
       width: asset.width,
       height: asset.height,
       mimeType: asset.mimeType,
     };
   };
+
+  const pickerOptions = {
+    mediaTypes: pickerMediaTypes(),
+    allowsEditing: false,
+    allowsMultipleSelection: true,
+    selectionLimit: 10,
+    quality: 0.85,
+    videoMaxDuration: 60,
+    preferredAssetRepresentationMode:
+      ImagePicker.UIImagePickerPreferredAssetRepresentationMode?.Compatible
+      ?? 'compatible',
+  };
+
+  const applyPickedAssets = useCallback((assets) => {
+    const list = (assets || []).map(normaliseAsset).filter(Boolean);
+    if (!list.length) return;
+    if (list.length === 1) {
+      setMedia(list[0]);
+      setSequenceQueue([]);
+      return;
+    }
+    if (list.length <= 4 && list.every((a) => a.type === 'image')) {
+      setCollageAssets(list);
+      return;
+    }
+    setMedia(list[0]);
+    setSequenceQueue(list.slice(1));
+  }, []);
 
   const pickFromGallery = useCallback(async () => {
     try {
@@ -175,41 +312,33 @@ export default function CreateStoryScreen() {
         Alert.alert('Permission needed', 'We need access to your media library.');
         return;
       }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
-        allowsEditing: false,
-        quality: 0.85,
-        videoMaxDuration: 60,
-      });
+      const result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
       if (result?.canceled) return;
-      const asset = result.assets?.[0];
-      const m = normaliseAsset(asset);
-      if (m) setMedia(m);
+      applyPickedAssets(result.assets);
+      setCameraOpen(false);
     } catch (e) {
       Alert.alert('Error', e?.message || 'Could not pick media.');
     }
+  }, [applyPickedAssets]);
+
+  const captureFromCamera = useCallback(() => {
+    setCameraOpen(true);
   }, []);
 
-  const captureFromCamera = useCallback(async () => {
-    try {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) {
-        Alert.alert('Permission needed', 'We need camera access.');
-        return;
-      }
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
-        allowsEditing: false,
-        quality: 0.85,
-        videoMaxDuration: 60,
+  const onCameraCapture = useCallback((asset) => {
+    setCameraOpen(false);
+    if (!asset) return;
+    if (asset.type === 'boomerang') {
+      setMedia({
+        ...asset,
+        type: 'boomerang',
+        uri: asset.uri || asset.frames?.[0],
+        frames: asset.frames || [],
+        durationMs: 4000,
       });
-      if (result?.canceled) return;
-      const asset = result.assets?.[0];
-      const m = normaliseAsset(asset);
-      if (m) setMedia(m);
-    } catch (e) {
-      Alert.alert('Error', e?.message || 'Could not capture.');
+      return;
     }
+    setMedia(normaliseAsset(asset) || asset);
   }, []);
 
   // ────────────────────────────────────────────────────────────────────
@@ -225,6 +354,9 @@ export default function CreateStoryScreen() {
         color: data.color,
         has_bg: data.has_bg,
         bg_color: data.bg_color,
+        font: data.font || o.font || 'default',
+        align: data.align || o.align || 'center',
+        anim: data.anim || o.anim || 'none',
       } : o));
     } else {
       const o = {
@@ -238,7 +370,9 @@ export default function CreateStoryScreen() {
         color: data.color,
         has_bg: data.has_bg,
         bg_color: data.bg_color,
-        font: 'default',
+        font: data.font || 'default',
+        align: data.align || 'center',
+        anim: data.anim || 'none',
       };
       setOverlays((prev) => [...prev, o]);
       setSelectedOverlayId(o.id);
@@ -259,6 +393,55 @@ export default function CreateStoryScreen() {
     setOverlays((prev) => [...prev, o]);
     setSelectedOverlayId(o.id);
   }, []);
+
+  const addImageSticker = useCallback(async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return;
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions?.Images ?? ['images'],
+        quality: 0.8,
+        allowsEditing: false,
+      });
+      if (result?.canceled) return;
+      const uri = result.assets?.[0]?.uri;
+      if (!uri) return;
+      const o = {
+        id: makeId(),
+        type: 'sticker',
+        x: 0.5,
+        y: 0.5,
+        scale: 1.4,
+        rotation: 0,
+        image_uri: uri,
+        mimeType: result.assets?.[0]?.mimeType || 'image/jpeg',
+      };
+      setOverlays((prev) => [...prev, o]);
+      setSelectedOverlayId(o.id);
+    } catch (e) {
+      Alert.alert('Error', e?.message || 'Could not add sticker.');
+    }
+  }, []);
+
+  const addCutoutSticker = useCallback(() => {
+    if (!media?.uri || (media.type !== 'image' && media.type !== 'boomerang')) {
+      Alert.alert('Cutout', 'Take or pick a photo first.');
+      return;
+    }
+    const o = {
+      id: makeId(),
+      type: 'sticker',
+      x: 0.5,
+      y: 0.42,
+      scale: 1.8,
+      rotation: 0,
+      image_uri: media.uri,
+      cutout: true,
+      mimeType: media.mimeType || 'image/jpeg',
+    };
+    setOverlays((prev) => [...prev, o]);
+    setSelectedOverlayId(o.id);
+  }, [media]);
 
   const addMentionOverlay = useCallback((user) => {
     if (!user?.id) return;
@@ -286,7 +469,7 @@ export default function CreateStoryScreen() {
         color: '#ffffff',
         has_bg: false,
         bg_color: null,
-        hidden: true,
+        hidden: false,
       };
       setOverlays((prev) => [...prev, o]);
       setSelectedOverlayId(newId);
@@ -309,7 +492,7 @@ export default function CreateStoryScreen() {
 
   const addMusicOverlay = useCallback((data) => {
     if (!data?.track_id) return;
-    // Replace existing music overlay if present (one song per story, just like Instagram).
+    // Replace existing music overlay if present (one track per story).
     const disp = data.display ?? 'none';
     const o = {
       id: makeId(),
@@ -329,7 +512,11 @@ export default function CreateStoryScreen() {
       start_ms:    data.start_ms ?? 0,
       end_ms:      data.end_ms ?? data.story_clip_ms ?? 60000,
       display:     disp,
-      source:      data.source || 'spotify+itunes',
+      source: data.source || 'user',
+      local_uri: data.source === 'user' ? (data.local_uri || data.preview_url || null) : null,
+      mimeType: data.mimeType || null,
+      original_volume: typeof data.original_volume === 'number' ? data.original_volume : 0,
+      music_volume: typeof data.music_volume === 'number' ? data.music_volume : 0.85,
     };
     setOverlays((prev) => {
       const withoutMusic = prev.filter((p) => p.type !== 'music');
@@ -364,37 +551,159 @@ export default function CreateStoryScreen() {
     setTextModal({ open: true, editing: overlay });
   }, []);
 
+  const applyFilter = useCallback((filter) => {
+    setOverlays((prev) => {
+      const without = prev.filter((o) => o.type !== 'filter');
+      if (!filter?.color) return without;
+      return [{
+        id: 'filter_main',
+        type: 'filter',
+        name: filter.id,
+        color: filter.color,
+        opacity: filter.opacity,
+        x: 0.5,
+        y: 0.5,
+        scale: 1,
+        rotation: 0,
+      }, ...without];
+    });
+  }, []);
+
+  const currentFilterId = overlays.find((o) => o.type === 'filter')?.name || 'none';
+
   const undoLastOverlay = useCallback(() => {
     setOverlays((prev) => prev.slice(0, -1));
     setSelectedOverlayId(null);
   }, []);
 
   const submit = useCallback(async (audienceChoice = 'public') => {
-    if (!media || !token || uploading) return;
+    if (!media || !token || uploading || uploadingRef.current) return;
+    const isText = media.type === 'text';
+    const isCollage = media.type === 'collage';
+    const isBoomerang = media.type === 'boomerang';
+    if (!isText && !isCollage && !media.uri) return;
+    uploadingRef.current = true;
     setUploading(true);
     setPostingAudience(audienceChoice);
     try {
-      // Strip transient fields like _measuredWidth.
-      const cleanOverlays = overlays.map(({ _measuredWidth, _measuredHeight, ...rest }) => rest);
-      await API.createStory({
-        uri: media.uri,
-        type: media.type,
-        durationMs: media.durationMs,
-        width: media.width,
-        height: media.height,
-        mimeType: media.mimeType,
-        audience: audienceChoice,
-        overlays: cleanOverlays,
-      }, token);
+      const extraOverlays = [];
+      if (mediaTransform && (mediaTransform.scale !== 1 || mediaTransform.rotation !== 0 || mediaTransform.x !== 0.5 || mediaTransform.y !== 0.5)) {
+        extraOverlays.push({ id: 'media_transform', type: 'media_transform', ...mediaTransform });
+      }
+      if (blurOn) extraOverlays.push({ id: 'blur_main', type: 'blur', intensity: 16, x: 0.5, y: 0.5, scale: 1, rotation: 0 });
+      if (isText && TEXT_STORY_GRADIENTS[gradientIdx]) {
+        extraOverlays.push({
+          id: 'gradient_bg',
+          type: 'gradient',
+          colors: TEXT_STORY_GRADIENTS[gradientIdx],
+          x: 0.5, y: 0.5, scale: 1, rotation: 0,
+        });
+      }
+      if (isCollage && media.template && Array.isArray(media.cells)) {
+        extraOverlays.push({
+          id: 'layout_main',
+          type: 'layout',
+          template: media.template,
+          cells: media.cells.map((c) => ({ uri: c.uri })),
+          x: 0.5, y: 0.5, scale: 1, rotation: 0,
+        });
+      }
+      if (isBoomerang && Array.isArray(media.frames) && media.frames.length) {
+        extraOverlays.push({
+          id: 'boomerang_main',
+          type: 'boomerang',
+          frames: media.frames,
+          x: 0.5, y: 0.5, scale: 1, rotation: 0,
+        });
+      }
+
+      const merged = [...extraOverlays, ...overlays];
+      const stickerFiles = {};
+      const layoutFiles = [];
+      const cleanOverlays = merged.map((overlay, idx) => {
+        const {
+          _measuredWidth,
+          _measuredHeight,
+          measured_width,
+          measured_height,
+          local_uri,
+          mimeType: overlayMime,
+          image_uri,
+          ...rest
+        } = overlay;
+        const next = { ...rest };
+        const mw = measured_width || _measuredWidth;
+        const mh = measured_height || _measuredHeight;
+        if (mw) next.measured_width = mw;
+        if (mh) next.measured_height = mh;
+        if (overlay.type === 'sticker' && image_uri) {
+          stickerFiles[overlay.id] = {
+            uri: toUploadUri(image_uri),
+            name: `sticker_${overlay.id}.jpg`,
+            mimeType: overlayMime || 'image/jpeg',
+          };
+        }
+        if (overlay.type === 'layout' && Array.isArray(overlay.cells)) {
+          overlay.cells.forEach((cell, i) => {
+            const uri = cell.uri || cell.image_uri;
+            if (uri) {
+              layoutFiles[i] = {
+                uri: toUploadUri(uri),
+                name: `layout_${i}.jpg`,
+                mimeType: 'image/jpeg',
+              };
+            }
+          });
+        }
+        return next;
+      });
+      const music = overlays.find((o) => o.type === 'music');
+      const audioUri = music?.source === 'user'
+        ? (music?.local_uri || music?.preview_url)
+        : null;
+      const queue = [media, ...sequenceQueue];
+
+      for (let i = 0; i < queue.length; i += 1) {
+        const item = queue[i];
+        const itemText = item.type === 'text' || item.type === 'collage';
+        await API.createStory({
+          uri: itemText ? undefined : toUploadUri(item.uri || item.frames?.[0]),
+          type: item.type === 'video' ? 'video' : 'image',
+          durationMs: toDurationMs(item.durationMs, item.type === 'video'),
+          width: item.width,
+          height: item.height,
+          mimeType: item.mimeType,
+          audience: audienceChoice,
+          overlays: i === 0 ? cleanOverlays : [],
+          textStory: itemText,
+          bgColor: item.bgColor || (itemText ? '#111111' : undefined),
+          audio: i === 0 && audioUri ? {
+            uri: toUploadUri(audioUri),
+            name: music?.title ? `${String(music.title).replace(/[^\w.-]+/g, '_')}.m4a` : 'story_audio.m4a',
+            mimeType: music?.mimeType || 'audio/mpeg',
+          } : undefined,
+          stickers: i === 0 ? stickerFiles : undefined,
+          layoutCells: i === 0 ? layoutFiles : undefined,
+          boomerang: i === 0 && isBoomerang ? (item.frames || []).map((uri, fi) => ({
+            uri: toUploadUri(uri),
+            name: `boom_${fi}.jpg`,
+            mimeType: 'image/jpeg',
+          })) : undefined,
+        }, token);
+      }
       router.replace('/(tabs)/home');
     } catch (e) {
       const msg = e?.response?.data?.message || e?.message || 'Upload failed';
-      Alert.alert('Could not post story', msg);
+      Alert.alert('Could not post story', msg, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Retry', onPress: () => submit(audienceChoice) },
+      ]);
     } finally {
+      uploadingRef.current = false;
       setUploading(false);
       setPostingAudience(null);
     }
-  }, [media, token, router, overlays, uploading]);
+  }, [media, token, router, overlays, uploading, sequenceQueue, mediaTransform, blurOn, gradientIdx]);
 
   const close = () => router.back();
   const discard = () => {
@@ -402,24 +711,28 @@ export default function CreateStoryScreen() {
     setOverlays([]);
     setSelectedOverlayId(null);
     setCaption('');
-    setToolsExpanded(false);
+    setSequenceQueue([]);
+    setCollageAssets(null);
+    setTransformMode(false);
+    setMediaTransform({ x: 0.5, y: 0.5, scale: 1, rotation: 0 });
+    setBlurOn(false);
   };
 
   // ────────────────────────────────────────────────────────────────────
   // Preview
   // ────────────────────────────────────────────────────────────────────
   if (media) {
-    const statusTop = Platform.OS === 'ios' ? 54 : RNStatusBar.currentHeight ?? 24;
+    const statusTop = Math.max(insets.top || 0, Platform.OS === 'ios' ? 54 : RNStatusBar.currentHeight ?? 24);
     const footerBottom = Math.max(insets.bottom, 12) + 8;
     const avatarUrl = resolveAvatarUrl(user?.avatar || user?.image || user?.profile_picture);
 
     return (
-      <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000' }}>
         <StatusBar style="light" />
 
         {/* Canvas = media + creative layer (measured for normalized coords) */}
         <View
-          style={{ flex: 1, zIndex: 0, elevation: 0 }}
+          style={{ flex: 1, backgroundColor: '#000', overflow: 'hidden' }}
           onLayout={(e) => {
             const { width, height } = e.nativeEvent.layout;
             if (width !== canvasSize.width || height !== canvasSize.height) {
@@ -427,30 +740,64 @@ export default function CreateStoryScreen() {
             }
           }}
         >
-          {media.type === 'video' ? (
-            <StoryVideo
-              uri={media.uri}
-              style={StyleSheet.absoluteFillObject}
-              shouldPlay
-              isLooping
-              muted={hasMusicOverlay}
-              playerRef={videoRef}
-            />
-          ) : (
-            <Image
-              source={{ uri: media.uri }}
-              style={StyleSheet.absoluteFillObject}
-              resizeMode="cover"
-            />
-          )}
+          {(() => {
+            const musicMix = overlays.find((o) => o.type === 'music');
+            const origVol = typeof musicMix?.original_volume === 'number' ? musicMix.original_volume : (musicMix ? 0 : 1);
+            const mediaInner = media.type === 'video' ? (
+              <StoryVideo
+                uri={media.uri}
+                style={{ width: '100%', height: '100%' }}
+                shouldPlay
+                isLooping
+                muted={origVol <= 0.01}
+                volume={origVol}
+                playerRef={videoRef}
+              />
+            ) : media.type === 'text' ? (
+              <LinearGradient
+                colors={TEXT_STORY_GRADIENTS[gradientIdx] || ['#1c1c1c', '#111111']}
+                style={{ width: '100%', height: '100%' }}
+              />
+            ) : media.type === 'collage' ? (
+              <CollageOverlay
+                overlay={{ template: media.template, cells: (media.cells || []).map((c) => ({ image_uri: c.uri })) }}
+                containerSize={canvasSize.width ? canvasSize : { width: WINDOW_W, height: WINDOW_H }}
+              />
+            ) : media.type === 'boomerang' ? (
+              <BoomerangPreview
+                frames={media.frames || [media.uri]}
+                style={{ width: '100%', height: '100%' }}
+              />
+            ) : (
+              <ExpoImage
+                source={{ uri: media.uri }}
+                style={{ width: '100%', height: '100%', backgroundColor: '#111' }}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={0}
+              />
+            );
+            return (
+              <MediaTransformLayer
+                enabled={transformMode && !drawingMode}
+                transform={mediaTransform}
+                onChange={setMediaTransform}
+              >
+                {mediaInner}
+              </MediaTransformLayer>
+            );
+          })()}
+          {blurOn ? (
+            <BlurView intensity={18} tint="dark" style={{ position: 'absolute', inset: 0 }} />
+          ) : null}
 
           {/* Drawings render as a non-interactive layer underneath the
               editable elements (text / stickers / mentions). */}
           <OverlayRenderer
-            overlays={overlays.filter((o) => o.type === 'drawing')}
+            overlays={overlays.filter((o) => o.type === 'drawing' || o.type === 'filter')}
           />
 
-          {!drawingMode ? (
+          {!drawingMode && !transformMode ? (
             <EditableOverlayLayer
               overlays={overlays}
               containerSize={canvasSize}
@@ -474,100 +821,140 @@ export default function CreateStoryScreen() {
           />
         </View>
 
-        {/* Editor chrome — Instagram / Facebook Stories layout */}
+        {/* Editor chrome — sits above native image/video views */}
         {!drawingMode ? (
           <View
             pointerEvents="box-none"
             collapsable={false}
-            style={[StyleSheet.absoluteFillObject, { zIndex: 1000, elevation: 1000 }]}
+            style={[StyleSheet.absoluteFillObject, { zIndex: 40, elevation: 40 }]}
           >
-            {/* Top-left: close */}
-            <View style={{ position: 'absolute', top: statusTop + 4, left: 14 }}>
+            <View style={{ position: 'absolute', top: statusTop + 4, left: 14, zIndex: 50, elevation: 50 }}>
               <EditorToolButton onPress={discard} disabled={uploading} accessibilityLabel="Discard story">
                 <Ionicons name="close" size={28} color="#fff" />
               </EditorToolButton>
             </View>
 
-            {/* Top-right: vertical tool rail */}
             <View
-              pointerEvents="box-none"
+              pointerEvents="auto"
               style={{
                 position: 'absolute',
-                top: statusTop + 4,
-                right: 14,
+                top: statusTop + 8,
+                left: Math.max(8, (winW || WINDOW_W) - 80),
+                width: 68,
+                zIndex: 90,
+                elevation: 90,
+                borderRadius: 22,
+                backgroundColor: 'rgba(17,17,17,0.9)',
+                borderWidth: 1.5,
+                borderColor: '#ffc801',
+                paddingVertical: 8,
                 alignItems: 'center',
-                gap: 10,
+                gap: 6,
               }}
             >
-              <EditorToolButton
-                onPress={() => setTextModal({ open: true, editing: null })}
-                accessibilityLabel="Add text"
-              >
-                <Text style={styles.toolAa}>Aa</Text>
-              </EditorToolButton>
-
-              <EditorToolButton onPress={() => setEmojiOpen(true)} accessibilityLabel="Add sticker">
-                <Ionicons name="happy-outline" size={26} color="#fff" />
-              </EditorToolButton>
-
-              <EditorToolButton
-                onPress={() => setMusicOpen(true)}
-                accessibilityLabel="Add music"
-                active={hasMusicOverlay}
-              >
-                <Ionicons name="musical-notes-outline" size={26} color="#fff" />
-              </EditorToolButton>
-
-              <EditorToolButton onPress={() => setDrawingMode(true)} accessibilityLabel="Draw">
-                <Ionicons name="sparkles-outline" size={26} color="#fff" />
-              </EditorToolButton>
-
-              <EditorToolButton
-                onPress={() => setToolsExpanded((v) => !v)}
-                accessibilityLabel={toolsExpanded ? 'Hide more tools' : 'More tools'}
-              >
-                <Ionicons
-                  name={toolsExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={26}
-                  color="#fff"
-                />
-              </EditorToolButton>
-
-              {toolsExpanded ? (
-                <>
-                  <EditorToolButton onPress={openMentionPicker} accessibilityLabel="Mention someone">
-                    <Text style={styles.toolMention}>@</Text>
+                <EditorToolButton variant="bar" onPress={() => setTextModal({ open: true, editing: null })} accessibilityLabel="Add text">
+                  <Text style={[styles.toolAa, styles.toolAaBar]}>Aa</Text>
+                </EditorToolButton>
+                <EditorToolButton variant="bar" onPress={() => setEmojiOpen(true)} accessibilityLabel="Add sticker">
+                  <Ionicons name="happy-outline" size={28} color="#fff" />
+                </EditorToolButton>
+                <EditorToolButton variant="bar" onPress={addImageSticker} accessibilityLabel="Add photo sticker">
+                  <Ionicons name="image-outline" size={26} color="#fff" />
+                </EditorToolButton>
+                {(media.type === 'image' || media.type === 'boomerang') ? (
+                  <EditorToolButton variant="bar" onPress={addCutoutSticker} accessibilityLabel="Crop to sticker">
+                    <Ionicons name="scan-outline" size={26} color="#fff" />
                   </EditorToolButton>
-                  {overlays.length > 0 ? (
-                    <EditorToolButton onPress={undoLastOverlay} accessibilityLabel="Undo last">
-                      <Ionicons name="arrow-undo" size={24} color="#fff" />
-                    </EditorToolButton>
-                  ) : null}
-                </>
-              ) : null}
+                ) : null}
+                <EditorToolButton variant="bar" onPress={() => setDrawingMode(true)} accessibilityLabel="Draw">
+                  <Ionicons name="brush-outline" size={26} color="#fff" />
+                </EditorToolButton>
+                <EditorToolButton variant="bar" onPress={() => setMusicOpen(true)} accessibilityLabel="Add music" active={hasMusicOverlay}>
+                  <Ionicons name="musical-notes-outline" size={26} color={hasMusicOverlay ? '#111' : '#fff'} />
+                </EditorToolButton>
+                <EditorToolButton variant="bar" onPress={openMentionPicker} accessibilityLabel="Mention someone">
+                  <Text style={[styles.toolMention, styles.toolMentionBar]}>@</Text>
+                </EditorToolButton>
+                <EditorToolButton variant="bar" onPress={() => setInteractiveOpen(true)} accessibilityLabel="Add poll or sticker">
+                  <Ionicons name="options-outline" size={26} color="#fff" />
+                </EditorToolButton>
+                {media.type !== 'text' && media.type !== 'collage' ? (
+                  <EditorToolButton variant="bar" onPress={() => setTransformMode((v) => !v)} accessibilityLabel="Move media" active={transformMode}>
+                    <Ionicons name="move-outline" size={26} color={transformMode ? '#111' : '#fff'} />
+                  </EditorToolButton>
+                ) : null}
+                <EditorToolButton variant="bar" onPress={() => setBlurOn((v) => !v)} accessibilityLabel="Blur wash" active={blurOn}>
+                  <Ionicons name="water-outline" size={26} color={blurOn ? '#111' : '#fff'} />
+                </EditorToolButton>
+                {media.type === 'text' ? (
+                  <EditorToolButton
+                    variant="bar"
+                    onPress={() => {
+                      setGradientIdx((i) => (i + 1) % TEXT_STORY_GRADIENTS.length);
+                      const next = TEXT_STORY_COLORS[(TEXT_STORY_COLORS.indexOf(media.bgColor || TEXT_STORY_COLORS[0]) + 1) % TEXT_STORY_COLORS.length];
+                      setMedia((m) => (m ? { ...m, bgColor: next } : m));
+                    }}
+                    accessibilityLabel="Change background"
+                  >
+                    <Ionicons name="color-palette-outline" size={26} color="#fff" />
+                  </EditorToolButton>
+                ) : null}
+                {overlays.length > 0 ? (
+                  <EditorToolButton variant="bar" onPress={undoLastOverlay} accessibilityLabel="Undo last">
+                    <Ionicons name="arrow-undo" size={26} color="#fff" />
+                  </EditorToolButton>
+                ) : null}
             </View>
 
-            {/* Caption input */}
-            {/* <View
-              pointerEvents="box-none"
-              style={{
-                position: 'absolute',
-                left: 16,
-                right: 80,
-                bottom: footerBottom + 64,
-              }}
+            {hasMusicOverlay ? (
+              <View style={{ position: 'absolute', left: 14, right: 86, bottom: footerBottom + 136, flexDirection: 'row', gap: 8, zIndex: 50 }}>
+                {[['original_volume', 'Original'], ['music_volume', 'Audio']].map(([key, label]) => {
+                  const music = overlays.find((o) => o.type === 'music');
+                  const val = typeof music?.[key] === 'number' ? music[key] : (key === 'original_volume' ? 0 : 0.85);
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => {
+                        const next = val < 0.34 ? 0.5 : val < 0.84 ? 1 : 0;
+                        setOverlays((prev) => prev.map((o) => o.type === 'music' ? { ...o, [key]: next } : o));
+                      }}
+                      style={{ backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{label} {Math.round(val * 100)}%</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : null}
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ position: 'absolute', left: 0, right: 0, bottom: footerBottom + 58, height: 70, zIndex: 50 }}
+              contentContainerStyle={{ paddingHorizontal: 14, gap: 10, alignItems: 'center' }}
             >
-              <TextInput
-                value={caption}
-                onChangeText={setCaption}
-                placeholder="Add a caption..."
-                placeholderTextColor="rgba(255,255,255,0.75)"
-                multiline
-                maxLength={2200}
-                editable={!uploading}
-                style={styles.captionInput}
-              />
-            </View> */}
+              {STORY_FILTERS.map((f) => {
+                const active = currentFilterId === f.id;
+                return (
+                  <Pressable
+                    key={f.id}
+                    onPress={() => applyFilter(f)}
+                    accessibilityLabel={`Filter ${f.label}`}
+                    style={{ alignItems: 'center', width: 64 }}
+                  >
+                    <View style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      backgroundColor: f.color || 'rgba(255,255,255,0.2)',
+                      borderWidth: active ? 3 : 1,
+                      borderColor: active ? '#ffc801' : 'rgba(255,255,255,0.35)',
+                    }} />
+                    <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700', marginTop: 4 }}>{f.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
             {/* Bottom: post actions */}
             <View pointerEvents="box-none" style={[styles.postBar, { bottom: footerBottom }]}>
@@ -613,23 +1000,23 @@ export default function CreateStoryScreen() {
                 delayLongPress={350}
                 disabled={uploading}
                 accessibilityLabel="Post to close friends"
-                style={({ pressed }) => [
-                  styles.audiencePill,
-                  pressed && !uploading && styles.pillPressed,
-                  uploading && postingAudience !== 'close_friends' && styles.pillDisabled,
-                ]}
-              >
-                <View style={styles.pillRow}>
-                  {uploading && postingAudience === 'close_friends' ? (
-                    <ActivityIndicator size="small" color="#fff" style={styles.pillSpinner} />
-                  ) : (
-                    <View style={styles.closeFriendsIcon}>
-                      <Ionicons name="star" size={16} color="#fff" />
-                    </View>
-                  )}
-                  <Text style={styles.audiencePillText} numberOfLines={1}>Close Friends</Text>
-                </View>
-              </Pressable>
+                  style={({ pressed }) => [
+                    styles.audiencePill,
+                    pressed && !uploading && styles.pillPressed,
+                    uploading && postingAudience !== 'close_friends' && styles.pillDisabled,
+                  ]}
+                >
+                  <View style={styles.pillRow}>
+                    {uploading && postingAudience === 'close_friends' ? (
+                      <ActivityIndicator size="small" color="#fff" style={styles.pillSpinner} />
+                    ) : (
+                      <View style={styles.closeFriendsIcon}>
+                        <Ionicons name="star" size={16} color="#000" />
+                      </View>
+                    )}
+                    <Text style={styles.audiencePillText} numberOfLines={1}>Close Friends</Text>
+                  </View>
+                </Pressable>
             </View>
           </View>
         ) : null}
@@ -662,13 +1049,52 @@ export default function CreateStoryScreen() {
           onClose={() => setMusicOpen(false)}
           onPick={addMusicOverlay}
         />
-      </View>
+
+        <InteractiveStickerSheet
+          visible={interactiveOpen}
+          onClose={() => setInteractiveOpen(false)}
+          onPick={(overlay) => {
+            setOverlays((prev) => [...prev, overlay]);
+            setSelectedOverlayId(overlay.id);
+          }}
+        />
+      </GestureHandlerRootView>
     );
   }
 
   // ────────────────────────────────────────────────────────────────────
   // Picker (initial sheet)
   // ────────────────────────────────────────────────────────────────────
+  if (cameraOpen) {
+    return (
+      <CameraCapture
+        onCapture={onCameraCapture}
+        onCancel={() => setCameraOpen(false)}
+        onOpenGallery={pickFromGallery}
+      />
+    );
+  }
+
+  if (collageAssets) {
+    return (
+      <CollagePicker
+        assets={collageAssets}
+        onCancel={() => setCollageAssets(null)}
+        onConfirm={({ template, assets }) => {
+          setCollageAssets(null);
+          setMedia({
+            type: 'collage',
+            uri: assets[0]?.uri,
+            template,
+            cells: assets,
+            durationMs: 5000,
+            bgColor: '#111111',
+          });
+        }}
+      />
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: '#050508' }}>
       <StatusBar style="light" />
@@ -725,7 +1151,7 @@ export default function CreateStoryScreen() {
           New story
         </Text>
         <Text style={{ color: 'rgba(255,255,255,0.55)', marginTop: 10, textAlign: 'center', fontSize: 15, lineHeight: 22, fontWeight: '500' }}>
-          Pick a photo or video. It disappears after 24 hours.
+          Pick a photo, video, or text. It disappears after 24 hours.
         </Text>
 
         <View style={{ width: '100%', marginTop: 40, gap: 14 }}>
@@ -764,14 +1190,41 @@ export default function CreateStoryScreen() {
             <Ionicons name="images-outline" size={22} color="#fff" />
             <Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>Gallery</Text>
           </Pressable>
+
+          <Pressable
+            onPress={() => {
+              setMedia({
+                type: 'text',
+                uri: null,
+                durationMs: 5000,
+                bgColor: TEXT_STORY_COLORS[0],
+              });
+              setTextModal({ open: true, editing: null });
+            }}
+            style={({ pressed }) => ({
+              paddingVertical: 18,
+              borderRadius: 18,
+              backgroundColor: pressed ? 'rgba(255,200,1,0.18)' : 'rgba(255,255,255,0.05)',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              borderWidth: 1.5,
+              borderColor: pressed ? 'rgba(255,200,1,0.45)' : 'rgba(255,255,255,0.12)',
+            })}
+          >
+            <Text style={{ color: '#ffc801', fontWeight: '900', fontSize: 18 }}>Aa</Text>
+            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 17 }}>Text</Text>
+          </Pressable>
         </View>
       </View>
     </View>
   );
 }
 
-/** Semi-transparent circular tool button (Instagram Stories style). */
-function EditorToolButton({ children, onPress, disabled, active, accessibilityLabel }) {
+/** Semi-transparent circular tool button. */
+function EditorToolButton({ children, onPress, disabled, active, accessibilityLabel, variant }) {
+  const bar = variant === 'bar';
   return (
     <Pressable
       onPress={onPress}
@@ -779,8 +1232,8 @@ function EditorToolButton({ children, onPress, disabled, active, accessibilityLa
       accessibilityLabel={accessibilityLabel}
       hitSlop={6}
       style={({ pressed }) => [
-        styles.toolButton,
-        active && styles.toolButtonActive,
+        bar ? styles.toolButtonBar : styles.toolButton,
+        active && (bar ? styles.toolButtonBarActive : styles.toolButtonActive),
         disabled && styles.toolButtonDisabled,
         pressed && !disabled && styles.toolButtonPressed,
       ]}
@@ -797,10 +1250,12 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    zIndex: 60,
+    elevation: 60,
   },
   toolButtonActive: {
-    backgroundColor: 'rgba(29, 185, 84, 0.85)',
+    backgroundColor: 'rgba(255, 200, 1, 0.85)',
   },
   toolButtonDisabled: {
     opacity: 0.45,
@@ -808,6 +1263,41 @@ const styles = StyleSheet.create({
   toolButtonPressed: {
     opacity: 0.82,
     transform: [{ scale: 0.95 }],
+  },
+  featuresBar: {
+    position: 'absolute',
+    right: 8,
+    width: 72,
+    zIndex: 80,
+    elevation: 80,
+    borderRadius: 24,
+    backgroundColor: 'rgba(17,17,17,0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,200,1,0.4)',
+  },
+  featuresBarCol: {
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    gap: 8,
+    alignItems: 'center',
+    flexGrow: 1,
+  },
+  toolButtonBar: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  toolButtonBarActive: {
+    backgroundColor: '#ffc801',
+  },
+  toolAaBar: {
+    fontSize: 22,
+  },
+  toolMentionBar: {
+    fontSize: 24,
   },
   toolAa: {
     color: '#fff',
@@ -905,7 +1395,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#1877F2',
+    backgroundColor: '#ffc801',
     borderWidth: 1.5,
     borderColor: 'rgba(0, 0, 0, 0.55)',
     overflow: 'hidden',
@@ -921,7 +1411,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#1ED760',
+    backgroundColor: '#ffc801',
     borderWidth: 2,
     borderColor: '#fff',
     alignItems: 'center',

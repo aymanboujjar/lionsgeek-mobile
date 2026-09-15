@@ -26,7 +26,9 @@ import StoryVideo from '../Partials/StoryVideo';
 import { useAppContext } from '@/context';
 import API from '@/api';
 import OverlayRenderer from '../Partials/OverlayRenderer';
+import StoryMediaFrame from '../Partials/StoryMediaFrame';
 import useStoryMusic from '../Partials/useStoryMusic';
+import ReportReasonModal from '@/components/moderation/ReportReasonModal';
 
 const { width: WINDOW_W, height: WINDOW_H } = Dimensions.get('window');
 const TOP_INSET = (Platform.OS === 'ios' ? 54 : RNStatusBar.currentHeight ?? 24) + 6;
@@ -51,11 +53,14 @@ export default function HighlightViewerScreen() {
   const [muted, setMuted] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [musicPaused, setMusicPaused] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportBusy, setReportBusy] = useState(false);
 
   const videoRef = useRef(null);
   const progress = useSharedValue(0);
   const isPausedRef = useRef(false);
   const animatingExitRef = useRef(false);
+  const advancingRef = useRef(false);
   const translateY = useSharedValue(0);
 
   const stories = highlight?.stories || [];
@@ -63,7 +68,7 @@ export default function HighlightViewerScreen() {
   const isOwner = !!(highlight && user && highlight.user_id === user.id);
   const musicOverlay = (currentStory?.overlays || []).find((o) => o.type === 'music') || null;
 
-  useStoryMusic(musicOverlay, { isPaused: musicPaused });
+  useStoryMusic(musicOverlay, { isPaused: musicPaused || muted });
 
   // Load highlight
   useEffect(() => {
@@ -85,6 +90,8 @@ export default function HighlightViewerScreen() {
   }, [id, token]);
 
   const advance = useCallback(() => {
+    if (advancingRef.current) return;
+    advancingRef.current = true;
     setStoryIdx((idx) => {
       if (idx + 1 < stories.length) return idx + 1;
       doClose();
@@ -92,21 +99,34 @@ export default function HighlightViewerScreen() {
     });
   }, [stories.length]);
 
-  const restartProgress = useCallback(() => {
+  const startProgress = useCallback((durationMs) => {
     if (!currentStory) return;
     cancelAnimation(progress);
     progress.value = 0;
-    setVideoReady(false);
-    const duration = Math.max(1500, currentStory.duration_ms || 5000);
+    const duration = Math.max(1500, durationMs || 5000);
     progress.value = withTiming(1, { duration, easing: Easing.linear }, (finished) => {
       if (finished) runOnJS(advance)();
     });
   }, [currentStory, advance]);
 
   useEffect(() => {
-    restartProgress();
+    advancingRef.current = false;
+    if (!currentStory) return undefined;
+    if (currentStory.media_type === 'video') {
+      setVideoReady(false);
+      cancelAnimation(progress);
+      progress.value = 0;
+      return () => cancelAnimation(progress);
+    }
+    startProgress(currentStory.duration_ms || 5000);
     return () => cancelAnimation(progress);
-  }, [restartProgress]);
+  }, [currentStory?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!currentStory || currentStory.media_type !== 'video' || !videoReady) return undefined;
+    startProgress(currentStory.duration_ms || 15000);
+    return () => cancelAnimation(progress);
+  }, [currentStory?.id, videoReady, startProgress]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pause = useCallback(() => {
     if (isPausedRef.current) return;
@@ -187,6 +207,54 @@ export default function HighlightViewerScreen() {
     width: `${progress.value * 100}%`,
   }));
 
+  const handleEditHighlight = useCallback(() => {
+    if (!isOwner || !highlight || !currentStory) return;
+    pause();
+    Alert.alert(
+      highlight.title || 'Highlight',
+      'Rename this highlight or use the current story as the cover.',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: resume },
+        {
+          text: 'Set cover',
+          onPress: async () => {
+            try {
+              const data = await API.updateHighlight(highlight.id, { coverStoryId: currentStory.id }, token);
+              if (data?.highlight) setHighlight((prev) => ({ ...prev, ...data.highlight, stories: prev?.stories }));
+              resume();
+            } catch (e) {
+              Alert.alert('Error', e?.message || 'Could not update cover.');
+              resume();
+            }
+          },
+        },
+        {
+          text: 'Rename',
+          onPress: () => {
+            Alert.prompt?.(
+              'Rename highlight',
+              undefined,
+              async (title) => {
+                const next = (title || '').trim();
+                if (!next) { resume(); return; }
+                try {
+                  const data = await API.updateHighlight(highlight.id, { title: next }, token);
+                  if (data?.highlight) setHighlight((prev) => ({ ...prev, ...data.highlight, stories: prev?.stories }));
+                } catch (e) {
+                  Alert.alert('Error', e?.message || 'Could not rename.');
+                }
+                resume();
+              },
+              'plain-text',
+              highlight.title || '',
+            );
+            if (!Alert.prompt) resume();
+          },
+        },
+      ],
+    );
+  }, [isOwner, highlight, currentStory, token, pause, resume]);
+
   const handleRemove = useCallback(() => {
     if (!isOwner || !currentStory || !highlight) return;
     pause();
@@ -223,6 +291,63 @@ export default function HighlightViewerScreen() {
     );
   }, [isOwner, currentStory, highlight, stories, token, pause, resume, doClose]);
 
+  const confirmBlock = useCallback(() => {
+    const targetId = highlight?.user_id;
+    if (!targetId || !token) {
+      resume();
+      return;
+    }
+    Alert.alert(
+      'Block this person?',
+      'You will no longer see each other\'s stories.',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: resume },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await API.blockUser(targetId, token);
+              doClose();
+            } catch (e) {
+              Alert.alert('Could not block', e?.message || 'Try again.');
+              resume();
+            }
+          },
+        },
+      ],
+    );
+  }, [highlight, token, resume, doClose]);
+
+  const openSafetyMenu = useCallback(() => {
+    if (isOwner) return;
+    pause();
+    Alert.alert(
+      highlight?.title || 'Highlight',
+      'Report or block.',
+      [
+        { text: 'Report', onPress: () => setReportOpen(true) },
+        { text: 'Block', style: 'destructive', onPress: confirmBlock },
+        { text: 'Cancel', style: 'cancel', onPress: resume },
+      ],
+    );
+  }, [isOwner, highlight, pause, confirmBlock, resume]);
+
+  const handleReport = useCallback(async (reason) => {
+    if (!currentStory || !token) return;
+    setReportBusy(true);
+    try {
+      await API.reportStory(currentStory.id, reason, token);
+      setReportOpen(false);
+      Alert.alert('Report sent', 'Thanks. Our team will review this story.');
+      resume();
+    } catch (e) {
+      Alert.alert('Could not report', e?.message || 'Try again.');
+    } finally {
+      setReportBusy(false);
+    }
+  }, [currentStory, token, resume]);
+
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
@@ -258,22 +383,23 @@ export default function HighlightViewerScreen() {
           {/* Media layer */}
           <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center' }}>
             {currentStory.media_type === 'video' ? (
-              <StoryVideo
+              <StoryMediaFrame
                 key={currentStory.id}
-                uri={currentStory.media_url}
+                story={currentStory}
                 style={{ width: WINDOW_W, height: WINDOW_H }}
-                shouldPlay={!isPausedRef.current}
-                muted={muted || !!musicOverlay}
-                playerRef={videoRef}
-                onReady={() => setVideoReady(true)}
-                onEnd={advance}
+                videoProps={{
+                  shouldPlay: !isPausedRef.current,
+                  muted: muted || ((typeof musicOverlay?.original_volume === 'number' ? musicOverlay.original_volume : (musicOverlay ? 0 : 1)) <= 0.01),
+                  playerRef: videoRef,
+                  onReady: () => setVideoReady(true),
+                  onEnd: advance,
+                }}
               />
             ) : (
-              <Image
+              <StoryMediaFrame
                 key={currentStory.id}
-                source={{ uri: currentStory.media_url }}
+                story={currentStory}
                 style={{ width: WINDOW_W, height: WINDOW_H }}
-                resizeMode="cover"
               />
             )}
 
@@ -284,6 +410,8 @@ export default function HighlightViewerScreen() {
             <OverlayRenderer
               overlays={currentStory.overlays}
               musicAnimated={!musicPaused}
+              interactions={currentStory.interactions}
+              isMine={isOwner}
               onMentionPress={(o) => {
                 if (!o?.user_id) return;
                 pause();
@@ -334,6 +462,12 @@ export default function HighlightViewerScreen() {
 
               <View style={{ flex: 1 }} />
 
+              {!isOwner ? (
+                <Pressable onPress={openSafetyMenu} hitSlop={10} style={[topBtn, { marginLeft: 6 }]} accessibilityLabel="Highlight options">
+                  <Ionicons name="ellipsis-horizontal" size={18} color="#fff" />
+                </Pressable>
+              ) : null}
+
               {currentStory.media_type === 'video' || !!musicOverlay ? (
                 <Pressable
                   onPress={() => setMuted((m) => !m)}
@@ -341,6 +475,12 @@ export default function HighlightViewerScreen() {
                   style={topBtn}
                 >
                   <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color="#fff" />
+                </Pressable>
+              ) : null}
+
+              {isOwner ? (
+                <Pressable onPress={handleEditHighlight} hitSlop={10} style={[topBtn, { marginLeft: 6 }]}>
+                  <Ionicons name="create-outline" size={18} color="#fff" />
                 </Pressable>
               ) : null}
 
@@ -377,6 +517,14 @@ export default function HighlightViewerScreen() {
           </View>
         </Animated.View>
       </GestureDetector>
+      <ReportReasonModal
+        visible={reportOpen}
+        onClose={() => { setReportOpen(false); resume(); }}
+        onSubmit={handleReport}
+        submitting={reportBusy}
+        title="Report story"
+        isDark
+      />
     </GestureHandlerRootView>
   );
 }

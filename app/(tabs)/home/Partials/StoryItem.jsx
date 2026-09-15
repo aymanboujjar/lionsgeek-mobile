@@ -19,7 +19,9 @@ export default function StoryItem({
   isOwn = false,
   hasStories = true,
   hasUnseen = true,
+  isCloseFriends = false,
   onPress,
+  onLongPress,
 }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -36,7 +38,19 @@ export default function StoryItem({
   }
 
   return (
-    <Pressable onPress={onPress} className="items-center active:opacity-70" style={{ width: 76, marginRight: 12 }}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={350}
+      accessibilityRole="button"
+      accessibilityLabel={
+        isOwn
+          ? (hasStories ? 'Your story. Tap to view, hold to add.' : 'Add a story')
+          : `${displayName}${hasUnseen ? ', new stories' : ', seen'}`
+      }
+      className="items-center active:opacity-70"
+      style={{ width: 76, marginRight: 12 }}
+    >
       <View
         style={{
           width: 72, height: 72, borderRadius: 36,
@@ -86,6 +100,19 @@ export default function StoryItem({
           }}
         >
           <Ionicons name="add" size={12} color="#000" />
+        </View>
+      ) : isCloseFriends ? (
+        <View
+          style={{
+            position: 'absolute', bottom: 22, right: 2,
+            width: 18, height: 18, borderRadius: 9,
+            backgroundColor: '#ffc801',
+            alignItems: 'center', justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: isDark ? '#171717' : '#fafafa',
+          }}
+        >
+          <Ionicons name="star" size={9} color="#000" />
         </View>
       ) : null}
 
