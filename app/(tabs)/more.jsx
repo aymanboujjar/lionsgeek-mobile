@@ -410,6 +410,14 @@ export default function More() {
             onPress={() => router.push("/(tabs)/activity")}
             right={chevron}
           />
+          <RowDivider />
+          <SettingRow
+            icon="call-outline"
+            label="Call history"
+            sublabel="Audio and video calls"
+            onPress={() => router.push("/(tabs)/call-history")}
+            right={chevron}
+          />
         </SettingsCard>
 
         {/* Growth & recognition */}

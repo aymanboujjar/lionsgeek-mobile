@@ -48,7 +48,6 @@ export default function Onboarding() {
           !!tokenStr && tokenStr !== 'false' && tokenStr !== 'null' && tokenStr !== 'undefined';
 
         if (hasValidToken) {
-          // Logged in users should never see onboarding.
           await AsyncStorage.setItem('onboarding_seen', '1');
           router.replace('/loading');
           return;

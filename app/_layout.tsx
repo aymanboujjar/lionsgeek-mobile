@@ -9,6 +9,7 @@ import { LogBox, Platform } from 'react-native';
 import "../index.css";
 
 import { AppProvider, useAppContext } from '@/context';
+import { CallProvider } from '@/context/CallContext';
 import { setupNotificationListeners, removeNotificationListeners } from '@/services/pushNotifications';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Colors } from '@/constants/Colors';
@@ -148,7 +149,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <AppProvider>
-        <AppThemedShell />
+        <CallProvider>
+          <AppThemedShell />
+        </CallProvider>
       </AppProvider>
     </GestureHandlerRootView>
   );
