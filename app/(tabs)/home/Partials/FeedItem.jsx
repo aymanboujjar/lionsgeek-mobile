@@ -754,6 +754,17 @@ export default function FeedItem({ item, onPress, initialFocusCommentId = null, 
     router.push(`/(tabs)/posts/edit/${item.id}`);
   };
 
+  const handleAddToStory = () => {
+    setShowPostMenu(false);
+    router.push({
+      pathname: '/(tabs)/stories/create',
+      params: {
+        postImage: mediaUrls[0] || '',
+        postText: caption || '',
+      },
+    });
+  };
+
   const handleOpenReport = () => {
     setShowPostMenu(false);
     setShowReportModal(true);
@@ -1163,6 +1174,14 @@ export default function FeedItem({ item, onPress, initialFocusCommentId = null, 
           {isOwner ? (
             <>
               <Pressable
+                onPress={handleAddToStory}
+                style={{ paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+              >
+                <Ionicons name="add-circle-outline" size={18} color={textColor} />
+                <Text style={{ color: textColor, fontWeight: '800' }}>Add to story</Text>
+              </Pressable>
+              <View style={{ height: 0.5, backgroundColor: isDark ? '#2e2e2e' : '#e8e5e0' }} />
+              <Pressable
                 onPress={handleEditPost}
                 style={{ paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}
               >
@@ -1180,6 +1199,14 @@ export default function FeedItem({ item, onPress, initialFocusCommentId = null, 
             </>
           ) : (
             <>
+              <Pressable
+                onPress={handleAddToStory}
+                style={{ paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+              >
+                <Ionicons name="add-circle-outline" size={18} color={textColor} />
+                <Text style={{ color: textColor, fontWeight: '800' }}>Add to story</Text>
+              </Pressable>
+              <View style={{ height: 0.5, backgroundColor: isDark ? '#2e2e2e' : '#e8e5e0' }} />
               <Pressable
                 onPress={handleOpenReport}
                 style={{ paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}

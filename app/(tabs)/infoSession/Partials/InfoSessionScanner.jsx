@@ -1,30 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Linking,
-  Dimensions,
-  StatusBar,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import InfoSessionAPI from '@/api/infoSessionSection';
 import Skeleton from '@/components/ui/Skeleton';
 import ScanResultOverlay from '../../events/Partials/ScanResultModal';
-import { useHideTabBar } from '@/hooks/useHideTabBar';
 import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { mapValidationMessage, validateInfoSessionQrScan } from '@/utils/infoSessionHelpers';
 
 const DUPLICATE_SCAN_MS = 2500;
-const FRAME_SIZE = 260;
 const CORNER_SIZE = 36;
 const BORDER_WIDTH = 4;
-const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get('window');
 
 function buildScanResult(message, profile) {
   const status = mapValidationMessage(message);
@@ -58,7 +46,7 @@ function buildScanResult(message, profile) {
     };
   }
 
-  if (normalized.includes('no such participant')) {
+  if (normalized.includes('no such participant') || normalized.includes('profile not found') || normalized.includes('not found')) {
     return {
       status: 'error',
       title: 'Not registered',
@@ -94,8 +82,6 @@ function ScanFrameCorner({ position, borderColor }) {
 }
 
 export default function InfoSessionScanner() {
-  useHideTabBar();
-  const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === 'dark';
   const accentIcon = getAccentIconColor(isDark);
   const accentFill = getAccentFillColor(isDark);
@@ -123,12 +109,6 @@ export default function InfoSessionScanner() {
     };
     loadSession();
   }, [id]);
-
-  useEffect(() => {
-    if (permission && !permission.granted && permission.canAskAgain !== false) {
-      requestPermission();
-    }
-  }, [permission, requestPermission]);
 
   const resetScanner = useCallback(() => {
     scanLockRef.current = false;
@@ -206,6 +186,14 @@ export default function InfoSessionScanner() {
       lastResultRef.current = scanResult;
       setLastResult(scanResult);
     } catch (error) {
+      const apiMessage = error?.response?.data?.message || error?.response?.data?.error;
+      const profile = error?.response?.data?.profile ?? null;
+      if (apiMessage) {
+        const scanResult = { ...buildScanResult(apiMessage, profile), profile };
+        lastResultRef.current = scanResult;
+        setLastResult(scanResult);
+        return;
+      }
       console.error('[SCAN] Info session validation error:', error);
       showFailure('Error', 'Failed to validate QR code. Please try again.');
     } finally {
@@ -214,19 +202,10 @@ export default function InfoSessionScanner() {
   };
 
   const scanPaused = processing || !!lastResult;
-  const showCamera = Boolean(permission?.granted && isFocused);
-
-  const handlePermissionPress = async () => {
-    if (permission?.canAskAgain === false) {
-      await Linking.openSettings();
-      return;
-    }
-    await requestPermission();
-  };
 
   if (!permission) {
     return (
-      <View style={[styles.centered, { backgroundColor: Colors.dark }]}>
+      <View style={styles.container}>
         <Skeleton width={200} height={18} borderRadius={12} isDark />
       </View>
     );
@@ -234,14 +213,12 @@ export default function InfoSessionScanner() {
 
   if (!permission.granted) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.container, styles.permissionScreen]}>
         <Ionicons name="camera-outline" size={64} color={accentIcon} />
         <Text style={styles.permissionTitle}>Camera permission required</Text>
         <Text style={styles.permissionText}>Allow camera access to scan participant QR codes.</Text>
-        <Pressable onPress={handlePermissionPress} style={[styles.permissionButton, { backgroundColor: accentFill }]}>
-          <Text style={[styles.permissionButtonText, { color: onAccentText }]}>
-            {permission.canAskAgain === false ? 'Open settings' : 'Grant permission'}
-          </Text>
+        <Pressable onPress={requestPermission} style={[styles.permissionButton, { backgroundColor: accentFill }]}>
+          <Text style={[styles.permissionButtonText, { color: onAccentText }]}>Grant permission</Text>
         </Pressable>
         <Pressable onPress={() => router.back()} style={styles.backLink}>
           <Text style={styles.backLinkText}>Go back</Text>
@@ -251,22 +228,21 @@ export default function InfoSessionScanner() {
   }
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
-      {showCamera ? (
+    <View style={styles.container}>
+      {/* CameraView does not support children — overlays must be absolute siblings. */}
+      {isFocused ? (
         <CameraView
           style={styles.camera}
           facing="back"
-          active={showCamera}
+          active={!scanPaused}
           onBarcodeScanned={scanPaused ? undefined : handleBarCodeScanned}
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         />
       ) : null}
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
-        <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
-          <Ionicons name="arrow-back" size={22} color={Colors.light} />
+      <View style={styles.header} pointerEvents="box-none">
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={20} color={Colors.light} />
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerEyebrow}>SCANNING</Text>
@@ -277,29 +253,29 @@ export default function InfoSessionScanner() {
         <View style={styles.headerSpacer} />
       </View>
 
-      <View style={styles.frameWrap} pointerEvents="none">
+      <View style={styles.frameSection} pointerEvents="none">
         <View style={styles.scanFrame}>
           <ScanFrameCorner position="top-left" borderColor={accentFill} />
           <ScanFrameCorner position="top-right" borderColor={accentFill} />
           <ScanFrameCorner position="bottom-left" borderColor={accentFill} />
           <ScanFrameCorner position="bottom-right" borderColor={accentFill} />
+
+          {processing ? (
+            <View style={styles.processingWrap}>
+              <Skeleton width={32} height={32} borderRadius={16} isDark={false} />
+              <Text style={styles.processingText}>Validating…</Text>
+            </View>
+          ) : (
+            <Ionicons name="qr-code-outline" size={48} color={accentIcon} />
+          )}
         </View>
       </View>
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]} pointerEvents="none">
-        {processing ? (
-          <View style={styles.processingRow}>
-            <Skeleton width={22} height={22} borderRadius={11} isDark={false} />
-            <Text style={styles.footerTitle}>Validating…</Text>
-          </View>
-        ) : (
-          <>
-            <Text style={styles.footerTitle}>Position the participant QR code in the frame</Text>
-            <Text style={styles.footerSub}>
-              On success you will open the participant profile to take their photo.
-            </Text>
-          </>
-        )}
+      <View style={styles.instructions} pointerEvents="none">
+        <Text style={styles.instructionsTitle}>Position the participant QR code in the frame</Text>
+        <Text style={styles.instructionsSub}>
+          On success you will open the participant profile to take their photo.
+        </Text>
       </View>
 
       <ScanResultOverlay
@@ -317,10 +293,8 @@ export default function InfoSessionScanner() {
 }
 
 const styles = StyleSheet.create({
-  root: {
+  container: {
     flex: 1,
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
     backgroundColor: '#000',
     overflow: 'hidden',
   },
@@ -328,25 +302,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
+    right: 0,
+    bottom: 0,
   },
   header: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
+    zIndex: 2,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingTop: 56,
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 12,
+    backgroundColor: 'rgba(33, 37, 41, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -359,64 +334,74 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,
-    color: 'rgba(250,250,250,0.7)',
+    color: 'rgba(250, 250, 250, 0.6)',
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: Colors.light,
     textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   headerSpacer: {
     width: 40,
   },
-  frameWrap: {
+  frameSection: {
     position: 'absolute',
     top: 0,
     left: 0,
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
+    right: 0,
+    bottom: 0,
+    zIndex: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 5,
+    paddingHorizontal: 32,
   },
   scanFrame: {
-    width: FRAME_SIZE,
-    height: FRAME_SIZE,
+    width: 288,
+    height: 288,
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
   },
-  footer: {
+  processingWrap: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  processingText: {
+    color: Colors.light,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  instructions: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 10,
+    zIndex: 2,
     alignItems: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  processingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  footerTitle: {
+  instructionsTitle: {
     color: Colors.light,
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.75)',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  footerSub: {
-    color: 'rgba(250,250,250,0.7)',
-    fontSize: 13,
+  instructionsSub: {
+    color: 'rgba(250, 250, 250, 0.65)',
+    fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
-    lineHeight: 18,
+    lineHeight: 20,
   },
-  centered: {
-    flex: 1,
+  permissionScreen: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,

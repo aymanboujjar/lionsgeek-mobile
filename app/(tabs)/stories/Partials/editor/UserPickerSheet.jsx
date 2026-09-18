@@ -35,7 +35,7 @@ const SHEET_H = Math.round(WINDOW_H * 0.7);
  *   onClose
  *   onPick(user)   → { id, name, avatar }
  */
-export default function UserPickerSheet({ visible, onClose, onPick }) {
+export default function UserPickerSheet({ visible, onClose, onPick, title = 'Mention someone' }) {
   const { token } = useAppContext();
   const translateY = useSharedValue(SHEET_H);
   const [query, setQuery] = useState('');
@@ -136,7 +136,7 @@ export default function UserPickerSheet({ visible, onClose, onPick }) {
               flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
               paddingHorizontal: 18, paddingBottom: 10,
             }}>
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>Mention someone</Text>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>{title}</Text>
               <Pressable onPress={dismiss} hitSlop={10}>
                 <Ionicons name="close" size={20} color="rgba(255,255,255,0.8)" />
               </Pressable>

@@ -96,6 +96,7 @@ export default function NotificationsScreen() {
       'reservation': 'calendar',
       'appointment': 'calendar',
       'post_interaction': 'heart',
+      'story_mention': 'at',
       'post_report': 'flag',
       'follow': 'person-add',
       'project_status': 'trophy',
@@ -116,6 +117,7 @@ export default function NotificationsScreen() {
       'reservation': '#10b981',
       'appointment': '#10b981',
       'post_interaction': '#ef4444',
+      'story_mention': '#ffc801',
       'post_report': '#ef4444',
       'follow': '#3b82f6',
       'project_status': '#ffc801',
@@ -159,6 +161,9 @@ export default function NotificationsScreen() {
         break;
       case 'post_interaction':
         title = 'Post Interaction';
+        break;
+      case 'story_mention':
+        title = 'Story mention';
         break;
       case 'post_report':
         title = 'Post reported';
@@ -352,6 +357,7 @@ export default function NotificationsScreen() {
         'reservation': 'reservation',
         'appointment': 'appointment',
         'post': 'post',
+        'story-mention': 'story-mention',
         'post-report': 'post-report',
         'user-report': 'user-report',
         'user-block': 'user-block',
@@ -468,6 +474,15 @@ export default function NotificationsScreen() {
         router.push('/(tabs)/reservations');
         return;
       }
+      if (targetLink.startsWith('/stories/')) {
+        const query = targetLink.includes('startUserId=') ? targetLink.split('startUserId=')[1] : '';
+        const startUserId = (query || '').split('&')[0];
+        router.push({
+          pathname: '/(tabs)/stories/viewer',
+          params: startUserId ? { startUserId: String(startUserId) } : {},
+        });
+        return;
+      }
       if (targetLink.startsWith('/posts/')) {
         router.push(`/(tabs)${targetLink}`);
         return;
@@ -507,6 +522,8 @@ export default function NotificationsScreen() {
     } else if (notification.type === 'project_submission' || notification.type === 'project_status' || notification.type === 'task_assignment' || notification.type === 'project_message') {
       router.push('/(tabs)/projects-hub');
     } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
+      router.push('/(tabs)/home');
+    } else if (notification.type === 'story_mention') {
       router.push('/(tabs)/home');
     } else if (notification.type === 'post_report' && notification?.post_id) {
       router.push(`/(tabs)/posts/${notification.post_id}${notification.report_id ? `?reportId=${notification.report_id}` : ''}`);
