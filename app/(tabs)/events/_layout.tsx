@@ -15,9 +15,10 @@ export default function EventsLayout() {
       <Stack.Screen
         name="scanner"
         options={{
+          presentation: 'fullScreenModal',
+          animation: 'fade',
           gestureEnabled: true,
-          gestureDirection: 'horizontal',
-          animation: 'slide_from_right',
+          headerShown: false,
         }}
       />
       <Stack.Screen
