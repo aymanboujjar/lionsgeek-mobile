@@ -410,6 +410,22 @@ export default function More() {
             onPress={() => router.push("/(tabs)/activity")}
             right={chevron}
           />
+          <RowDivider />
+          <SettingRow
+            icon="albums-outline"
+            label="Story archive"
+            sublabel="Expired stories stay private here"
+            onPress={() => router.push("/(tabs)/stories/archive")}
+            right={chevron}
+          />
+          <RowDivider />
+          <SettingRow
+            icon="star-outline"
+            label="Close friends"
+            sublabel="Who can see your close-friends stories"
+            onPress={() => router.push("/(tabs)/settings/close-friends")}
+            right={chevron}
+          />
         </SettingsCard>
 
         {/* Growth & recognition */}
