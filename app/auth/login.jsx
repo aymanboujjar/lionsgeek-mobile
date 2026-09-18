@@ -58,7 +58,6 @@ export default function LoginScreen() {
       if (response?.data) {
         let responseData = response.data;
 
-        // Handle case where response.data is a string (contains HTML warnings + JSON)
         if (typeof responseData === 'string') {
           const jsonMatch = responseData.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
@@ -87,7 +86,6 @@ export default function LoginScreen() {
           throw new Error('Failed to save authentication token');
         }
 
-        // Redirect to loading page to verify token and register push notifications
         router.replace('/loading');
       } else {
         throw new Error('No data received');

@@ -128,6 +128,10 @@ export default function TabLayout() {
     { route: "privacy", name: "Privacy", icon: "shield", showTab: false },
     { route: "support", name: "Support", icon: "help-circle", showTab: false },
     { route: "licenses", name: "Licenses", icon: "document", showTab: false },
+    { route: "call", name: "Call", icon: "call", showTab: false },
+    { route: "incoming-call", name: "Incoming call", icon: "call", showTab: false },
+    { route: "outgoing-call", name: "Outgoing call", icon: "call", showTab: false },
+    { route: "call-history", name: "Call history", icon: "time", showTab: false },
   ]
 
 
@@ -160,6 +164,17 @@ export default function TabLayout() {
   const lastVisibleTabIndexRef = useRef(0);
 
   const renderTabBar = useCallback((props) => {
+    const activeRoute = props.state.routes[props.state.index];
+    const nestedState = activeRoute?.state;
+    const nestedRouteName =
+      nestedState?.routes?.[nestedState?.index ?? 0]?.name ?? null;
+
+    // Event Scan is a nested route on the visible Events tab, so it must be
+    // hidden here (per-screen tabBarStyle is ignored by this custom tabBar).
+    if (nestedRouteName === 'scanner') {
+      return null;
+    }
+
     const filteredRoutes = visibleTabOrder
       .map((name) => props.state.routes.find((route) => route.name === name))
       .filter(Boolean);
@@ -226,14 +241,10 @@ export default function TabLayout() {
       index: filteredIndex >= 0 ? filteredIndex : lastVisibleTabIndexRef.current,
     };
 
-    // Custom tabBar ignores per-screen tabBarStyle, so hide it here for
-    // immersive routes (stories, settings, open chat threads, …).
-    // Keep it on More and the Messages list (chat/index).
-    const chatNestedState = activeRouteName === 'chat'
-      ? props.state.routes[props.state.index]?.state
-      : null;
-    const chatNestedRoute = chatNestedState?.routes?.[chatNestedState.index ?? 0]?.name;
-    const isChatThread = activeRouteName === 'chat' && chatNestedRoute === '[otherUserId]';
+    // Custom tabBar ignores per-screen tabBarStyle. Hide it on immersive
+    // hidden routes (stories, settings, call screens, chat threads). Keep it
+    // on More and the Messages list (chat/index).
+    const isChatThread = activeRouteName === 'chat' && nestedRouteName === '[otherUserId]';
     const keepTabBar =
       activeRouteName === 'more'
       || (activeRouteName === 'chat' && !isChatThread);
