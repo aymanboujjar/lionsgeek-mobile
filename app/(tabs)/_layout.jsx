@@ -171,7 +171,8 @@ export default function TabLayout() {
     const nestedRouteName =
       nestedState?.routes?.[nestedState?.index ?? 0]?.name ?? null;
 
-    // Full-screen camera flows (event / info-session QR scanners).
+    // Event Scan is a nested route on the visible Events tab, so it must be
+    // hidden here (per-screen tabBarStyle is ignored by this custom tabBar).
     if (nestedRouteName === 'scanner') {
       return null;
     }
@@ -241,6 +242,18 @@ export default function TabLayout() {
       routes: filteredRoutes,
       index: filteredIndex >= 0 ? filteredIndex : lastVisibleTabIndexRef.current,
     };
+
+    // Custom tabBar ignores per-screen tabBarStyle. Hide it on immersive
+    // hidden routes (stories, settings, call screens, chat threads). Keep it
+    // on More and the Messages list (chat/index).
+    const isChatThread = activeRouteName === 'chat' && nestedRouteName === '[otherUserId]';
+    const keepTabBar =
+      activeRouteName === 'more'
+      || (activeRouteName === 'chat' && !isChatThread);
+
+    if (onHiddenRoute && !keepTabBar) {
+      return null;
+    }
 
     return (
       <BottomTabBar

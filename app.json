@@ -17,7 +17,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "LionsGeek uses your camera for video calls, profile and story photos, QR attendance scanning, and chat images.",
-        "NSMicrophoneUsageDescription": "LionsGeek uses your microphone for audio and video calls and when recording video stories.",
+        "NSMicrophoneUsageDescription": "LionsGeek uses your microphone for audio and video calls, voice messages in chat, and when recording video stories.",
         "NSPhotoLibraryUsageDescription": "LionsGeek uses your photo library so you can choose photos for your profile picture and cover, attach images to community posts and stories, and share photos in chat. For example, when you create a post, you can select a photo from your library to upload with your message.",
         "UIBackgroundModes": [
           "remote-notification",
@@ -85,14 +85,14 @@
         {
           "photosPermission": "LionsGeek uses your photo library so you can choose photos for your profile picture and cover, attach images to community posts and stories, and share photos in chat. For example, when you create a post, you can select a photo from your library to upload with your message.",
           "cameraPermission": "LionsGeek uses your camera to take profile and story photos, scan QR codes for event and training attendance, and capture images to share in chat.",
-          "microphonePermission": "LionsGeek uses your microphone for voice messages in chat and when recording video stories."
+          "microphonePermission": "LionsGeek uses your microphone for audio and video calls, voice messages in chat, and when recording video stories."
         }
       ],
       [
         "expo-camera",
         {
           "cameraPermission": "LionsGeek uses your camera to take profile and story photos, scan QR codes for event and training attendance, and capture images to share in chat.",
-          "microphonePermission": "LionsGeek uses your microphone for voice messages in chat and when recording video stories."
+          "microphonePermission": "LionsGeek uses your microphone for audio and video calls, voice messages in chat, and when recording video stories."
         }
       ],
       "expo-font",
@@ -109,6 +109,7 @@
       ],
       "expo-video",
       "expo-asset",
+      "expo-task-manager",
       "@config-plugins/react-native-callkeep",
       "./plugins/withVoipPushCallKeep.js"
     ],

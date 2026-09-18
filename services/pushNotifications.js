@@ -29,15 +29,24 @@ function ensureNotificationHandler(Notifications) {
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       const type = notification?.request?.content?.data?.type;
-      // Native CallKeep / CallKit owns the UI + ringtone for incoming calls.
       if (type === 'incoming_call') {
-        return {
-          shouldShowAlert: false,
-          shouldPlaySound: false,
-          shouldSetBadge: false,
-          shouldShowBanner: false,
-          shouldShowList: false,
-        };
+        let callKeepOwnsRing = false;
+        try {
+          // eslint-disable-next-line global-require
+          const { isCallKeepAvailable } = require('./callKeep');
+          callKeepOwnsRing = isCallKeepAvailable();
+        } catch (_) {}
+        // Native CallKeep / CallKit owns the UI + ringtone when available.
+        // If the native module is missing (Expo Go), still alert via push.
+        if (callKeepOwnsRing) {
+          return {
+            shouldShowAlert: false,
+            shouldPlaySound: false,
+            shouldSetBadge: false,
+            shouldShowBanner: false,
+            shouldShowList: false,
+          };
+        }
       }
       return {
         shouldShowAlert: true,
@@ -164,6 +173,7 @@ export async function registerForPushNotificationsAsync() {
         bypassDnd: true,
         enableVibrate: true,
         showBadge: false,
+        sound: 'default',
       });
     }
 
