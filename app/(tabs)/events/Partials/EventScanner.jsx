@@ -1,31 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  Linking,
-  Dimensions,
-  StatusBar,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppContext } from '@/context';
 import API from '@/api';
 import Skeleton from '@/components/ui/Skeleton';
 import ScanResultOverlay from './ScanResultModal';
-import { useHideTabBar } from '@/hooks/useHideTabBar';
 import { Colors, getAccentFillColor, getAccentIconColor, getOnAccentTextColor, Overlays } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { getEventDisplayName, hasEventPassed, mapValidationMessage, userCanScanEvent } from '@/utils/events';
 
 const DUPLICATE_SCAN_MS = 2500;
-const FRAME_SIZE = 260;
 const CORNER_SIZE = 36;
 const BORDER_WIDTH = 4;
-const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get('window');
 
 function buildScanResult(message, profile) {
   const status = mapValidationMessage(message);
@@ -95,9 +83,7 @@ function ScanFrameCorner({ position, borderColor }) {
 }
 
 export default function EventScanner() {
-  useHideTabBar();
   const { user } = useAppContext();
-  const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === 'dark';
   const accentIcon = getAccentIconColor(isDark);
   const accentFill = getAccentFillColor(isDark);
@@ -110,7 +96,6 @@ export default function EventScanner() {
   const [eventTitle, setEventTitle] = useState('');
   const [eventData, setEventData] = useState(null);
   const [eventLoading, setEventLoading] = useState(true);
-  const [eventLoadError, setEventLoadError] = useState(false);
   const [lastResult, setLastResult] = useState(null);
   const scanLockRef = useRef(false);
   const lastScanRef = useRef({ data: null, at: 0 });
@@ -119,33 +104,23 @@ export default function EventScanner() {
     const loadEvent = async () => {
       if (!id) {
         setEventLoading(false);
-        setEventLoadError(true);
         return;
       }
       setEventLoading(true);
-      setEventLoadError(false);
       try {
         const response = await API.getEvent(id);
         const event = response?.data?.event ?? null;
         setEventData(event);
         setEventTitle(getEventDisplayName(event?.name));
-        if (!event) setEventLoadError(true);
       } catch {
         setEventData(null);
         setEventTitle('Event');
-        setEventLoadError(true);
       } finally {
         setEventLoading(false);
       }
     };
     loadEvent();
   }, [id]);
-
-  useEffect(() => {
-    if (permission && !permission.granted && permission.canAskAgain !== false) {
-      requestPermission();
-    }
-  }, [permission, requestPermission]);
 
   const scanAllowed = eventData ? userCanScanEvent(eventData, user) : false;
 
@@ -158,6 +133,7 @@ export default function EventScanner() {
   const handleResultDismiss = useCallback(() => {
     setLastResult(null);
     resetScanner();
+
     if (id) {
       router.replace(`/(tabs)/events/${id}`);
     } else {
@@ -225,41 +201,19 @@ export default function EventScanner() {
   };
 
   const scanPaused = processing || !!lastResult;
-  const showCamera = Boolean(permission?.granted && isFocused && scanAllowed);
 
-  const handlePermissionPress = async () => {
-    if (permission?.canAskAgain === false) {
-      await Linking.openSettings();
-      return;
-    }
-    await requestPermission();
-  };
-
-  if (eventLoading || !permission) {
+  if (eventLoading) {
     return (
-      <View style={[styles.centered, { backgroundColor: Colors.dark }]}>
-        <Skeleton width={200} height={18} borderRadius={12} isDark />
-      </View>
-    );
-  }
-
-  if (eventLoadError || !eventData) {
-    return (
-      <View style={styles.centered}>
-        <Ionicons name="cloud-offline-outline" size={64} color={accentIcon} />
-        <Text style={styles.permissionTitle}>Could not load event</Text>
-        <Text style={styles.permissionText}>Check your connection and try again.</Text>
-        <Pressable onPress={() => router.back()} style={[styles.permissionButton, { backgroundColor: accentFill }]}>
-          <Text style={[styles.permissionButtonText, { color: onAccentText }]}>Go back</Text>
-        </Pressable>
+      <View style={[styles.container, styles.permissionScreen]}>
+        <Skeleton width={200} height={18} borderRadius={12} isDark={isDark} />
       </View>
     );
   }
 
   if (!scanAllowed) {
-    const eventEnded = hasEventPassed(eventData);
+    const eventEnded = eventData ? hasEventPassed(eventData) : false;
     return (
-      <View style={styles.centered}>
+      <View style={[styles.container, styles.permissionScreen]}>
         <Ionicons name="lock-closed-outline" size={64} color={accentIcon} />
         <Text style={styles.permissionTitle}>{eventEnded ? 'Scan closed' : 'Scan not available'}</Text>
         <Text style={styles.permissionText}>
@@ -274,16 +228,22 @@ export default function EventScanner() {
     );
   }
 
+  if (!permission) {
+    return (
+      <View style={styles.container}>
+        <Skeleton width={200} height={18} borderRadius={12} isDark />
+      </View>
+    );
+  }
+
   if (!permission.granted) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.container, styles.permissionScreen]}>
         <Ionicons name="camera-outline" size={64} color={accentIcon} />
         <Text style={styles.permissionTitle}>Camera permission required</Text>
         <Text style={styles.permissionText}>Allow camera access to scan visitor QR codes.</Text>
-        <Pressable onPress={handlePermissionPress} style={[styles.permissionButton, { backgroundColor: accentFill }]}>
-          <Text style={[styles.permissionButtonText, { color: onAccentText }]}>
-            {permission.canAskAgain === false ? 'Open settings' : 'Grant permission'}
-          </Text>
+        <Pressable onPress={requestPermission} style={[styles.permissionButton, { backgroundColor: accentFill }]}>
+          <Text style={[styles.permissionButtonText, { color: onAccentText }]}>Grant permission</Text>
         </Pressable>
         <Pressable onPress={() => router.back()} style={styles.backLink}>
           <Text style={styles.backLinkText}>Go back</Text>
@@ -293,55 +253,58 @@ export default function EventScanner() {
   }
 
   return (
-    <View style={styles.root}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-
-      {showCamera ? (
+    <View style={styles.container}>
+      {/* CameraView does not support children — overlays must be absolute siblings. */}
+      {isFocused ? (
         <CameraView
           style={styles.camera}
           facing="back"
-          active={showCamera}
+          active={!scanPaused}
           onBarcodeScanned={scanPaused ? undefined : handleBarCodeScanned}
           barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         />
-      ) : null}
+      ) : (
+        <View style={styles.camera} />
+      )}
 
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
-        <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
-          <Ionicons name="arrow-back" size={22} color={Colors.light} />
-        </Pressable>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerEyebrow}>SCANNING</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {eventTitle}
+      <View style={styles.overlay} pointerEvents="box-none">
+        <View style={styles.header} pointerEvents="box-none">
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={20} color={isDark ? Colors.light : Colors.beta} />
+          </Pressable>
+          <View style={styles.headerCenter}>
+            <Text style={styles.headerEyebrow}>SCANNING</Text>
+            <Text style={styles.headerTitle} numberOfLines={1}>
+              {eventTitle}
+            </Text>
+          </View>
+          <View style={styles.headerSpacer} />
+        </View>
+
+        <View style={styles.frameSection} pointerEvents="none">
+          <View style={styles.scanFrame}>
+            <ScanFrameCorner position="top-left" borderColor={accentFill} />
+            <ScanFrameCorner position="top-right" borderColor={accentFill} />
+            <ScanFrameCorner position="bottom-left" borderColor={accentFill} />
+            <ScanFrameCorner position="bottom-right" borderColor={accentFill} />
+
+            {processing ? (
+              <View style={styles.processingWrap}>
+                <Skeleton width={32} height={32} borderRadius={16} isDark={false} />
+                <Text style={styles.processingText}>Validating…</Text>
+              </View>
+            ) : (
+              <Ionicons name="qr-code-outline" size={48} color={accentIcon} />
+            )}
+          </View>
+        </View>
+
+        <View style={styles.instructions} pointerEvents="none">
+          <Text style={styles.instructionsTitle}>Position the visitor QR code in the frame</Text>
+          <Text style={styles.instructionsSub}>
+            Registered visitors show success. Others show an error, then you return to event details.
           </Text>
         </View>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <View style={styles.frameWrap} pointerEvents="none">
-        <View style={styles.scanFrame}>
-          <ScanFrameCorner position="top-left" borderColor={accentFill} />
-          <ScanFrameCorner position="top-right" borderColor={accentFill} />
-          <ScanFrameCorner position="bottom-left" borderColor={accentFill} />
-          <ScanFrameCorner position="bottom-right" borderColor={accentFill} />
-        </View>
-      </View>
-
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]} pointerEvents="none">
-        {processing ? (
-          <View style={styles.processingRow}>
-            <Skeleton width={22} height={22} borderRadius={11} isDark={false} />
-            <Text style={styles.footerTitle}>Validating…</Text>
-          </View>
-        ) : (
-          <>
-            <Text style={styles.footerTitle}>Position the visitor QR code in the frame</Text>
-            <Text style={styles.footerSub}>
-              Registered visitors show success. Others show an error, then you return to event details.
-            </Text>
-          </>
-        )}
       </View>
 
       <ScanResultOverlay visible={!!lastResult} result={lastResult} onDismiss={handleResultDismiss} />
@@ -350,36 +313,30 @@ export default function EventScanner() {
 }
 
 const styles = StyleSheet.create({
-  root: {
+  container: {
     flex: 1,
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
     backgroundColor: '#000',
-    overflow: 'hidden',
   },
   camera: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    backgroundColor: 'transparent',
   },
   header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingTop: 56,
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 12,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -392,64 +349,63 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1.5,
-    color: 'rgba(250,250,250,0.7)',
+    color: Overlays.textSubtleOnDark,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: Colors.light,
     textAlign: 'center',
+    textShadowColor: Overlays.textShadow,
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   headerSpacer: {
     width: 40,
   },
-  frameWrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
+  frameSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 5,
+    paddingHorizontal: 32,
   },
   scanFrame: {
-    width: FRAME_SIZE,
-    height: FRAME_SIZE,
+    width: 288,
+    height: 288,
+    alignItems: 'center',
+    justifyContent: 'center',
     position: 'relative',
   },
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 10,
+  processingWrap: {
     alignItems: 'center',
-    paddingHorizontal: 28,
+    gap: 12,
   },
-  processingRow: {
-    flexDirection: 'row',
+  processingText: {
+    color: Colors.light,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  instructions: {
     alignItems: 'center',
-    gap: 10,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  footerTitle: {
+  instructionsTitle: {
     color: Colors.light,
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-    textShadowColor: 'rgba(0,0,0,0.75)',
+    textShadowColor: Overlays.textShadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  footerSub: {
-    color: 'rgba(250,250,250,0.7)',
-    fontSize: 13,
+  instructionsSub: {
+    color: Overlays.textMutedOnDark,
+    fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
-    lineHeight: 18,
+    lineHeight: 20,
   },
-  centered: {
-    flex: 1,
+  permissionScreen: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,

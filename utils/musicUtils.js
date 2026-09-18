@@ -34,6 +34,8 @@ export function buildMusicOverlayPayload(track, { startMs = 0, display = 'none',
     end_ms: track.default_end_ms > 0 ? track.default_end_ms : clipEnd,
     display,
     source: track.source || source || 'spotify+itunes',
+    original_volume: 0,
+    music_volume: 0.85,
   };
 }
 

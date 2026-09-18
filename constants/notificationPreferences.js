@@ -31,6 +31,7 @@ export const NOTIFICATION_TYPE_PREF_SECTIONS = [
     title: 'Community',
     items: [
       { type: 'post_interaction', label: 'Post interactions', description: 'Activity on your posts' },
+      { type: 'story_mention', label: 'Story mentions', description: 'When someone mentions you in a story' },
       { type: 'post_report', label: 'Moderation & reports', description: 'Reports linked to your content' },
       { type: 'follow', label: 'New followers', description: 'When someone follows you' },
     ],

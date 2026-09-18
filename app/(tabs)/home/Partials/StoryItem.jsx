@@ -12,14 +12,18 @@ import { resolveAvatarUrl } from '@/components/helpers/helpers';
  *   hasStories  – the user has at least one active story (controls ring presence)
  *   hasUnseen   – at least one of their stories has NOT been viewed by the auth user
  *                  -> gold ring; otherwise grey ring
- *   onPress     – tile tapped
+ *   onPress     – avatar / tile tapped (view stories)
+ *   onAddPress  – own-story "+" badge tapped (create story)
  */
 export default function StoryItem({
   user,
   isOwn = false,
   hasStories = true,
   hasUnseen = true,
+  isCloseFriends = false,
   onPress,
+  onAddPress,
+  onLongPress,
 }) {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -36,56 +40,87 @@ export default function StoryItem({
   }
 
   return (
-    <Pressable onPress={onPress} className="items-center active:opacity-70" style={{ width: 76, marginRight: 12 }}>
-      <View
-        style={{
-          width: 72, height: 72, borderRadius: 36,
-          padding: 2.5,
-          backgroundColor: 'transparent',
-          borderWidth: hasStories ? 2.5 : 0,
-          borderColor: ringColor,
-        }}
+    <View style={{ width: 76, marginRight: 12, alignItems: 'center' }}>
+      <Pressable
+        onPress={onPress}
+        onLongPress={onLongPress}
+        delayLongPress={350}
+        accessibilityRole="button"
+        accessibilityLabel={
+          isOwn
+            ? (hasStories ? 'Your story. Tap to view.' : 'Add a story')
+            : `${displayName}${hasUnseen ? ', new stories' : ', seen'}`
+        }
+        className="items-center active:opacity-70"
       >
-        {/* White gap ring */}
         <View
           style={{
-            flex: 1, borderRadius: 33,
-            backgroundColor: isDark ? '#171717' : '#fafafa',
-            padding: 2,
+            width: 72, height: 72, borderRadius: 36,
+            padding: 2.5,
+            backgroundColor: 'transparent',
+            borderWidth: hasStories ? 2.5 : 0,
+            borderColor: ringColor,
           }}
         >
-          {avatarUrl ? (
-            <Image
-              source={{ uri: avatarUrl }}
-              defaultSource={require('@/assets/images/icon.png')}
-              style={{ width: '100%', height: '100%', borderRadius: 29 }}
-            />
-          ) : (
-            <View
-              style={{ flex: 1, borderRadius: 29, alignItems: 'center', justifyContent: 'center' }}
-              className="bg-beta/10 dark:bg-beta/40"
-            >
-              <Text className="font-extrabold text-base text-black/70 dark:text-white/70">
-                {initial}
-              </Text>
-            </View>
-          )}
+          {/* White gap ring */}
+          <View
+            style={{
+              flex: 1, borderRadius: 33,
+              backgroundColor: isDark ? '#171717' : '#fafafa',
+              padding: 2,
+            }}
+          >
+            {avatarUrl ? (
+              <Image
+                source={{ uri: avatarUrl }}
+                defaultSource={require('@/assets/images/icon.png')}
+                style={{ width: '100%', height: '100%', borderRadius: 29 }}
+              />
+            ) : (
+              <View
+                style={{ flex: 1, borderRadius: 29, alignItems: 'center', justifyContent: 'center' }}
+                className="bg-beta/10 dark:bg-beta/40"
+              >
+                <Text className="font-extrabold text-base text-black/70 dark:text-white/70">
+                  {initial}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+      </Pressable>
 
-      {/* "+" badge for own story. Always shown so the user can quickly add. */}
+      {/* "+" badge for own story — separate hit target so it opens create. */}
       {isOwn ? (
+        <Pressable
+          onPress={onAddPress || onPress}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Add a story"
+          style={{
+            position: 'absolute', bottom: 22, right: 2,
+            width: 22, height: 22, borderRadius: 11,
+            backgroundColor: '#ffc801',
+            alignItems: 'center', justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: isDark ? '#171717' : '#fafafa',
+            zIndex: 2,
+          }}
+        >
+          <Ionicons name="add" size={13} color="#000" />
+        </Pressable>
+      ) : isCloseFriends ? (
         <View
           style={{
             position: 'absolute', bottom: 22, right: 2,
-            width: 20, height: 20, borderRadius: 10,
+            width: 18, height: 18, borderRadius: 9,
             backgroundColor: '#ffc801',
             alignItems: 'center', justifyContent: 'center',
             borderWidth: 2,
             borderColor: isDark ? '#171717' : '#fafafa',
           }}
         >
-          <Ionicons name="add" size={12} color="#000" />
+          <Ionicons name="star" size={9} color="#000" />
         </View>
       ) : null}
 
@@ -95,6 +130,6 @@ export default function StoryItem({
       >
         {displayName}
       </Text>
-    </Pressable>
+    </View>
   );
 }

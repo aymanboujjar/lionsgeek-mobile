@@ -41,6 +41,9 @@ export default function TextInputModal({ visible, initial, onCancel, onSubmit })
   const [text, setText] = useState('');
   const [color, setColor] = useState('#ffffff');
   const [hasBg, setHasBg] = useState(false);
+  const [font, setFont] = useState('default');
+  const [align, setAlign] = useState('center');
+  const [anim, setAnim] = useState('none');
   const inputRef = useRef(null);
 
   // Reset on open
@@ -49,6 +52,9 @@ export default function TextInputModal({ visible, initial, onCancel, onSubmit })
       setText(initial?.text ?? '');
       setColor(initial?.color ?? '#ffffff');
       setHasBg(!!initial?.has_bg);
+      setFont(initial?.font || 'default');
+      setAlign(initial?.align || 'center');
+      setAnim(initial?.anim || 'none');
       // Slight delay so keyboard pops smoothly.
       setTimeout(() => inputRef.current?.focus?.(), 80);
     }
@@ -65,6 +71,9 @@ export default function TextInputModal({ visible, initial, onCancel, onSubmit })
       color,
       has_bg: hasBg,
       bg_color: hasBg ? color : null,
+      font,
+      align,
+      anim,
     });
   };
 
@@ -145,6 +154,21 @@ export default function TextInputModal({ visible, initial, onCancel, onSubmit })
 
             {/* Bottom: color row */}
             <View style={{ paddingBottom: Platform.OS === 'ios' ? 30 : 18, paddingTop: 10 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8, marginBottom: 10 }}>
+                {[['default', 'Aa'], ['bold', 'B'], ['serif', 'Serif'], ['mono', 'Mono']].map(([id, label]) => (
+                  <Pressable key={id} onPress={() => setFont(id)} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: font === id ? '#ffc801' : 'rgba(255,255,255,0.15)' }}>
+                    <Text style={{ color: font === id ? '#000' : '#fff', fontWeight: '800', fontSize: 12 }}>{label}</Text>
+                  </Pressable>
+                ))}
+                {['left', 'center', 'right'].map((a) => (
+                  <Pressable key={a} onPress={() => setAlign(a)} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: align === a ? '#ffc801' : 'rgba(255,255,255,0.15)' }}>
+                    <Text style={{ color: align === a ? '#000' : '#fff', fontWeight: '800', fontSize: 12 }}>{a}</Text>
+                  </Pressable>
+                ))}
+                <Pressable onPress={() => setAnim((v) => (v === 'pulse' ? 'none' : 'pulse'))} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: anim === 'pulse' ? '#ffc801' : 'rgba(255,255,255,0.15)' }}>
+                  <Text style={{ color: anim === 'pulse' ? '#000' : '#fff', fontWeight: '800', fontSize: 12 }}>Pulse</Text>
+                </Pressable>
+              </ScrollView>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}

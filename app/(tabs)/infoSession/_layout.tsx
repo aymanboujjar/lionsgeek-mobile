@@ -15,10 +15,10 @@ export default function InfoSessionLayout() {
       <Stack.Screen
         name="scanner"
         options={{
-          presentation: 'fullScreenModal',
-          animation: 'fade',
           gestureEnabled: true,
-          headerShown: false,
+          gestureDirection: 'horizontal',
+          animation: 'slide_from_right',
+          contentStyle: { flex: 1, backgroundColor: '#000' },
         }}
       />
       <Stack.Screen

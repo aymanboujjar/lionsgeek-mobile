@@ -24,14 +24,15 @@ export default function ScanResultOverlay({ visible, result, onDismiss, dismissH
 
   return (
     <Modal
-      visible={Boolean(visible)}
+      visible={!!visible}
       transparent
       animationType="fade"
       statusBarTranslucent
       onRequestClose={onDismiss}
     >
-      <Pressable style={styles.backdrop} onPress={onDismiss}>
-        <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
+      <View style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={onDismiss} accessibilityLabel="Dismiss" />
+        <View style={styles.card} pointerEvents="box-none">
           <View
             style={[
               styles.iconWrap,
@@ -52,19 +53,19 @@ export default function ScanResultOverlay({ visible, result, onDismiss, dismissH
           <Text style={styles.hint}>
             {dismissHint ?? 'Returning to event details in 2 seconds…'}
           </Text>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  overlay: {
     flex: 1,
     backgroundColor: Overlays.backdrop,
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 28,
+    alignItems: 'center',
+    paddingHorizontal: 32,
   },
   card: {
     width: '100%',
@@ -75,6 +76,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.light,
     padding: 24,
     alignItems: 'center',
+    zIndex: 1,
   },
   iconWrap: {
     width: 64,

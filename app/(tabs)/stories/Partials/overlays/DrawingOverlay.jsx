@@ -19,6 +19,8 @@ export default function DrawingOverlay({ overlay, containerSize }) {
   const d = buildSmoothPath(pts, containerSize.width, containerSize.height);
   const color = overlay.color || '#ffffff';
   const width = Math.max(1, overlay.stroke_width || 6);
+  const opacity = overlay.opacity ?? (overlay.brush === 'highlighter' ? 0.35 : 1);
+  const glow = overlay.brush === 'neon';
 
   return (
     <Svg
@@ -27,12 +29,24 @@ export default function DrawingOverlay({ overlay, containerSize }) {
       style={{ position: 'absolute', left: 0, top: 0 }}
       pointerEvents="none"
     >
+      {glow ? (
+        <Path
+          d={d}
+          stroke={color}
+          strokeWidth={width * 2.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeOpacity={0.35}
+          fill="none"
+        />
+      ) : null}
       <Path
         d={d}
         stroke={color}
         strokeWidth={width}
         strokeLinecap="round"
         strokeLinejoin="round"
+        strokeOpacity={opacity}
         fill="none"
       />
     </Svg>

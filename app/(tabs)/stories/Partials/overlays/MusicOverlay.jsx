@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 /**
  * Read-only music sticker overlay.
  *
- * Renders the Instagram-style "now playing" pill: cover art + title + artist
+ * Renders the "now playing" pill: cover art + title + artist
  * + three animated bars. Positioned using normalized coords (x, y) in the
  * containerSize, with scale + rotation applied.
  *
@@ -62,7 +62,6 @@ export default function MusicOverlay({ overlay, containerSize, animated = true }
   );
 }
 
-// ─── Pill (default) ──────────────────────────────────────────────────────
 function PillChip({ overlay, animated }) {
   return (
     <View
@@ -113,7 +112,6 @@ function PillChip({ overlay, animated }) {
   );
 }
 
-// ─── Card (bigger, square-ish) ───────────────────────────────────────────
 function CardChip({ overlay, animated }) {
   return (
     <View
@@ -160,7 +158,6 @@ function CardChip({ overlay, animated }) {
   );
 }
 
-// ─── Minimal (icon + title only) ─────────────────────────────────────────
 function MinimalChip({ overlay, animated }) {
   return (
     <View
@@ -187,7 +184,6 @@ function MinimalChip({ overlay, animated }) {
   );
 }
 
-// ─── Sub-elements ────────────────────────────────────────────────────────
 function Cover({ overlay, size, radius }) {
   if (overlay.cover_url) {
     return (

@@ -5,6 +5,7 @@ import StickerOverlay from './overlays/StickerOverlay';
 import DrawingOverlay from './overlays/DrawingOverlay';
 import MentionOverlay from './overlays/MentionOverlay';
 import MusicOverlay from './overlays/MusicOverlay';
+import InteractiveOverlay from './overlays/InteractiveOverlay';
 
 /**
  * Read-only overlay layer. Drops in on top of the story media in the viewer
@@ -22,7 +23,7 @@ import MusicOverlay from './overlays/MusicOverlay';
  *                      (false while the story is paused)
  *   style            – optional extra style
  */
-export default function OverlayRenderer({ overlays, onMentionPress, musicAnimated = true, style }) {
+export default function OverlayRenderer({ overlays, onMentionPress, musicAnimated = true, interactions = [], isMine = false, onInteract, style }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   const onLayout = useCallback((e) => {
@@ -42,6 +43,20 @@ export default function OverlayRenderer({ overlays, onMentionPress, musicAnimate
         if (!o || typeof o !== 'object') return null;
         if (o.type === 'drawing') {
           return <DrawingOverlay key={o.id} overlay={o} containerSize={size} />;
+        }
+        if (o.type === 'filter') {
+          return (
+            <View
+              key={o.id}
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundColor: o.color || '#000',
+                opacity: typeof o.opacity === 'number' ? o.opacity : 0.2,
+              }}
+            />
+          );
         }
         if (o.type === 'text') {
           return <TextOverlay key={o.id} overlay={o} containerSize={size} />;
@@ -66,6 +81,38 @@ export default function OverlayRenderer({ overlays, onMentionPress, musicAnimate
               overlay={o}
               containerSize={size}
               animated={musicAnimated}
+            />
+          );
+        }
+        if (o.type === 'layout' || o.type === 'boomerang' || o.type === 'gradient' || o.type === 'blur' || o.type === 'media_transform') {
+          return null;
+        }
+        if (o.type === 'hashtag' || o.type === 'location') {
+          return (
+            <TextOverlay
+              key={o.id}
+              overlay={{
+                ...o,
+                type: 'text',
+                text: o.type === 'hashtag' ? `#${o.tag || ''}` : (o.label || ''),
+                has_bg: true,
+                color: '#000000',
+                bg_color: '#ffc801',
+              }}
+              containerSize={size}
+            />
+          );
+        }
+        if (['poll', 'question', 'quiz', 'slider', 'countdown', 'link'].includes(o.type)) {
+          const interaction = (interactions || []).find((x) => x.overlay_id === o.id) || null;
+          return (
+            <InteractiveOverlay
+              key={o.id}
+              overlay={o}
+              containerSize={size}
+              interaction={interaction}
+              isMine={isMine}
+              onSubmit={(value) => onInteract?.(o.id, value)}
             />
           );
         }

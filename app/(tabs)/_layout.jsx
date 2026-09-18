@@ -50,7 +50,6 @@ export default function TabLayout() {
         setStoredToken(nextStoredToken);
 
         if (!nextStoredToken && !token) {
-          // No token in storage and no token in context - redirect to login
           router.replace('/auth/login');
         }
       } catch (error) {
@@ -64,7 +63,6 @@ export default function TabLayout() {
   }, [token]);
 
   useEffect(() => {
-    // Only redirect if we've finished checking and there's no token
     if (!isCheckingAuth && !token && !storedToken) {
       router.replace('/auth/login');
     }
@@ -162,20 +160,10 @@ export default function TabLayout() {
   const lastVisibleTabIndexRef = useRef(0);
 
   const renderTabBar = useCallback((props) => {
-    const activeRoute = props.state.routes[props.state.index];
-    const nestedState = activeRoute?.state;
-    const nestedRouteName =
-      nestedState?.routes?.[nestedState?.index ?? 0]?.name ?? null;
-
-    // Full-screen camera flows (event / info-session QR scanners).
-    if (nestedRouteName === 'scanner') {
-      return null;
-    }
-
     const filteredRoutes = visibleTabOrder
       .map((name) => props.state.routes.find((route) => route.name === name))
       .filter(Boolean);
-    const activeRouteName = activeRoute?.name;
+    const activeRouteName = props.state.routes[props.state.index]?.name;
     const filteredIndex = filteredRoutes.findIndex((route) => route.name === activeRouteName);
     const onHiddenRoute = filteredIndex < 0;
 
@@ -237,6 +225,22 @@ export default function TabLayout() {
       routes: filteredRoutes,
       index: filteredIndex >= 0 ? filteredIndex : lastVisibleTabIndexRef.current,
     };
+
+    // Custom tabBar ignores per-screen tabBarStyle, so hide it here for
+    // immersive routes (stories, settings, open chat threads, …).
+    // Keep it on More and the Messages list (chat/index).
+    const chatNestedState = activeRouteName === 'chat'
+      ? props.state.routes[props.state.index]?.state
+      : null;
+    const chatNestedRoute = chatNestedState?.routes?.[chatNestedState.index ?? 0]?.name;
+    const isChatThread = activeRouteName === 'chat' && chatNestedRoute === '[otherUserId]';
+    const keepTabBar =
+      activeRouteName === 'more'
+      || (activeRouteName === 'chat' && !isChatThread);
+
+    if (onHiddenRoute && !keepTabBar) {
+      return null;
+    }
 
     return (
       <BottomTabBar
