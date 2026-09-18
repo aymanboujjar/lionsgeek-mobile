@@ -1,10 +1,11 @@
-import React from 'react';
-import { View, Text, Pressable, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable, Image, Alert, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import API from '@/api';
+import { useCallContext } from '@/context/CallContext';
 
 export default function ChatHeader({ conversation, onBack }) {
     const router = useRouter();
@@ -12,10 +13,36 @@ export default function ChatHeader({ conversation, onBack }) {
     const insets = useSafeAreaInsets();
     const isDark = colorScheme === 'dark';
     const fg = isDark ? '#fff' : '#000';
+    const { initiate } = useCallContext();
+    const [isStartingCall, setIsStartingCall] = useState(false);
+    const [startingType, setStartingType] = useState(null);
 
     const lastOnline = conversation.other_user?.last_online
         ? new Date(conversation.other_user.last_online)
         : null;
+
+    const handleCall = async (type = 'audio') => {
+        const calleeId = conversation.other_user?.id;
+        if (!calleeId) {
+            Alert.alert('Call', 'Cannot identify the user to call.');
+            return;
+        }
+        if (isStartingCall) return;
+        setIsStartingCall(true);
+        setStartingType(type);
+        try {
+            await initiate(calleeId, type);
+        } catch (e) {
+            const msg =
+                e?.response?.data?.message ||
+                e?.message ||
+                'Unable to start the call. Please try again.';
+            Alert.alert('Call', msg);
+        } finally {
+            setIsStartingCall(false);
+            setStartingType(null);
+        }
+    };
 
     let statusLine = null;
     let isOnline = false;
@@ -87,6 +114,32 @@ export default function ChatHeader({ conversation, onBack }) {
                         </Text>
                     </Pressable>
                 </View>
+                <Pressable
+                    onPress={() => handleCall('audio')}
+                    disabled={isStartingCall}
+                    accessibilityLabel="Audio call"
+                    className="w-10 h-10 rounded-xl bg-black/[0.05] dark:bg-white/[0.08] items-center justify-center active:opacity-70"
+                    style={isStartingCall ? { opacity: 0.6 } : undefined}
+                >
+                    {isStartingCall && startingType === 'audio' ? (
+                        <ActivityIndicator size="small" color={fg} />
+                    ) : (
+                        <Ionicons name="call-outline" size={20} color={fg} />
+                    )}
+                </Pressable>
+                <Pressable
+                    onPress={() => handleCall('video')}
+                    disabled={isStartingCall}
+                    accessibilityLabel="Video call"
+                    className="w-10 h-10 rounded-xl bg-black/[0.05] dark:bg-white/[0.08] items-center justify-center active:opacity-70"
+                    style={isStartingCall ? { opacity: 0.6 } : undefined}
+                >
+                    {isStartingCall && startingType === 'video' ? (
+                        <ActivityIndicator size="small" color={fg} />
+                    ) : (
+                        <Ionicons name="videocam-outline" size={20} color={fg} />
+                    )}
+                </Pressable>
             </View>
         </View>
     );

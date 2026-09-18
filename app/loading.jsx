@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { useAppContext } from '@/context';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAuthToken, removeAuthToken } from '@/utils/authTokenStorage';
+import { getAuthToken } from '@/utils/authTokenStorage';
 import API from '@/api';
 import { Home as LogoIcon } from '@/components/logo';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -30,8 +30,6 @@ export default function LoadingScreen() {
         }
 
         if (!hasValidToken) {
-          await removeAuthToken();
-          await AsyncStorage.removeItem('auth_user');
           router.replace('/auth/login');
           return;
         }
@@ -43,11 +41,11 @@ export default function LoadingScreen() {
             if (pushToken) {
               await sendPushTokenToBackend(pushToken, tokenStr);
             }
+            // VoIP PushKit registration lives in CallContext (single place + cleanup).
           } catch {
             // Push setup is optional; do not block app flow.
           }
 
-          // Prefer cold-start notification destination over unconditional Home.
           try {
             const pendingData = await consumePendingNotificationNavigation();
             if (pendingData) {
@@ -59,6 +57,23 @@ export default function LoadingScreen() {
             // fall through to home
           }
           router.replace('/(tabs)/home');
+        };
+
+        const enterWithCacheOrStub = async () => {
+          const cached = await AsyncStorage.getItem('auth_user');
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (parsed?.id != null) {
+                await enterAppWithUser(parsed);
+                return;
+              }
+            } catch {
+              // fall through
+            }
+          }
+          // Never enter the app with a null user id — calls/Ably require it.
+          router.replace('/auth/login');
         };
 
         try {
@@ -75,45 +90,18 @@ export default function LoadingScreen() {
             return;
           }
 
-          // Empty body with 2xx — treat as soft failure, try cached user.
-          const cached = await AsyncStorage.getItem('auth_user');
-          if (cached) {
-            try {
-              await enterAppWithUser(JSON.parse(cached));
-              return;
-            } catch {
-              // fall through
-            }
-          }
-
-          await removeAuthToken();
-          await AsyncStorage.removeItem('auth_user');
-          router.replace('/auth/login');
-        } catch (error) {
-          const status = error?.response?.status;
-          if (status === 401 || status === 403) {
-            await removeAuthToken();
-            await AsyncStorage.removeItem('auth_user');
-            router.replace('/auth/login');
-            return;
-          }
-
-          // Network / 5xx: keep token and enter with cached stub when possible.
-          const cached = await AsyncStorage.getItem('auth_user');
-          if (cached) {
-            try {
-              await enterAppWithUser(JSON.parse(cached));
-              return;
-            } catch {
-              // fall through
-            }
-          }
-
-          // Still keep token for next launch; go home with minimal stub.
-          await saveAuth(tokenStr, { id: null, name: 'You' });
-          router.replace('/(tabs)/home');
+          await enterWithCacheOrStub();
+        } catch {
+          // Keep the stored session. Never wipe the token here —
+          // only More → Log out signs the user out.
+          await enterWithCacheOrStub();
         }
       } catch {
+        const token = await getAuthToken().catch(() => null);
+        if (token) {
+          router.replace('/(tabs)/home');
+          return;
+        }
         router.replace('/auth/login');
       }
     };

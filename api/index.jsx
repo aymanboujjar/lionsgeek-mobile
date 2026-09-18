@@ -254,6 +254,59 @@ const postWithAuth = async (endpoint, data, token) => {
     return post(endpoint, data, token);
 };
 
+
+// ---------------------------------------------------------------------------
+// Voice call helpers
+// Backend routes (see routes/api.php on the Laravel side). All call routes
+// live inside the `auth:sanctum` + `prefix('mobile')` group, so the real
+// URLs are /api/mobile/calls/... and /api/mobile/call/ably-token.
+// ---------------------------------------------------------------------------
+
+const initiateCall = async (calleeId, token, type = 'audio') => {
+    const response = await post('mobile/calls/initiate', { callee_id: calleeId, type }, token);
+    return response?.data;
+};
+
+const acceptCall = async (callId, token) => {
+    const response = await post(`mobile/calls/${callId}/accept`, {}, token);
+    return response?.data;
+};
+
+const rejectCall = async (callId, token) => {
+    const response = await post(`mobile/calls/${callId}/reject`, {}, token);
+    return response?.data;
+};
+
+const cancelCall = async (callId, token) => {
+    const response = await post(`mobile/calls/${callId}/cancel`, {}, token);
+    return response?.data;
+};
+
+const endCall = async (callId, token) => {
+    const response = await post(`mobile/calls/${callId}/end`, {}, token);
+    return response?.data;
+};
+
+const getCallToken = async (callId, token) => {
+    const response = await post(`mobile/calls/${callId}/token`, {}, token);
+    return response?.data;
+};
+
+const getCall = async (callId, token) => {
+    const response = await get(`mobile/calls/${callId}`, token);
+    return response?.data;
+};
+
+const getCallHistory = async (token, perPage = 20) => {
+    const response = await get(`mobile/calls/history?per_page=${perPage}`, token);
+    return response?.data;
+};
+
+const getCallAblyToken = async (token) => {
+    const response = await get('mobile/call/ably-token', token);
+    return response?.data;
+};
+
 // ---------------------------------------------------------------------------
 // Stories
 //   GET    /api/mobile/stories                  → { groups: [...] }
@@ -528,6 +581,15 @@ export default {
     remove,
     getWithAuth,
     postWithAuth,
+    initiateCall,
+    acceptCall,
+    rejectCall,
+    cancelCall,
+    endCall,
+    getCallToken,
+    getCall,
+    getCallHistory,
+    getCallAblyToken,
     APP_URL,
     IMAGE_URL,
     VIDEO_URL,
