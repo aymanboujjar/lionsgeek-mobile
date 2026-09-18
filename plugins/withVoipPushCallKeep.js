@@ -44,7 +44,8 @@ const SWIFT_DELEGATE_METHODS = `
 // MARK: - PKPushRegistryDelegate
 extension AppDelegate: PKPushRegistryDelegate {
   public func pushRegistry(_ registry: PKPushRegistry, didUpdate credentials: PKPushCredentials, for type: PKPushType) {
-    RNVoipPushNotificationManager.didUpdatePushCredentials(credentials, forType: type.rawValue)
+    // Swift importer: ObjC didUpdatePushCredentials:forType: → didUpdate(_:forType:)
+    RNVoipPushNotificationManager.didUpdate(credentials, forType: type.rawValue)
   }
 
   public func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
@@ -68,7 +69,7 @@ extension AppDelegate: PKPushRegistryDelegate {
     let hasVideo = callType == "video"
 
     RNVoipPushNotificationManager.addCompletionHandler(uuid, completionHandler: completion)
-    RNVoipPushNotificationManager.didReceiveIncomingPush(withPayload: payload, forType: type.rawValue)
+    RNVoipPushNotificationManager.didReceiveIncomingPush(with: payload, forType: type.rawValue)
 
     // Apple requires CallKit report before completion() on iOS 13+.
     RNCallKeep.reportNewIncomingCall(
@@ -192,11 +193,11 @@ function ensureSwiftVoip(contents) {
     }
   }
 
-  const hasLegacyVoipSwift =
-    next.includes('RNVoipPushNotificationManager.didUpdate(') ||
-    next.includes('didReceiveIncomingPush(with: payload');
+  const hasWrongSwiftSelectors =
+    next.includes('didUpdatePushCredentials(') ||
+    next.includes('didReceiveIncomingPush(withPayload:');
 
-  if (hasLegacyVoipSwift || !next.includes('PKPushRegistryDelegate')) {
+  if (hasWrongSwiftSelectors || !next.includes('PKPushRegistryDelegate')) {
     next = next.replace(/\n\/\/ MARK: - PKPushRegistryDelegate[\s\S]*$/, '\n');
     next = `${next.trimEnd()}\n${SWIFT_DELEGATE_METHODS}\n`;
   }
@@ -318,5 +319,5 @@ const withVoipPushCallKeep = (config) => {
 module.exports = createRunOncePlugin(
   withVoipPushCallKeep,
   'withVoipPushCallKeep',
-  '1.1.0'
+  '1.1.1'
 );
