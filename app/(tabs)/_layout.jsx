@@ -162,10 +162,20 @@ export default function TabLayout() {
   const lastVisibleTabIndexRef = useRef(0);
 
   const renderTabBar = useCallback((props) => {
+    const activeRoute = props.state.routes[props.state.index];
+    const nestedState = activeRoute?.state;
+    const nestedRouteName =
+      nestedState?.routes?.[nestedState?.index ?? 0]?.name ?? null;
+
+    // Full-screen camera flows (event / info-session QR scanners).
+    if (nestedRouteName === 'scanner') {
+      return null;
+    }
+
     const filteredRoutes = visibleTabOrder
       .map((name) => props.state.routes.find((route) => route.name === name))
       .filter(Boolean);
-    const activeRouteName = props.state.routes[props.state.index]?.name;
+    const activeRouteName = activeRoute?.name;
     const filteredIndex = filteredRoutes.findIndex((route) => route.name === activeRouteName);
     const onHiddenRoute = filteredIndex < 0;
 

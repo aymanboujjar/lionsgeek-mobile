@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Overlays } from '@/constants/Colors';
 
@@ -16,14 +16,20 @@ export default function ScanResultOverlay({ visible, result, onDismiss, dismissH
     return () => clearTimeout(timer);
   }, [visible, result, onDismiss]);
 
-  if (!visible || !result) return null;
+  if (!result) return null;
 
   const isSuccess = result.status === 'success' || result.status === 'warning';
   const iconName = isSuccess ? 'checkmark-circle' : 'close-circle';
   const iconColor = isSuccess ? Colors.good : Colors.error;
 
   return (
-    <View style={styles.overlay} pointerEvents="box-none">
+    <Modal
+      visible={Boolean(visible)}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={onDismiss}
+    >
       <Pressable style={styles.backdrop} onPress={onDismiss}>
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
           <View
@@ -48,21 +54,17 @@ export default function ScanResultOverlay({ visible, result, onDismiss, dismissH
           </Text>
         </Pressable>
       </Pressable>
-    </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 20,
-  },
   backdrop: {
     flex: 1,
     backgroundColor: Overlays.backdrop,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
+    paddingHorizontal: 28,
   },
   card: {
     width: '100%',
