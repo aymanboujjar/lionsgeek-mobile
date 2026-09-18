@@ -21,7 +21,6 @@
       "environment": "production",
       "env": {
         "EXPO_PUBLIC_APP_URL": "https://mylionsgeek.ma",
-        "EXPO_PUBLIC_AGORA_APP_ID": "f4698725c74342e0b7179688a6d83da9",
         "EXPO_PUBLIC_EVENTS_INFO_SECTION_URL": "https://lionsgeek.ma/",
         "EXPO_PUBLIC_EVENTS_INFO_USE_PROXY": "true"
       }

@@ -2,28 +2,40 @@
  * Expo config plugin: wire PushKit VoIP + CallKeep in AppDelegate so
  * incoming calls can be reported to CallKit before JS boots (cold start).
  *
- * Supports modern Expo Swift AppDelegate and legacy Obj-C AppDelegate.mm.
+ * react-native-voip-push-notification and react-native-callkeep are ObjC
+ * pods without DEFINES_MODULE, so Swift `import RNVoipPushNotification`
+ * fails on EAS ("no such module"). Expose them through a bridging header
+ * instead, matching the libraries' AppDelegate.m integration.
  */
+const fs = require('fs');
+const path = require('path');
 const {
   withAppDelegate,
   withEntitlementsPlist,
   withInfoPlist,
+  withXcodeProject,
   createRunOncePlugin,
 } = require('@expo/config-plugins');
 
-const SWIFT_IMPORTS = `import PushKit
-import RNVoipPushNotification
-import RNCallKeep`;
+const COMMENT_KEY = /_comment$/;
+
+const BRIDGING_IMPORTS = `// VoIP / CallKeep (ObjC) — do not use Swift \`import RNVoipPushNotification\`
+#import <PushKit/PushKit.h>
+#if __has_include(<RNVoipPushNotification/RNVoipPushNotificationManager.h>)
+#import <RNVoipPushNotification/RNVoipPushNotificationManager.h>
+#else
+#import "RNVoipPushNotificationManager.h"
+#endif
+#if __has_include(<RNCallKeep/RNCallKeep.h>)
+#import <RNCallKeep/RNCallKeep.h>
+#else
+#import "RNCallKeep.h"
+#endif
+`;
 
 const SWIFT_VOIP_HELPERS = `
   // MARK: - PushKit VoIP (incoming calls when app is killed)
-  private var voipRegistry: PKPushRegistry?
-
   private func setupVoipPush() {
-    let registry = PKPushRegistry(queue: DispatchQueue.main)
-    registry.delegate = self
-    registry.desiredPushTypes = [.voIP]
-    voipRegistry = registry
     RNVoipPushNotificationManager.voipRegistration()
   }
 `;
@@ -32,6 +44,7 @@ const SWIFT_DELEGATE_METHODS = `
 // MARK: - PKPushRegistryDelegate
 extension AppDelegate: PKPushRegistryDelegate {
   public func pushRegistry(_ registry: PKPushRegistry, didUpdate credentials: PKPushCredentials, for type: PKPushType) {
+    // Swift importer: ObjC didUpdatePushCredentials:forType: → didUpdate(_:forType:)
     RNVoipPushNotificationManager.didUpdate(credentials, forType: type.rawValue)
   }
 
@@ -65,8 +78,13 @@ extension AppDelegate: PKPushRegistryDelegate {
       handleType: "generic",
       hasVideo: hasVideo,
       localizedCallerName: callerName,
+      supportsHolding: true,
+      supportsDTMF: true,
+      supportsGrouping: true,
+      supportsUngrouping: true,
       fromPushKit: true,
-      payload: dict
+      payload: dict,
+      withCompletionHandler: nil
     )
 
     completion()
@@ -74,21 +92,87 @@ extension AppDelegate: PKPushRegistryDelegate {
 }
 `;
 
+function nonComments(obj) {
+  const next = {};
+  for (const key of Object.keys(obj)) {
+    if (!COMMENT_KEY.test(key)) next[key] = obj[key];
+  }
+  return next;
+}
+
+function unquote(str) {
+  return str ? String(str).replace(/^"(.*)"$/, '$1') : str;
+}
+
+function ensureHeaderSearchPath(project, file) {
+  const configurations = nonComments(project.pbxXCBuildConfigurationSection());
+  const INHERITED = '"$(inherited)"';
+  for (const config of Object.keys(configurations)) {
+    const buildSettings = configurations[config].buildSettings;
+    if (!buildSettings) continue;
+    if (unquote(buildSettings.PRODUCT_NAME) !== project.productName) continue;
+    if (!buildSettings.HEADER_SEARCH_PATHS) {
+      buildSettings.HEADER_SEARCH_PATHS = [INHERITED];
+    }
+    if (!buildSettings.HEADER_SEARCH_PATHS.includes(file)) {
+      buildSettings.HEADER_SEARCH_PATHS.push(file);
+    }
+  }
+}
+
+function ensureBridgingHeaderSetting(project, relativeHeader) {
+  const configurations = nonComments(project.pbxXCBuildConfigurationSection());
+  for (const config of Object.keys(configurations)) {
+    const buildSettings = configurations[config].buildSettings;
+    if (!buildSettings) continue;
+    if (unquote(buildSettings.PRODUCT_NAME) !== project.productName) continue;
+    if (!buildSettings.SWIFT_OBJC_BRIDGING_HEADER) {
+      buildSettings.SWIFT_OBJC_BRIDGING_HEADER = `"${relativeHeader}"`;
+    }
+  }
+}
+
+function mergeBridgingHeader(filePath) {
+  let contents = fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+  const required = [
+    '#import <PushKit/PushKit.h>',
+    '#import <RNVoipPushNotification/RNVoipPushNotificationManager.h>',
+    '#import "RNVoipPushNotificationManager.h"',
+    '#import <RNCallKeep/RNCallKeep.h>',
+    '#import "RNCallKeep.h"',
+  ];
+  const missing = required.some((line) => !contents.includes(line));
+  if (!contents.trim()) {
+    contents = BRIDGING_IMPORTS;
+  } else if (missing) {
+    contents = `${contents.trimEnd()}\n\n${BRIDGING_IMPORTS}`;
+  }
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, contents.endsWith('\n') ? contents : `${contents}\n`);
+}
+
 function ensureSwiftVoip(contents) {
-  let next = contents;
+  let next = contents
+    .replace(/^import RNVoipPushNotification\s*\n/gm, '')
+    .replace(/^import RNCallKeep\s*\n/gm, '');
 
   if (!next.includes('import PushKit')) {
     if (next.includes('import Expo')) {
-      next = next.replace('import Expo', `import Expo\n${SWIFT_IMPORTS}`);
+      next = next.replace('import Expo', 'import Expo\nimport PushKit');
     } else if (next.includes('import UIKit')) {
-      next = next.replace('import UIKit', `import UIKit\n${SWIFT_IMPORTS}`);
+      next = next.replace('import UIKit', 'import UIKit\nimport PushKit');
     } else {
-      next = `${SWIFT_IMPORTS}\n${next}`;
+      next = `import PushKit\n${next}`;
     }
   }
 
+  // Replace the first-version helper that created a second PKPushRegistry.
+  next = next.replace(
+    /\n  \/\/ MARK: - PushKit VoIP \(incoming calls when app is killed\)\n  private var voipRegistry: PKPushRegistry\?\n\n  private func setupVoipPush\(\) \{[\s\S]*?RNVoipPushNotificationManager\.voipRegistration\(\)\n  \}\n/,
+    SWIFT_VOIP_HELPERS
+  );
+
   if (!next.includes('setupVoipPush()')) {
-    // Inject voip registry fields + call from didFinishLaunching
     if (next.includes('var window:')) {
       next = next.replace(
         /var window:[^\n]+\n/,
@@ -109,12 +193,30 @@ function ensureSwiftVoip(contents) {
     }
   }
 
-  if (!next.includes('PKPushRegistryDelegate')) {
+  const hasWrongSwiftSelectors =
+    next.includes('didUpdatePushCredentials(') ||
+    next.includes('didReceiveIncomingPush(withPayload:');
+
+  if (hasWrongSwiftSelectors || !next.includes('PKPushRegistryDelegate')) {
+    next = next.replace(/\n\/\/ MARK: - PKPushRegistryDelegate[\s\S]*$/, '\n');
     next = `${next.trimEnd()}\n${SWIFT_DELEGATE_METHODS}\n`;
   }
 
   return next;
 }
+
+const OBJC_CALLKEEP_REPORT = `[RNCallKeep reportNewIncomingCall:uuid
+                           handle:handle
+                       handleType:@"generic"
+                         hasVideo:hasVideo
+              localizedCallerName:callerName
+                  supportsHolding:YES
+                     supportsDTMF:YES
+                 supportsGrouping:YES
+               supportsUngrouping:YES
+                      fromPushKit:YES
+                          payload:dict
+            withCompletionHandler:nil];`;
 
 function ensureObjCVoip(contents) {
   let next = contents;
@@ -152,7 +254,7 @@ function ensureObjCVoip(contents) {
 
   [RNVoipPushNotificationManager addCompletionHandler:uuid completionHandler:completion];
   [RNVoipPushNotificationManager didReceiveIncomingPushWithPayload:payload forType:(NSString *)type];
-  [RNCallKeep reportNewIncomingCall:uuid handle:handle handleType:@"generic" hasVideo:hasVideo localizedCallerName:callerName fromPushKit:YES payload:dict];
+  ${OBJC_CALLKEEP_REPORT}
   completion();
 }
 `;
@@ -161,6 +263,21 @@ function ensureObjCVoip(contents) {
 
   return next;
 }
+
+const withVoipBridgingHeader = (config) =>
+  withXcodeProject(config, (cfg) => {
+    const projectName = cfg.modRequest.projectName;
+    const relativeHeader = `${projectName}/${projectName}-Bridging-Header.h`;
+    mergeBridgingHeader(
+      path.join(cfg.modRequest.platformProjectRoot, relativeHeader)
+    );
+    ensureBridgingHeaderSetting(cfg.modResults, relativeHeader);
+    ensureHeaderSearchPath(
+      cfg.modResults,
+      '"$(SRCROOT)/../node_modules/react-native-voip-push-notification/ios/RNVoipPushNotification"'
+    );
+    return cfg;
+  });
 
 const withVoipPushCallKeepAppDelegate = (config) =>
   withAppDelegate(config, (cfg) => {
@@ -194,6 +311,7 @@ const withVoipInfoPlist = (config) =>
 const withVoipPushCallKeep = (config) => {
   config = withVoipInfoPlist(config);
   config = withVoipEntitlements(config);
+  config = withVoipBridgingHeader(config);
   config = withVoipPushCallKeepAppDelegate(config);
   return config;
 };
@@ -201,5 +319,5 @@ const withVoipPushCallKeep = (config) => {
 module.exports = createRunOncePlugin(
   withVoipPushCallKeep,
   'withVoipPushCallKeep',
-  '1.0.0'
+  '1.1.1'
 );
