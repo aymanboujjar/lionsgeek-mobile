@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Vibration, Platform } from 'react-native';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { isCallKeepAvailable } from '@/services/callKeep';
 
 /**
  * useCallRinger – plays a looped ringtone and vibrates the device while
@@ -23,6 +24,8 @@ import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 export function useCallRinger({ enabled, mode = 'incoming' }) {
     const playerRef = useRef(null);
     const isMountedRef = useRef(true);
+    // CallKit owns iOS ringing; Android uses incomingRinger via CallKeep.
+    const shouldPlay = !!enabled && !(mode === 'incoming' && isCallKeepAvailable());
 
     useEffect(() => {
         isMountedRef.current = true;
@@ -32,7 +35,7 @@ export function useCallRinger({ enabled, mode = 'incoming' }) {
     }, []);
 
     useEffect(() => {
-        if (!enabled) return undefined;
+        if (!shouldPlay) return undefined;
 
         let cancelled = false;
 
@@ -105,7 +108,7 @@ export function useCallRinger({ enabled, mode = 'incoming' }) {
                 try { player.release(); } catch (_) {}
             }
         };
-    }, [enabled, mode]);
+    }, [shouldPlay, mode]);
 }
 
 export default useCallRinger;

@@ -11,7 +11,6 @@ import Skeleton from '@/components/ui/Skeleton';
 import useNotificationPreferences from '@/hooks/useNotificationPreferences';
 import { isNotificationTypeEnabledInPrefs } from '@/constants/notificationPreferences';
 import { Colors } from '@/constants/Colors';
-import { getUserRoles } from '@/utils/roles';
 
 let Ably = null;
 try {
@@ -21,14 +20,13 @@ try {
 }
 
 export default function NotificationsScreen() {
-  const { token, user } = useAppContext();
+  const { token } = useAppContext();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { prefs, ready: prefsReady } = useNotificationPreferences();
   const [refreshing, setRefreshing] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const canTestPush = getUserRoles(user).includes('admin');
 
   useFocusEffect(
     useCallback(() => {
@@ -490,7 +488,7 @@ export default function NotificationsScreen() {
       if (targetLink.startsWith('/students/')) {
         const parts = targetLink.split('/');
         if (parts.includes('project')) {
-          router.push('/(tabs)/projects-hub');
+          router.push('/(tabs)/projects');
           return;
         }
       }
@@ -498,8 +496,13 @@ export default function NotificationsScreen() {
         router.push('/(tabs)/home');
         return;
       }
-      if (targetLink.startsWith('/projects')) {
-        router.push('/(tabs)/projects-hub');
+      if (targetLink.startsWith('/projects') || targetLink.startsWith('/admin/projects')) {
+        const projectMatch = targetLink.match(/projects\/(\d+)/);
+        if (projectMatch?.[1]) {
+          router.push({ pathname: '/(tabs)/projects/[id]', params: { id: projectMatch[1] } });
+        } else {
+          router.push('/(tabs)/projects');
+        }
         return;
       }
       if (targetLink.startsWith('/training')) {
@@ -511,7 +514,7 @@ export default function NotificationsScreen() {
         return;
       }
       if (notification.type === 'project_submission' || notification.type === 'project_status') {
-        router.push('/(tabs)/projects-hub');
+        router.push('/(tabs)/projects');
         return;
       }
     }
@@ -520,7 +523,14 @@ export default function NotificationsScreen() {
     if (notification.type === 'reservation' || notification.type === 'appointment') {
       router.push('/(tabs)/reservations');
     } else if (notification.type === 'project_submission' || notification.type === 'project_status' || notification.type === 'task_assignment' || notification.type === 'project_message') {
-      router.push('/(tabs)/projects-hub');
+      const projectId = notification.project_id || notification?.data?.project_id;
+      if (projectId && notification.type === 'project_message') {
+        router.push({ pathname: '/(tabs)/projects/chat', params: { id: String(projectId) } });
+      } else if (projectId) {
+        router.push({ pathname: '/(tabs)/projects/[id]', params: { id: String(projectId) } });
+      } else {
+        router.push('/(tabs)/projects');
+      }
     } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
       router.push('/(tabs)/home');
     } else if (notification.type === 'story_mention') {
@@ -531,32 +541,6 @@ export default function NotificationsScreen() {
       router.push(`/(tabs)/events/${notification.event_id}`);
     } else if (notification.type === 'attendance_reminder') {
       router.push('/(tabs)/training/check-in');
-    }
-  };
-
-  const testPushNotification = async () => {
-    if (!canTestPush) {
-      return;
-    }
-    if (!token) {
-      alert('Something went wrong. Please try again.');
-      return;
-    }
-
-    try {
-      const response = await API.postWithAuth('mobile/test-push', {
-        title: '🧪 Test Push Notification',
-        body: 'This is a test push notification! If you see this on your phone, push notifications are working! 🎉',
-      }, token);
-
-      if (response?.data?.success) {
-        alert('✅ Test notification sent! Check your phone (make sure app is in background/closed).');
-      } else {
-        alert('Something went wrong. Please try again.');
-      }
-    } catch (error) {
-      console.error('[NOTIFICATIONS] Test push failed:', error);
-      alert('Something went wrong. Please try again.');
     }
   };
 
@@ -586,15 +570,6 @@ export default function NotificationsScreen() {
               >
                 <Ionicons name="settings-outline" size={18} color={isDark ? '#fff' : '#000'} />
               </TouchableOpacity>
-              {/* Test Push Button — admin-only; backend also enforces role:admin */}
-              {canTestPush ? (
-                <TouchableOpacity
-                  onPress={testPushNotification}
-                  className="bg-green-500/20 dark:bg-green-500/30 rounded-full px-3 py-2 mr-2"
-                >
-                  <Ionicons name="notifications" size={16} color="#10b981" />
-                </TouchableOpacity>
-              ) : null}
               {unreadCount > 0 ? (
                 <TouchableOpacity
                   onPress={markAllAsRead}

@@ -94,29 +94,39 @@ export default function SavedPostsScreen() {
   if (!token) {
     return (
       <AppLayout showNavbar={false}>
-        <View className="flex-1 bg-light dark:bg-dark items-center justify-center px-8 pb-6">
-          <View
-            className="w-16 h-16 rounded-full items-center justify-center mb-4 bg-black/5 dark:bg-white/10"
-          >
-            <Ionicons
-              name="bookmark-outline"
-              size={32}
-              color={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)'}
-            />
+        <View className="flex-1 bg-light dark:bg-dark">
+          <View className="bg-light dark:bg-dark border-b border-black/10 dark:border-white/10 pt-3 pb-4 px-6">
+            <View className="flex-row items-center">
+              <TouchableOpacity onPress={() => router.back()} className="mr-3" hitSlop={8}>
+                <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
+              </TouchableOpacity>
+              <Text className="text-2xl font-bold text-black dark:text-white">Saved posts</Text>
+            </View>
           </View>
-          <Text className="text-base font-semibold text-black dark:text-white text-center">
-            Sign in to see saved posts
-          </Text>
-          <Text className="text-sm text-black/55 dark:text-dark_gray5 text-center mt-2">
-            Your bookmarks sync to your account.
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.push('/auth/login')}
-            className="mt-6 px-6 py-3 rounded-xl bg-alpha"
-            activeOpacity={0.85}
-          >
-            <Text className="text-sm font-bold text-black">Go to login</Text>
-          </TouchableOpacity>
+          <View className="flex-1 items-center justify-center px-8 pb-6">
+            <View
+              className="w-16 h-16 rounded-full items-center justify-center mb-4 bg-black/5 dark:bg-white/10"
+            >
+              <Ionicons
+                name="bookmark-outline"
+                size={32}
+                color={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)'}
+              />
+            </View>
+            <Text className="text-base font-semibold text-black dark:text-white text-center">
+              Sign in to see saved posts
+            </Text>
+            <Text className="text-sm text-black/55 dark:text-dark_gray5 text-center mt-2">
+              Your bookmarks sync to your account.
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/auth/login')}
+              className="mt-6 px-6 py-3 rounded-xl bg-alpha"
+              activeOpacity={0.85}
+            >
+              <Text className="text-sm font-bold text-black">Go to login</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </AppLayout>
     );
@@ -124,55 +134,65 @@ export default function SavedPostsScreen() {
 
   return (
     <AppLayout showNavbar={false}>
-      <FlatList
-        data={posts}
-        keyExtractor={(item) =>
-          String(item?.repost_entry_id ?? item?.interaction_post_id ?? item?.id)
-        }
-        className="flex-1 bg-light dark:bg-dark"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffc801" />
-        }
-        ListFooterComponent={<View className="h-6" />}
-        ListHeaderComponent={
-          error ? (
-            <View className="px-4 pt-3 pb-1">
-              <Text className="text-sm text-black/65 dark:text-white/65 text-center">{error}</Text>
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          loading ? (
-            renderSkeleton()
-          ) : (
-            <View className="bg-white dark:bg-[#1c1c1c] mt-2 py-12 items-center">
-              <Ionicons
-                name="bookmark-outline"
-                size={48}
-                color={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
-              />
-              <Text className="text-black/60 dark:text-white/60 text-center mt-4 px-4">
-                No saved posts yet. Save something from your feed to see it here.
-              </Text>
-            </View>
-          )
-        }
-        renderItem={({ item }) => (
-          <FeedItem
-            item={{
-              ...item,
-              onPostDeleted: (postId) => {
-                setPosts((prev) => prev.filter((p) => String(p.id) !== String(postId)));
-              },
-              onBookmarkChange: (saved) => {
-                if (!saved) {
-                  setPosts((prev) => prev.filter((p) => String(p.id) !== String(item.id)));
-                }
-              },
-            }}
-          />
-        )}
-      />
+      <View className="flex-1 bg-light dark:bg-dark">
+        <View className="bg-light dark:bg-dark border-b border-black/10 dark:border-white/10 pt-3 pb-4 px-6">
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={() => router.back()} className="mr-3" hitSlop={8}>
+              <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
+            </TouchableOpacity>
+            <Text className="text-2xl font-bold text-black dark:text-white">Saved posts</Text>
+          </View>
+        </View>
+        <FlatList
+          data={posts}
+          keyExtractor={(item) =>
+            String(item?.repost_entry_id ?? item?.interaction_post_id ?? item?.id)
+          }
+          className="flex-1 bg-light dark:bg-dark"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffc801" />
+          }
+          ListFooterComponent={<View className="h-6" />}
+          ListHeaderComponent={
+            error ? (
+              <View className="px-4 pt-3 pb-1">
+                <Text className="text-sm text-black/65 dark:text-white/65 text-center">{error}</Text>
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            loading ? (
+              renderSkeleton()
+            ) : (
+              <View className="bg-white dark:bg-[#1c1c1c] mt-2 py-12 items-center">
+                <Ionicons
+                  name="bookmark-outline"
+                  size={48}
+                  color={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'}
+                />
+                <Text className="text-black/60 dark:text-white/60 text-center mt-4 px-4">
+                  No saved posts yet. Save something from your feed to see it here.
+                </Text>
+              </View>
+            )
+          }
+          renderItem={({ item }) => (
+            <FeedItem
+              item={{
+                ...item,
+                onPostDeleted: (postId) => {
+                  setPosts((prev) => prev.filter((p) => String(p.id) !== String(postId)));
+                },
+                onBookmarkChange: (saved) => {
+                  if (!saved) {
+                    setPosts((prev) => prev.filter((p) => String(p.id) !== String(item.id)));
+                  }
+                },
+              }}
+            />
+          )}
+        />
+      </View>
     </AppLayout>
   );
 }

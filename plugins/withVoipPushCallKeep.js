@@ -60,6 +60,35 @@ extension AppDelegate: PKPushRegistryDelegate {
   ) {
     let dict = payload.dictionaryPayload
     let uuid = (dict["uuid"] as? String) ?? UUID().uuidString.lowercased()
+    let cancelledRaw = dict["cancelled"]
+    let isCancelled = (dict["type"] as? String) == "call_cancelled"
+      || (cancelledRaw as? String) == "1"
+      || (cancelledRaw as? Int) == 1
+      || (cancelledRaw as? Bool) == true
+
+    if isCancelled {
+      RNVoipPushNotificationManager.addCompletionHandler(uuid, completionHandler: completion)
+      RNVoipPushNotificationManager.didReceiveIncomingPush(with: payload, forType: type.rawValue)
+      // Apple requires a CallKit report for every VoIP push, including hangup.
+      RNCallKeep.reportNewIncomingCall(
+        uuid,
+        handle: String(describing: dict["call_id"] ?? uuid),
+        handleType: "generic",
+        hasVideo: false,
+        localizedCallerName: (dict["callerName"] as? String) ?? (dict["caller_name"] as? String) ?? "LionsGeek",
+        supportsHolding: true,
+        supportsDTMF: true,
+        supportsGrouping: true,
+        supportsUngrouping: true,
+        fromPushKit: true,
+        payload: dict,
+        withCompletionHandler: nil
+      )
+      RNCallKeep.endCall(withUUID: uuid, reason: 2)
+      completion()
+      return
+    }
+
     let callerName = (dict["callerName"] as? String)
       ?? (dict["caller_name"] as? String)
       ?? "LionsGeek user"
@@ -247,13 +276,27 @@ function ensureObjCVoip(contents) {
 - (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload forType:(PKPushType)type withCompletionHandler:(void (^)(void))completion {
   NSDictionary *dict = payload.dictionaryPayload;
   NSString *uuid = dict[@"uuid"] ?: [[NSUUID UUID] UUIDString].lowercaseString;
+  id cancelled = dict[@"cancelled"];
+  BOOL isCancelled = [dict[@"type"] isEqualToString:@"call_cancelled"]
+    || [cancelled isEqual:@"1"]
+    || [cancelled isEqual:@1]
+    || [cancelled isEqual:@YES];
+
+  [RNVoipPushNotificationManager addCompletionHandler:uuid completionHandler:completion];
+  [RNVoipPushNotificationManager didReceiveIncomingPushWithPayload:payload forType:(NSString *)type];
+
   NSString *callerName = dict[@"callerName"] ?: dict[@"caller_name"] ?: @"LionsGeek user";
   NSString *handle = dict[@"handle"] ?: [NSString stringWithFormat:@"%@", dict[@"call_id"] ?: uuid];
   NSString *callType = dict[@"call_type"] ?: dict[@"callType"] ?: @"audio";
   BOOL hasVideo = [callType isEqualToString:@"video"];
 
-  [RNVoipPushNotificationManager addCompletionHandler:uuid completionHandler:completion];
-  [RNVoipPushNotificationManager didReceiveIncomingPushWithPayload:payload forType:(NSString *)type];
+  if (isCancelled) {
+    ${OBJC_CALLKEEP_REPORT}
+    [RNCallKeep endCallWithUUID:uuid reason:2];
+    completion();
+    return;
+  }
+
   ${OBJC_CALLKEEP_REPORT}
   completion();
 }
@@ -319,5 +362,5 @@ const withVoipPushCallKeep = (config) => {
 module.exports = createRunOncePlugin(
   withVoipPushCallKeep,
   'withVoipPushCallKeep',
-  '1.1.1'
+  '1.1.3'
 );

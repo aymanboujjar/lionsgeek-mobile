@@ -51,6 +51,20 @@ export function startVoipPushRegistration(onToken) {
     try {
       const callId = notification?.call_id || notification?.data?.call_id;
       const uuid = notification?.uuid;
+      const type = notification?.type || notification?.data?.type;
+      const cancelled = notification?.cancelled || notification?.data?.cancelled;
+      const isCancelled =
+        type === 'call_cancelled' || cancelled === '1' || cancelled === 1 || cancelled === true;
+
+      if (isCancelled) {
+        const { endNativeCallForCallId } = require('./callKeep');
+        endNativeCallForCallId(callId || uuid);
+        if (uuid && VoipPushNotification?.onVoipNotificationCompleted) {
+          VoipPushNotification.onVoipNotificationCompleted(uuid);
+        }
+        return;
+      }
+
       const callerName =
         notification?.callerName ||
         notification?.caller_name ||

@@ -9,6 +9,7 @@
 
 import { Platform, PermissionsAndroid } from 'react-native';
 import Constants from 'expo-constants';
+import { startIncomingRinger, stopIncomingRinger } from '@/services/incomingRinger';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
@@ -166,6 +167,7 @@ export async function displayNativeIncomingCall({
   callerName = 'LionsGeek user',
   callType = 'audio',
   handle = null,
+  uuid: providedUuid = null,
 }) {
   if (!callId) return null;
   const ok = await setupCallKeep();
@@ -173,10 +175,11 @@ export async function displayNativeIncomingCall({
 
   const existing = uuidByCallId.get(String(callId));
   if (existing?.uuid) {
+    if (Platform.OS === 'android') startIncomingRinger();
     return existing.uuid;
   }
 
-  const uuid = makeUuid().toLowerCase();
+  const uuid = String(providedUuid || makeUuid()).toLowerCase();
   const number = handle || String(callId);
   const hasVideo = callType === 'video';
 
@@ -184,6 +187,7 @@ export async function displayNativeIncomingCall({
 
   try {
     RNCallKeep.displayIncomingCall(uuid, number, callerName, 'generic', hasVideo);
+    if (Platform.OS === 'android') startIncomingRinger();
     return uuid;
   } catch (e) {
     clearCallKeepMapping(callId);
@@ -192,16 +196,50 @@ export async function displayNativeIncomingCall({
   }
 }
 
-export async function endNativeCallForCallId(callId) {
-  const uuid = getCallKeepUuidForCallId(callId);
+function resolveUuid(callIdOrUuid) {
+  if (callIdOrUuid == null) return null;
+  const mapped = getCallKeepUuidForCallId(callIdOrUuid);
+  if (mapped) return mapped;
+  const asUuid = String(callIdOrUuid).toLowerCase();
+  if (callByUuid.has(asUuid)) return asUuid;
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(asUuid)) {
+    return asUuid;
+  }
+  return null;
+}
+
+export async function answerNativeCallForCallId(callId) {
+  stopIncomingRinger();
+  const uuid = resolveUuid(callId);
   if (!uuid || !RNCallKeep) return;
   try {
-    RNCallKeep.endCall(uuid);
+    if (typeof RNCallKeep.answerIncomingCall === 'function') {
+      RNCallKeep.answerIncomingCall(uuid);
+    }
+    if (typeof RNCallKeep.setCurrentCallActive === 'function') {
+      RNCallKeep.setCurrentCallActive(uuid);
+    }
+  } catch (_) {}
+}
+
+export async function endNativeCallForCallId(callId) {
+  stopIncomingRinger();
+  const uuid = resolveUuid(callId);
+  if (!uuid || !RNCallKeep) return;
+  try {
+    const reason = 2; // END_CALL_REASONS.REMOTE_ENDED
+    if (typeof RNCallKeep.reportEndCallWithUUID === 'function') {
+      RNCallKeep.reportEndCallWithUUID(uuid, reason);
+    } else {
+      RNCallKeep.endCall(uuid);
+    }
   } catch (_) {}
   clearCallKeepMapping(callId);
+  clearCallKeepMapping(uuid);
 }
 
 export async function endAllNativeCalls() {
+  stopIncomingRinger();
   if (!RNCallKeep) return;
   try {
     RNCallKeep.endAllCalls();

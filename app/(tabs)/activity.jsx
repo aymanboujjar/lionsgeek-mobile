@@ -297,27 +297,37 @@ export default function ActivityScreen() {
   if (!token) {
     return (
       <AppLayout showNavbar={false}>
-        <View className="flex-1 bg-light dark:bg-dark items-center justify-center px-8 pb-6">
-          <View className="w-16 h-16 rounded-full items-center justify-center mb-4 bg-black/5 dark:bg-white/10">
-            <Ionicons
-              name="time-outline"
-              size={32}
-              color={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)'}
-            />
+        <View className="flex-1 bg-light dark:bg-dark">
+          <View className="bg-light dark:bg-dark border-b border-black/10 dark:border-white/10 pt-3 pb-4 px-6">
+            <View className="flex-row items-center">
+              <TouchableOpacity onPress={() => router.back()} className="mr-3" hitSlop={8}>
+                <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
+              </TouchableOpacity>
+              <Text className="text-2xl font-bold text-black dark:text-white">Recent activity</Text>
+            </View>
           </View>
-          <Text className="text-base font-semibold text-black dark:text-white text-center">
-            Sign in to see your activity
-          </Text>
-          <Text className="text-sm text-black/55 dark:text-dark_gray5 text-center mt-2">
-            Likes, comments, bookings, and more — excluding messages — stay on this timeline.
-          </Text>
-          <TouchableOpacity
-            onPress={() => router.push('/auth/login')}
-            className="mt-6 px-6 py-3 rounded-xl bg-alpha"
-            activeOpacity={0.85}
-          >
-            <Text className="text-sm font-bold text-black">Go to login</Text>
-          </TouchableOpacity>
+          <View className="flex-1 items-center justify-center px-8 pb-6">
+            <View className="w-16 h-16 rounded-full items-center justify-center mb-4 bg-black/5 dark:bg-white/10">
+              <Ionicons
+                name="time-outline"
+                size={32}
+                color={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)'}
+              />
+            </View>
+            <Text className="text-base font-semibold text-black dark:text-white text-center">
+              Sign in to see your activity
+            </Text>
+            <Text className="text-sm text-black/55 dark:text-dark_gray5 text-center mt-2">
+              Likes, comments, bookings, and more — excluding messages — stay on this timeline.
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push('/auth/login')}
+              className="mt-6 px-6 py-3 rounded-xl bg-alpha"
+              activeOpacity={0.85}
+            >
+              <Text className="text-sm font-bold text-black">Go to login</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </AppLayout>
     );
@@ -359,46 +369,56 @@ export default function ActivityScreen() {
 
   return (
     <AppLayout showNavbar={false}>
-      <FlatList
-        data={activities}
-        keyExtractor={(item) => `${item.type}-${item.source_id}`}
-        className="flex-1 bg-light dark:bg-dark"
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffc801" />
-        }
-        ListHeaderComponent={pillHeader}
-        ListFooterComponent={
-          loadingMore ? (
-            <View className="py-4 items-center">
-              <ActivityIndicator color={ACCENT} />
-            </View>
-          ) : (
-            <View className="h-6" />
-          )
-        }
-        onEndReached={() => loadMore()}
-        onEndReachedThreshold={0.35}
-        ListEmptyComponent={
-          loading ? (
-            skeleton
-          ) : (
-            <View className="bg-white dark:bg-[#1c1c1c] mt-2 mx-4 rounded-3xl py-14 px-6 items-center border border-black/[0.07] dark:border-white/12">
-              <Ionicons
-                name="time-outline"
-                size={48}
-                color={isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)'}
-              />
-              <Text className="text-black/65 dark:text-white text-center mt-4 font-semibold">
-                Nothing in this tab yet.
-              </Text>
-              <Text className="text-black/45 dark:text-white/90 text-center mt-2 text-sm">
-                Actions from the feed, saves, bookings, and follows show up here. Messages stay in chat.
-              </Text>
-            </View>
-          )
-        }
-        renderItem={({ item }) => <ActivityRow item={item} onPress={handleRowPress} />}
-      />
+      <View className="flex-1 bg-light dark:bg-dark">
+        <View className="bg-light dark:bg-dark border-b border-black/10 dark:border-white/10 pt-3 pb-4 px-6">
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={() => router.back()} className="mr-3" hitSlop={8}>
+              <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
+            </TouchableOpacity>
+            <Text className="text-2xl font-bold text-black dark:text-white">Recent activity</Text>
+          </View>
+        </View>
+        <FlatList
+          data={activities}
+          keyExtractor={(item) => `${item.type}-${item.source_id}`}
+          className="flex-1 bg-light dark:bg-dark"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#ffc801" />
+          }
+          ListHeaderComponent={pillHeader}
+          ListFooterComponent={
+            loadingMore ? (
+              <View className="py-4 items-center">
+                <ActivityIndicator color={ACCENT} />
+              </View>
+            ) : (
+              <View className="h-6" />
+            )
+          }
+          onEndReached={() => loadMore()}
+          onEndReachedThreshold={0.35}
+          ListEmptyComponent={
+            loading ? (
+              skeleton
+            ) : (
+              <View className="bg-white dark:bg-[#1c1c1c] mt-2 mx-4 rounded-3xl py-14 px-6 items-center border border-black/[0.07] dark:border-white/12">
+                <Ionicons
+                  name="time-outline"
+                  size={48}
+                  color={isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)'}
+                />
+                <Text className="text-black/65 dark:text-white text-center mt-4 font-semibold">
+                  Nothing in this tab yet.
+                </Text>
+                <Text className="text-black/45 dark:text-white/90 text-center mt-2 text-sm">
+                  Actions from the feed, saves, bookings, and follows show up here. Messages stay in chat.
+                </Text>
+              </View>
+            )
+          }
+          renderItem={({ item }) => <ActivityRow item={item} onPress={handleRowPress} />}
+        />
+      </View>
     </AppLayout>
   );
 }

@@ -536,6 +536,125 @@ const removeCloseFriend = async (friendId, token) => {
     return response?.data;
 };
 
+// ─── Collaborative projects (admin / coach / pro teams) ───────────────────
+const listProjects = async (token, { status, search } = {}) => {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (search) params.set('search', search);
+    const qs = params.toString();
+    const response = await get(`mobile/projects${qs ? `?${qs}` : ''}`, token);
+    return response?.data;
+};
+
+const getProject = async (projectId, token) => {
+    const response = await get(`mobile/projects/${projectId}`, token);
+    return response?.data;
+};
+
+const updateProjectTaskStatus = async (projectId, taskId, status, token) => {
+    const response = await post(
+        `mobile/projects/${projectId}/tasks/${taskId}/status`,
+        { status },
+        token,
+    );
+    return response?.data;
+};
+
+const getProjectMessages = async (projectId, token) => {
+    const response = await get(`mobile/projects/${projectId}/messages`, token);
+    return response?.data;
+};
+
+const sendProjectMessage = async (projectId, content, token, { replyTo } = {}) => {
+    const payload = { content };
+    if (replyTo) payload.reply_to = replyTo;
+    const response = await post(`mobile/projects/${projectId}/messages`, payload, token);
+    return response?.data;
+};
+
+const createProject = async (payload, token) => {
+    const response = await post('mobile/projects', payload, token);
+    return response?.data;
+};
+
+const updateProject = async (projectId, payload, token) => {
+    const response = await post(`mobile/projects/${projectId}`, payload, token);
+    return response?.data;
+};
+
+const deleteProject = async (projectId, token) => {
+    const response = await remove(`mobile/projects/${projectId}`, token);
+    return response?.data;
+};
+
+const addProjectMember = async (projectId, { userId, role = 'member' }, token) => {
+    const response = await post(
+        `mobile/projects/${projectId}/members`,
+        { user_id: userId, role },
+        token,
+    );
+    return response?.data;
+};
+
+const inviteProjectMember = async (projectId, { email, role = 'member', message }, token) => {
+    const response = await post(
+        `mobile/projects/${projectId}/invite`,
+        { email, role, message },
+        token,
+    );
+    return response?.data;
+};
+
+const removeProjectMember = async (projectId, userId, token) => {
+    const response = await remove(`mobile/projects/${projectId}/members/${userId}`, token);
+    return response?.data;
+};
+
+const updateProjectMemberRole = async (projectId, userId, role, token) => {
+    const response = await put(`mobile/projects/${projectId}/members/${userId}`, token, { role });
+    return response?.data;
+};
+
+const createProjectTask = async (projectId, payload, token) => {
+    const response = await post(`mobile/projects/${projectId}/tasks`, payload, token);
+    return response?.data;
+};
+
+const updateProjectTask = async (projectId, taskId, payload, token) => {
+    const response = await post(`mobile/projects/${projectId}/tasks/${taskId}`, payload, token);
+    return response?.data;
+};
+
+const deleteProjectTask = async (projectId, taskId, token) => {
+    const response = await remove(`mobile/projects/${projectId}/tasks/${taskId}`, token);
+    return response?.data;
+};
+
+const createProjectNote = async (projectId, payload, token) => {
+    const response = await post(`mobile/projects/${projectId}/notes`, payload, token);
+    return response?.data;
+};
+
+const updateProjectNote = async (projectId, noteId, payload, token) => {
+    const response = await post(`mobile/projects/${projectId}/notes/${noteId}`, payload, token);
+    return response?.data;
+};
+
+const deleteProjectNote = async (projectId, noteId, token) => {
+    const response = await remove(`mobile/projects/${projectId}/notes/${noteId}`, token);
+    return response?.data;
+};
+
+const uploadProjectAttachment = async (projectId, formData, token) => {
+    const response = await post(`mobile/projects/${projectId}/attachments`, formData, token);
+    return response?.data;
+};
+
+const deleteProjectAttachment = async (projectId, attachmentId, token) => {
+    const response = await remove(`mobile/projects/${projectId}/attachments/${attachmentId}`, token);
+    return response?.data;
+};
+
 // ─── Generic user search (used for @mentions in stories) ──────────────────
 const searchUsers = async (query, token) => {
     const q = encodeURIComponent(String(query || '').trim());
@@ -620,6 +739,26 @@ export default {
     listCloseFriends,
     addCloseFriend,
     removeCloseFriend,
+    listProjects,
+    getProject,
+    updateProjectTaskStatus,
+    getProjectMessages,
+    sendProjectMessage,
+    createProject,
+    updateProject,
+    deleteProject,
+    addProjectMember,
+    inviteProjectMember,
+    removeProjectMember,
+    updateProjectMemberRole,
+    createProjectTask,
+    updateProjectTask,
+    deleteProjectTask,
+    createProjectNote,
+    updateProjectNote,
+    deleteProjectNote,
+    uploadProjectAttachment,
+    deleteProjectAttachment,
     searchUsers,
     browseMusic,
     searchMusic,
