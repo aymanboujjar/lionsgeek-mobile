@@ -64,6 +64,12 @@ export default function ChatHeader({ conversation, onBack }) {
         ? conversation.name || 'Group'
         : conversation.other_user?.name || 'User';
 
+    const openGroupInfo = () => {
+        const id = conversation?.id;
+        if (!id) return;
+        router.push(`/(tabs)/chat/group-info/${id}`);
+    };
+
     return (
         <View
             className="border-b border-black/[0.06] dark:border-white/[0.08] bg-light dark:bg-dark overflow-hidden"
@@ -79,21 +85,24 @@ export default function ChatHeader({ conversation, onBack }) {
                         <Ionicons name="chevron-back" size={22} color={fg} />
                     </Pressable>
                 )}
-                <View className="flex-1 flex-row items-center min-w-0 gap-3">
+                <Pressable
+                    onPress={
+                        isGroup
+                            ? openGroupInfo
+                            : () =>
+                                  router.push({
+                                      pathname: '/(tabs)/profile',
+                                      params: { userId: String(conversation.other_user.id) },
+                                  })
+                    }
+                    className="flex-1 flex-row items-center min-w-0 gap-3 active:opacity-80"
+                >
                     {isGroup ? (
                         <View className="w-12 h-12 rounded-2xl bg-alpha/20 items-center justify-center">
                             <Ionicons name="people" size={22} color={fg} />
                         </View>
                     ) : (
-                        <Pressable
-                            onPress={() =>
-                                router.push({
-                                    pathname: '/(tabs)/profile',
-                                    params: { userId: String(conversation.other_user.id) },
-                                })
-                            }
-                            className="relative"
-                        >
+                        <View className="relative">
                             {conversation.other_user?.image ? (
                                 <Image
                                     source={{
@@ -114,7 +123,7 @@ export default function ChatHeader({ conversation, onBack }) {
                                     isOnline ? 'bg-alpha' : 'bg-neutral-400 dark:bg-zinc-600'
                                 }`}
                             />
-                        </Pressable>
+                        </View>
                     )}
                     <View className="flex-1 min-w-0">
                         <Text
@@ -130,8 +139,16 @@ export default function ChatHeader({ conversation, onBack }) {
                             {statusLine || (isGroup ? 'Group' : 'Offline')}
                         </Text>
                     </View>
-                </View>
-                {!isGroup ? (
+                </Pressable>
+                {isGroup ? (
+                    <Pressable
+                        onPress={openGroupInfo}
+                        accessibilityLabel="Group info"
+                        className="w-10 h-10 rounded-xl bg-black/[0.05] dark:bg-white/[0.08] items-center justify-center active:opacity-70"
+                    >
+                        <Ionicons name="information-circle-outline" size={22} color={fg} />
+                    </Pressable>
+                ) : (
                     <>
                         <Pressable
                             onPress={() => handleCall('audio')}
@@ -160,7 +177,7 @@ export default function ChatHeader({ conversation, onBack }) {
                             )}
                         </Pressable>
                     </>
-                ) : null}
+                )}
             </View>
         </View>
     );

@@ -331,6 +331,19 @@ export default function ConversationsList({ onUnreadCountChange, onBeforeNavigat
               <Ionicons name="chatbubble-ellipses-outline" size={18} color={accentIcon} />
               <Text className="ml-3 text-beta dark:text-light font-semibold">Open conversation</Text>
             </Pressable>
+            {contextConversation?.type === 'group' ? (
+              <Pressable
+                onPress={() => {
+                  const id = contextConversation?.id;
+                  setContextConversation(null);
+                  if (id) router.push(`/(tabs)/chat/group-info/${id}`);
+                }}
+                className="mx-4 mt-2 px-4 py-3.5 flex-row items-center rounded-2xl border border-beta/10 dark:border-light/10"
+              >
+                <Ionicons name="information-circle-outline" size={18} color={accentIcon} />
+                <Text className="ml-3 text-beta dark:text-light font-semibold">Group info</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               onPress={() =>
                 contextConversation && handleDeleteConversation(contextConversation.id)

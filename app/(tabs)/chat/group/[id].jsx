@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useAppContext } from '@/context';
 import AppLayout from '@/components/layout/AppLayout';
 import ChatBox from '../Partials/ChatBox';
@@ -19,31 +19,36 @@ export default function GroupChatThreadScreen() {
   const [conversation, setConversation] = useState(null);
   const [loadError, setLoadError] = useState(null);
 
-  useEffect(() => {
-    if (!token || !groupId) return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!token || !groupId) return undefined;
 
-    let cancelled = false;
-    setLoadError(null);
-    setConversation(null);
+      let cancelled = false;
+      setLoadError(null);
 
-    (async () => {
-      try {
-        const response = await API.getWithAuth(`mobile/chat/groups/${groupId}`, token);
-        if (cancelled) return;
-        if (response?.data?.conversation) {
-          setConversation(response.data.conversation);
-        } else {
-          setLoadError('Could not open this group.');
+      (async () => {
+        try {
+          const response = await API.getWithAuth(`mobile/chat/groups/${groupId}`, token);
+          if (cancelled) return;
+          if (response?.data?.conversation) {
+            setConversation(response.data.conversation);
+          } else {
+            setConversation(null);
+            setLoadError('Could not open this group.');
+          }
+        } catch {
+          if (!cancelled) {
+            setConversation(null);
+            setLoadError('Could not open this group.');
+          }
         }
-      } catch {
-        if (!cancelled) setLoadError('Could not open this group.');
-      }
-    })();
+      })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [token, groupId]);
+      return () => {
+        cancelled = true;
+      };
+    }, [token, groupId])
+  );
 
   if (!token) {
     return (
