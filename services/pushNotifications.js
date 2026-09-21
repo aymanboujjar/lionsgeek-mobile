@@ -29,24 +29,14 @@ function ensureNotificationHandler(Notifications) {
   Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       const type = notification?.request?.content?.data?.type;
-      if (type === 'incoming_call') {
-        let callKeepOwnsRing = false;
-        try {
-          // eslint-disable-next-line global-require
-          const { isCallKeepAvailable } = require('./callKeep');
-          callKeepOwnsRing = isCallKeepAvailable();
-        } catch (_) {}
-        // Native CallKeep / CallKit owns the UI + ringtone when available.
-        // If the native module is missing (Expo Go), still alert via push.
-        if (callKeepOwnsRing) {
-          return {
-            shouldShowAlert: false,
-            shouldPlaySound: false,
-            shouldSetBadge: false,
-            shouldShowBanner: false,
-            shouldShowList: false,
-          };
-        }
+      if (type === 'incoming_call' || type === 'call_cancelled') {
+        return {
+          shouldShowAlert: false,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+          shouldShowBanner: false,
+          shouldShowList: false,
+        };
       }
       return {
         shouldShowAlert: true,
@@ -77,6 +67,11 @@ function defineBackgroundCallTask() {
           data?.notification?.data ||
           data?.data ||
           data;
+        if (raw?.type === 'call_cancelled' && (raw?.call_id || raw?.uuid)) {
+          const { endNativeCallForCallId } = require('./callKeep');
+          await endNativeCallForCallId(raw.call_id || raw.uuid);
+          return;
+        }
         if (raw?.type !== 'incoming_call' || !raw?.call_id) return;
         // eslint-disable-next-line global-require
         const { displayNativeIncomingCall } = require('./callKeep');
@@ -84,6 +79,7 @@ function defineBackgroundCallTask() {
           callId: raw.call_id,
           callerName: raw.caller_name || 'LionsGeek user',
           callType: raw.call_type || 'audio',
+          uuid: raw.uuid || null,
         });
       } catch (e) {
         console.warn('[Push] background CallKeep failed', e?.message);
@@ -100,14 +96,43 @@ function defineBackgroundCallTask() {
 defineBackgroundCallTask();
 
 async function presentIncomingCallFromPushData(data) {
-  if (!data || data.type !== 'incoming_call' || !data.call_id) return false;
+  if (!data) return false;
   try {
-    // eslint-disable-next-line global-require
+    if (data.type === 'call_cancelled') {
+      const { endNativeCallForCallId } = require('./callKeep');
+      await endNativeCallForCallId(data.call_id || data.uuid);
+      return true;
+    }
+    if (data.type !== 'incoming_call' || !data.call_id) return false;
+
+    try {
+      const { getAuthToken } = require('@/utils/authTokenStorage');
+      const API = require('@/api').default;
+      const auth = await getAuthToken();
+      if (auth) {
+        const details = await API.getCall(Number(data.call_id), auth);
+        const status = details?.status || details?.call?.status;
+        if (status && status !== 'ringing') {
+          const { endNativeCallForCallId } = require('./callKeep');
+          await endNativeCallForCallId(data.call_id);
+          return false;
+        }
+      }
+    } catch (e) {
+      const code = e?.response?.status;
+      if (code === 404 || code === 403) {
+        const { endNativeCallForCallId } = require('./callKeep');
+        await endNativeCallForCallId(data.call_id);
+        return false;
+      }
+    }
+
     const { displayNativeIncomingCall } = require('./callKeep');
     await displayNativeIncomingCall({
       callId: data.call_id,
       callerName: data.caller_name || 'LionsGeek user',
       callType: data.call_type || 'audio',
+      uuid: data.uuid || null,
     });
     return true;
   } catch (e) {
@@ -292,7 +317,7 @@ export function setupNotificationListeners() {
   ensureNotificationHandler(Notifications);
   const notificationListener = Notifications.addNotificationReceivedListener((notification) => {
     const data = notification?.request?.content?.data;
-    if (data?.type === 'incoming_call') {
+    if (data?.type === 'incoming_call' || data?.type === 'call_cancelled') {
       presentIncomingCallFromPushData(data);
     }
   });
@@ -302,9 +327,11 @@ export function setupNotificationListeners() {
     const data = response?.notification?.request?.content?.data;
     if (!data) return;
     markNotificationHandled(notificationId).finally(() => {
-      if (data.type === 'incoming_call') {
+      if (data.type === 'incoming_call' || data.type === 'call_cancelled') {
         presentIncomingCallFromPushData(data).finally(() => {
-          handleNotificationNavigation(data);
+          if (data.type === 'incoming_call') {
+            handleNotificationNavigation(data);
+          }
         });
         return;
       }

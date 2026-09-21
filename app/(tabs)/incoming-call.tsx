@@ -6,7 +6,7 @@ import { useCallContext } from "@/context/CallContext";
 import { useAppContext } from "@/context";
 import { useCallRinger } from "@/hooks/useCallRinger";
 import API from "@/api";
-import { endNativeCallForCallId } from "@/services/callKeep";
+import { endNativeCallForCallId, answerNativeCallForCallId } from "@/services/callKeep";
 
 export default function IncomingCallScreen() {
   const router = useRouter();
@@ -27,14 +27,18 @@ export default function IncomingCallScreen() {
       (async () => {
         try {
           const data = await API.getCall(Number(paramCallId), token);
-          if (data?.call_id) {
+          const status = data?.status || data?.call?.status;
+          if (data?.call_id && (!status || status === 'ringing')) {
             setFetchedCall({
               callId: data.call_id,
               channel_name: data.channel_name,
               type: data.call_type || data.type || 'audio',
-              caller: data.caller || {},
+              caller: data.caller || data.call?.caller || {},
             });
           } else {
+            if (data?.call_id) {
+              try { await endNativeCallForCallId(data.call_id); } catch {}
+            }
             router.replace("/(tabs)/home");
           }
         } catch {
@@ -113,6 +117,7 @@ export default function IncomingCallScreen() {
       if (fetchedCall && token) {
         const data = await API.acceptCall(fetchedCall.callId, token);
         if (data?.token && data?.channel_name && setActiveCall) {
+          try { await answerNativeCallForCallId(fetchedCall.callId); } catch {}
           setActiveCall({
             callId: data.call_id,
             channelName: data.channel_name,

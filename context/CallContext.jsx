@@ -9,6 +9,7 @@ import {
     setupCallKeep,
     displayNativeIncomingCall,
     endNativeCallForCallId,
+    answerNativeCallForCallId,
     endAllNativeCalls,
     bindCallKeepListeners,
     isCallKeepAvailable,
@@ -66,6 +67,7 @@ export function CallProvider({ children }) {
             callId: payload.callId,
             callerName,
             callType: payload.type || 'audio',
+            uuid: payload.uuid || null,
         });
         try {
             router.replace("/(tabs)/incoming-call");
@@ -191,6 +193,7 @@ export function CallProvider({ children }) {
                         channel_name: data.channel_name,
                         type: data.call_type || data.type || 'audio',
                         caller: data.caller || {},
+                        uuid: data.uuid,
                     });
                 });
 
@@ -217,7 +220,7 @@ export function CallProvider({ children }) {
 
                 channel.subscribe("call-rejected", clearOutgoing);
                 channel.subscribe("call-cancelled", async (msg) => {
-                    const callId = msg?.data?.call_id;
+                    const callId = msg?.data?.call_id || msg?.data?.uuid;
                     if (callId) await endNativeCallForCallId(callId);
                     setIncomingCall(null);
                     setPendingCallAsCaller(null);
@@ -304,6 +307,7 @@ export function CallProvider({ children }) {
             }
 
             if (data?.token && data?.channel_name) {
+                await answerNativeCallForCallId(incomingCall.callId);
                 setActiveCall(mapCallPayload(data, {
                     isCaller: false,
                     type: data.type || incomingCall.type || 'audio',
