@@ -117,7 +117,6 @@ export default function TabLayout() {
     { route: "saved-posts", name: "Saved posts", icon: "bookmark", showTab: false },
     { route: "achievements", name: "Achievements", icon: "trophy", showTab: false },
     { route: "learning-progress", name: "Learning", icon: "school", showTab: false },
-    { route: "projects-hub", name: "Projects hub", icon: "hammer", showTab: false },
     { route: "projects", name: "Projects", icon: "hammer", showTab: false },
     { route: "admin-reports", name: "Reports", icon: "analytics", showTab: false },
     { route: "customization", name: "Customize", icon: "color-palette", showTab: false },
