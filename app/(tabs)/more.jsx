@@ -480,9 +480,9 @@ export default function More() {
         <SettingsCard>
           <SettingRow
             icon="cube-outline"
-            label="Projects hub"
-            sublabel="Capstones, briefs & deliveries"
-            onPress={() => router.push("/(tabs)/projects-hub")}
+            label="Projects"
+            sublabel="Team workspaces, tasks & chat"
+            onPress={() => router.push("/(tabs)/projects")}
             right={chevron}
           />
           <RowDivider />

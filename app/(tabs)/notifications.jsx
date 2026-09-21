@@ -488,7 +488,7 @@ export default function NotificationsScreen() {
       if (targetLink.startsWith('/students/')) {
         const parts = targetLink.split('/');
         if (parts.includes('project')) {
-          router.push('/(tabs)/projects-hub');
+          router.push('/(tabs)/projects');
           return;
         }
       }
@@ -496,8 +496,13 @@ export default function NotificationsScreen() {
         router.push('/(tabs)/home');
         return;
       }
-      if (targetLink.startsWith('/projects')) {
-        router.push('/(tabs)/projects-hub');
+      if (targetLink.startsWith('/projects') || targetLink.startsWith('/admin/projects')) {
+        const projectMatch = targetLink.match(/projects\/(\d+)/);
+        if (projectMatch?.[1]) {
+          router.push({ pathname: '/(tabs)/projects/[id]', params: { id: projectMatch[1] } });
+        } else {
+          router.push('/(tabs)/projects');
+        }
         return;
       }
       if (targetLink.startsWith('/training')) {
@@ -509,7 +514,7 @@ export default function NotificationsScreen() {
         return;
       }
       if (notification.type === 'project_submission' || notification.type === 'project_status') {
-        router.push('/(tabs)/projects-hub');
+        router.push('/(tabs)/projects');
         return;
       }
     }
@@ -518,7 +523,14 @@ export default function NotificationsScreen() {
     if (notification.type === 'reservation' || notification.type === 'appointment') {
       router.push('/(tabs)/reservations');
     } else if (notification.type === 'project_submission' || notification.type === 'project_status' || notification.type === 'task_assignment' || notification.type === 'project_message') {
-      router.push('/(tabs)/projects-hub');
+      const projectId = notification.project_id || notification?.data?.project_id;
+      if (projectId && notification.type === 'project_message') {
+        router.push({ pathname: '/(tabs)/projects/chat', params: { id: String(projectId) } });
+      } else if (projectId) {
+        router.push({ pathname: '/(tabs)/projects/[id]', params: { id: String(projectId) } });
+      } else {
+        router.push('/(tabs)/projects');
+      }
     } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
       router.push('/(tabs)/home');
     } else if (notification.type === 'story_mention') {

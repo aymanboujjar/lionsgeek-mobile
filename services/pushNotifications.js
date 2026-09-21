@@ -440,9 +440,17 @@ export function handleNotificationNavigation(data) {
         case 'project_status':
         case 'project_submission':
         case 'task_assignment':
-        case 'project_message':
-          router.push('/(tabs)/projects-hub');
+        case 'project_message': {
+          const projectId = data?.project_id;
+          if (projectId && type === 'project_message') {
+            router.push({ pathname: '/(tabs)/projects/chat', params: { id: String(projectId) } });
+          } else if (projectId) {
+            router.push({ pathname: '/(tabs)/projects/[id]', params: { id: String(projectId) } });
+          } else {
+            router.push('/(tabs)/projects');
+          }
           break;
+        }
 
         case 'chat_message': {
           const peerId = other_user_id || sender_id;
