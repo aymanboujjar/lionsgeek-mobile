@@ -182,12 +182,13 @@ export default function ProjectsListScreen() {
 
   const header = useMemo(
     () => (
-      <View>
+      <View style={{ marginBottom: 14 }}>
         <View
           style={{
             backgroundColor: isDark ? Colors.card_dark : '#fff',
             borderBottomColor: hairline,
             borderBottomWidth: 1,
+            marginHorizontal: -16,
             paddingHorizontal: 16,
             paddingTop: 12,
             paddingBottom: 14,
