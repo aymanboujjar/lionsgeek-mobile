@@ -102,7 +102,7 @@ function TableHeaderRow() {
       style={{ borderBottomColor: CARD_BORDER, backgroundColor: 'rgba(0,0,0,0.25)' }}
     >
       <View style={{ flex: 2, paddingRight: 8 }}>
-        <Text className="text-[11px] font-bold uppercase tracking-[0.12em] text-dark_gray5">Day</Text>
+        <Text className="text-[11px] font-bold uppercase tracking-[0.12em] text-white">Day</Text>
       </View>
       {SLOT_COLUMNS.map(({ key, label }) => (
         <View key={key} style={{ flex: 1, alignItems: 'center', paddingHorizontal: 2 }}>
@@ -231,9 +231,23 @@ function StatCard({ label, value, valueColor }) {
   );
 }
 
-function ScreenCanvas({ children }) {
+function ScreenCanvas({ children, title = 'Attendance history' }) {
+  const router = useRouter();
+
   return (
     <LinearGradient colors={[BG_TOP, BG_BOTTOM]} locations={[0, 1]} style={{ flex: 1 }}>
+      <View className="flex-row items-center border-b border-white/10 px-4 pb-3 pt-3">
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          className="mr-3 h-9 w-9 items-center justify-center"
+        >
+          <Ionicons name="arrow-back" size={22} color="#fff" />
+        </Pressable>
+        <Text className="flex-1 text-lg font-bold text-white" numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
       {children}
     </LinearGradient>
   );
@@ -403,7 +417,7 @@ export default function AttendanceHistoryScreen() {
           {trainingName ? `Current course: ${trainingName}` : 'Current course'}
         </Text>
         {trainingCategory ? (
-          <Text className="mt-2 text-[13px] leading-4 text-dark_gray5" numberOfLines={2}>
+          <Text className="mt-2 text-[13px] leading-4 text-white" numberOfLines={2}>
             {trainingCategory}
           </Text>
         ) : null}
@@ -466,7 +480,7 @@ export default function AttendanceHistoryScreen() {
         <ScreenCanvas>
           <StatusBar style="light" />
           <View className="flex-1 px-4 pt-2">
-            <Text className="px-1 text-[13px] leading-5 text-dark_gray5">Choose a program to open its ledger.</Text>
+            <Text className="px-1 text-[13px] leading-5 text-white">Choose a program to open its ledger.</Text>
             <View className="mt-4 gap-3">
               {trainingOptions.map((t) => (
                 <Pressable

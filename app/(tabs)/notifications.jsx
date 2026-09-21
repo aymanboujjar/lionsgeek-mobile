@@ -11,7 +11,6 @@ import Skeleton from '@/components/ui/Skeleton';
 import useNotificationPreferences from '@/hooks/useNotificationPreferences';
 import { isNotificationTypeEnabledInPrefs } from '@/constants/notificationPreferences';
 import { Colors } from '@/constants/Colors';
-import { getUserRoles } from '@/utils/roles';
 
 let Ably = null;
 try {
@@ -21,14 +20,13 @@ try {
 }
 
 export default function NotificationsScreen() {
-  const { token, user } = useAppContext();
+  const { token } = useAppContext();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { prefs, ready: prefsReady } = useNotificationPreferences();
   const [refreshing, setRefreshing] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const canTestPush = getUserRoles(user).includes('admin');
 
   useFocusEffect(
     useCallback(() => {
@@ -534,32 +532,6 @@ export default function NotificationsScreen() {
     }
   };
 
-  const testPushNotification = async () => {
-    if (!canTestPush) {
-      return;
-    }
-    if (!token) {
-      alert('Something went wrong. Please try again.');
-      return;
-    }
-
-    try {
-      const response = await API.postWithAuth('mobile/test-push', {
-        title: '🧪 Test Push Notification',
-        body: 'This is a test push notification! If you see this on your phone, push notifications are working! 🎉',
-      }, token);
-
-      if (response?.data?.success) {
-        alert('✅ Test notification sent! Check your phone (make sure app is in background/closed).');
-      } else {
-        alert('Something went wrong. Please try again.');
-      }
-    } catch (error) {
-      console.error('[NOTIFICATIONS] Test push failed:', error);
-      alert('Something went wrong. Please try again.');
-    }
-  };
-
   const unreadCount = visibleNotifications.filter((n) => !n.read).length;
 
   return (
@@ -586,15 +558,6 @@ export default function NotificationsScreen() {
               >
                 <Ionicons name="settings-outline" size={18} color={isDark ? '#fff' : '#000'} />
               </TouchableOpacity>
-              {/* Test Push Button — admin-only; backend also enforces role:admin */}
-              {canTestPush ? (
-                <TouchableOpacity
-                  onPress={testPushNotification}
-                  className="bg-green-500/20 dark:bg-green-500/30 rounded-full px-3 py-2 mr-2"
-                >
-                  <Ionicons name="notifications" size={16} color="#10b981" />
-                </TouchableOpacity>
-              ) : null}
               {unreadCount > 0 ? (
                 <TouchableOpacity
                   onPress={markAllAsRead}
