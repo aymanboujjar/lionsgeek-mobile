@@ -278,6 +278,10 @@ export default function GroupInfoScreen() {
   };
 
   const deleteGroup = () => {
+    if (myRole !== 'owner') {
+      Alert.alert('Not allowed', 'Only the group owner can delete the group for everyone.');
+      return;
+    }
     Alert.alert(
       'Delete group',
       'This permanently deletes the group for everyone. Continue?',
@@ -289,7 +293,7 @@ export default function GroupInfoScreen() {
           onPress: async () => {
             setBusy(true);
             try {
-              await API.remove(`mobile/chat/conversation/${groupId}`, token);
+              await API.remove(`mobile/chat/groups/${groupId}`, token);
               router.replace('/(tabs)/chat');
             } catch (e) {
               Alert.alert(

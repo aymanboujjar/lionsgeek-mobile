@@ -152,20 +152,80 @@ export default function ConversationsList({ onUnreadCountChange, onBeforeNavigat
     openChatThread(userId, onBeforeNavigateToThread);
   };
 
-  const handleDeleteConversation = async (conversationId) => {
-    try {
-      const response = await API.remove(`mobile/chat/conversation/${conversationId}`, token);
-      if (response && response.status === 200) {
-        setConversations((prev) => prev.filter((c) => c.id !== conversationId));
-        fetchConversations();
-      } else {
-        Alert.alert('Error', 'Failed to delete conversation');
-      }
-    } catch {
-      Alert.alert('Error', 'Failed to delete conversation');
-    } finally {
+  const handleDeleteDirectConversation = (conversationId) => {
+    Alert.alert(
+      'Delete conversation',
+      'Remove this conversation from your list? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => setContextConversation(null) },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await API.remove(
+                `mobile/chat/conversation/${conversationId}`,
+                token
+              );
+              if (response && response.status === 200) {
+                setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+                fetchConversations();
+              } else {
+                Alert.alert('Error', 'Failed to delete conversation');
+              }
+            } catch {
+              Alert.alert('Error', 'Failed to delete conversation');
+            } finally {
+              setContextConversation(null);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLeaveGroup = (conversation) => {
+    const conversationId = conversation?.id;
+    const myId = currentUser?.id;
+    if (!conversationId || !myId) {
       setContextConversation(null);
+      return;
     }
+
+    Alert.alert(
+      'Leave group',
+      `Leave “${conversation?.name || 'this group'}”? You will stop receiving messages until someone adds you again.`,
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => setContextConversation(null) },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await API.remove(
+                `mobile/chat/groups/${conversationId}/members/${myId}`,
+                token
+              );
+              if (response && (response.status === 200 || response.data?.success !== false)) {
+                setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+                fetchConversations();
+              } else {
+                Alert.alert('Error', 'Failed to leave group');
+              }
+            } catch (e) {
+              Alert.alert(
+                'Error',
+                e?.response?.data?.error ||
+                  e?.response?.data?.message ||
+                  'Failed to leave group'
+              );
+            } finally {
+              setContextConversation(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -345,14 +405,23 @@ export default function ConversationsList({ onUnreadCountChange, onBeforeNavigat
               </Pressable>
             ) : null}
             <Pressable
-              onPress={() =>
-                contextConversation && handleDeleteConversation(contextConversation.id)
-              }
+              onPress={() => {
+                if (!contextConversation) return;
+                if (contextConversation.type === 'group') {
+                  handleLeaveGroup(contextConversation);
+                  return;
+                }
+                handleDeleteDirectConversation(contextConversation.id);
+              }}
               className="mx-4 mt-2 px-4 py-3.5 flex-row items-center rounded-2xl bg-error/10"
             >
-              <Ionicons name="trash-outline" size={18} color="#ef4444" />
+              <Ionicons
+                name={contextConversation?.type === 'group' ? 'exit-outline' : 'trash-outline'}
+                size={18}
+                color="#ef4444"
+              />
               <Text className="ml-3 text-error font-semibold">
-                {contextConversation?.type === 'group' ? 'Leave / delete group' : 'Delete conversation'}
+                {contextConversation?.type === 'group' ? 'Leave group' : 'Delete conversation'}
               </Text>
             </Pressable>
             <Pressable
