@@ -3,7 +3,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Rolegard from '@/components/Rolegard';
-import HighlightsRow from '../../stories/Partials/HighlightsRow';
+// import HighlightsRow from '../../stories/Partials/HighlightsRow';
 import OnlineBadge from './OnlineBadge';
 import StatColumn from './StatColumn';
 import AboutCard from './AboutCard';
@@ -306,13 +306,15 @@ export default function ProfileScrollBody(props) {
                 {isFollowing ? 'Following' : 'Follow'}
               </Text>
             </Pressable>
-            <Pressable
-              onPress={onMessagePress}
-              className="flex-1 rounded-xl py-2.5 border border-black/15 dark:border-white/15 items-center flex-row justify-center active:opacity-70"
-            >
-              <Ionicons name="mail-outline" size={17} color={isDark ? '#fff' : '#000'} />
-              <Text className="ml-1.5 text-sm font-semibold text-black dark:text-white">Message</Text>
-            </Pressable>
+            {false && (
+              <Pressable
+                onPress={onMessagePress}
+                className="flex-1 rounded-xl py-2.5 border border-black/15 dark:border-white/15 items-center flex-row justify-center active:opacity-70"
+              >
+                <Ionicons name="mail-outline" size={17} color={isDark ? '#fff' : '#000'} />
+                <Text className="ml-1.5 text-sm font-semibold text-black dark:text-white">Message</Text>
+              </Pressable>
+            )}
             <Pressable
               onPress={onOpenOptions}
               className="px-4 py-2.5 rounded-xl border border-black/15 dark:border-white/15 items-center justify-center active:opacity-70"
@@ -382,17 +384,17 @@ export default function ProfileScrollBody(props) {
         </View>
       </Rolegard>
 
-      {profile?.id ? (
+      {/* {profile?.id ? (
         <HighlightsRow
           userId={profile.id}
           isOwnProfile={isOwnProfile}
           isDark={isDark}
           refreshKey={refreshing ? Date.now() : 0}
         />
-      ) : null}
+      ) : null} */}
 
       {/* ─── Profile Tabs ─── */}
-      <ProfileTabBar activeTab={activeTab} onTabChange={setActiveTab} isDark={isDark} />
+      <ProfileTabBar activeTab={activeTab} onTabChange={setActiveTab} isDark={isDark} showSaved={isOwnProfile} />
 
       {/* Tab 1 — Posts grid (Instagram-style) */}
       {activeTab === 0 && (
@@ -449,7 +451,41 @@ export default function ProfileScrollBody(props) {
             }}
           />
 
-          <EducationCard profile={profile} isDark={isDark} />
+          <EducationCard
+            profile={profile}
+            isDark={isDark}
+            isOwnProfile={isOwnProfile}
+            token={token}
+            onEducationAdded={(edu) => {
+              setProfile((prev) => {
+                if (!prev) return prev;
+                const current = Array.isArray(prev.educations) ? prev.educations : [];
+                return { ...prev, educations: [edu, ...current] };
+              });
+            }}
+            onEducationUpdated={(updated) => {
+              setProfile((prev) => {
+                if (!prev) return prev;
+                const current = Array.isArray(prev.educations) ? prev.educations : [];
+                return {
+                  ...prev,
+                  educations: current.map((e) =>
+                    String(e.id) === String(updated.id) ? { ...e, ...updated } : e
+                  ),
+                };
+              });
+            }}
+            onEducationDeleted={(id) => {
+              setProfile((prev) => {
+                if (!prev) return prev;
+                const current = Array.isArray(prev.educations) ? prev.educations : [];
+                return {
+                  ...prev,
+                  educations: current.filter((e) => String(e.id) !== String(id)),
+                };
+              });
+            }}
+          />
         </View>
       )}
 
@@ -465,8 +501,8 @@ export default function ProfileScrollBody(props) {
         />
       )}
 
-      {/* Tab 4 — Saved posts */}
-      {activeTab === 3 && (
+      {/* Tab 4 — Saved posts (own profile only) */}
+      {isOwnProfile && activeTab === 3 && (
         <PostsGridTab
           posts={savedPosts}
           postsLoading={savedPostsLoading}

@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LegalH2, LegalMeta, LegalP } from '@/components/legal/LegalTypography';
 import { Colors } from '@/constants/Colors';
 
-const SUPPORT_EMAIL = 'support@lionsgeek.com';
+const SUPPORT_EMAIL = 'pro@lionsgeek.ma';
 
 export default function SupportScreen() {
   const openMail = () => {

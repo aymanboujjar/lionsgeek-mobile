@@ -10,10 +10,13 @@ const shouldSkipVersionCheck = () => {
     return Constants.appOwnership === 'expo';
 };
 
+function isSafeActionUrl(url) {
+    const value = String(url ?? '').trim();
+    return /^https:\/\/\S+$/i.test(value) || /^mailto:[^\s]+$/i.test(value);
+}
+
 export async function checkAppVersion() {
-    if (shouldSkipVersionCheck()) {
-        return { updateRequired: false };
-    }
+    const skipStoreUpdate = shouldSkipVersionCheck();
 
     const localVersion = (Constants.expoConfig?.version ?? '0.0.0').trim();
 
@@ -21,11 +24,32 @@ export async function checkAppVersion() {
     const payload = response?.data ?? {};
     const remoteVersion = String(payload.version ?? '').trim();
     const updateUrl = resolveStoreUpdateUrl(payload);
+    const blockMode = payload.block_mode === 'modal' ? 'modal' : 'version';
+    const modal = payload.modal ?? {};
+    const title = String(modal.title ?? '').trim();
+    const message = String(modal.message ?? '').trim();
+    const buttonLabel = String(modal.button_label ?? '').trim();
+    const buttonUrl = String(modal.button_url ?? '').trim();
+    const accessBlocked = blockMode === 'modal' && title !== '' && message !== '';
 
     const updateRequired =
+        !skipStoreUpdate &&
+        blockMode === 'version' &&
         Boolean(remoteVersion) &&
         remoteVersion !== localVersion &&
         Boolean(updateUrl);
 
-    return { updateRequired, updateUrl, localVersion, remoteVersion };
+    return {
+        updateRequired,
+        updateUrl,
+        localVersion,
+        remoteVersion,
+        accessBlocked,
+        access: {
+            title,
+            message,
+            buttonLabel: isSafeActionUrl(buttonUrl) ? buttonLabel : '',
+            buttonUrl: isSafeActionUrl(buttonUrl) ? buttonUrl : '',
+        },
+    };
 }

@@ -8,13 +8,18 @@ export const PROFILE_TABS = [
   { icon: 'bookmark-outline',  activeIcon: 'bookmark',  label: 'Saved Posts' },
 ];
 
-export default function ProfileTabBar({ activeTab, onTabChange, isDark }) {
+export default function ProfileTabBar({ activeTab, onTabChange, isDark, showSaved = true }) {
+  const tabs = PROFILE_TABS
+    .map((tab, index) => ({ ...tab, index }))
+    .filter((tab) => showSaved || tab.index !== 3);
+
   return (
     <View
       className="flex-row bg-light dark:bg-dark"
       style={{ borderBottomWidth: 1, borderBottomColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }}
     >
-      {PROFILE_TABS.map((tab, index) => {
+      {tabs.map((tab) => {
+        const index = tab.index;
         const isActive = activeTab === index;
         return (
           <TouchableOpacity

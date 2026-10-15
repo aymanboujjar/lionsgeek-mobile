@@ -27,6 +27,11 @@ function formatTime(dateString) {
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(mins / 60);
   const days = Math.floor(hours / 24);
+  const weeks = Math.floor(days / 7);
+  if (days > 7) {
+    if (weeks > 4) return date.toLocaleDateString();
+    return `${weeks}w`;
+  }
   if (days > 0) return `${days}d`;
   if (hours > 0) return `${hours}h`;
   if (mins > 0) return `${mins}m`;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -220,22 +220,7 @@ export default function EditPostScreen() {
             <Text style={{ color: text, fontWeight: '800', fontSize: 16 }}>
               Edit post
             </Text>
-            <Pressable
-              onPress={handleSave}
-              disabled={saving}
-              style={{
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-                borderRadius: 999,
-                backgroundColor: saving ? (isDark ? '#2a2a2a' : '#e5e5e5') : '#ffc801',
-              }}
-            >
-              {saving ? (
-                <Skeleton width={18} height={18} borderRadius={9} isDark={isDark} />
-              ) : (
-                <Text style={{ fontWeight: '900', color: '#000' }}>Save</Text>
-              )}
-            </Pressable>
+            <View style={{ width: 38 }} />
           </View>
 
           {/* Profile row (same as CreatePost) */}
@@ -400,6 +385,40 @@ export default function EditPostScreen() {
                 </View>
               ) : null}
             </View>
+
+            <TouchableOpacity
+              onPress={handleSave}
+              disabled={saving}
+              activeOpacity={0.8}
+              style={{ width: '100%', alignSelf: 'stretch', marginTop: 16, opacity: saving ? 0.75 : 1 }}
+            >
+              <View
+                style={{
+                  width: '100%',
+                  backgroundColor: isDark ? '#ffc801' : '#212529',
+                  borderRadius: 16,
+                  paddingVertical: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color={isDark ? '#000000' : '#ffffff'} />
+                ) : (
+                  <Text
+                    style={{
+                      width: '100%',
+                      textAlign: 'center',
+                      fontSize: 16,
+                      fontWeight: '800',
+                      color: isDark ? '#000000' : '#ffffff',
+                    }}
+                  >
+                    Save
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
           </ScrollView>
         )}
       </KeyboardAvoidingView>

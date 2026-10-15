@@ -104,10 +104,12 @@ export default function Navbar() {
           <TouchableOpacity className="mr-4" onPress={handleSearchPress}>
             <Ionicons name="search-outline" size={24} color={isDark ? '#fff' : '#000'} />
           </TouchableOpacity>
-          <TouchableOpacity className="mr-4 relative" onPress={handleChatPress}>
-            <Ionicons name="chatbubbles-outline" size={24} color={isDark ? '#fff' : '#000'} />
-            <ChatUnreadBadge count={chatUnreadCount} />
-          </TouchableOpacity>
+          {false && (
+            <TouchableOpacity className="mr-4 relative" onPress={handleChatPress}>
+              <Ionicons name="chatbubbles-outline" size={24} color={isDark ? '#fff' : '#000'} />
+              <ChatUnreadBadge count={chatUnreadCount} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity className="relative" onPress={handleNotificationsPress}>
             <Ionicons name="notifications-outline" size={24} color={isDark ? '#fff' : '#000'} />
             <NotificationUnreadBadge count={notificationUnreadCount} />

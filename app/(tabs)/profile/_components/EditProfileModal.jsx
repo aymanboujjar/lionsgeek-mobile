@@ -708,7 +708,8 @@ export default function EditProfileModal({ visible, profile, token, isDark, onCl
       onClose();
     } catch (err) {
       console.error('[EDIT_PROFILE] save:', err);
-      Alert.alert('Error', 'Could not save changes. Please try again.');
+      const firstError = Object.values(err?.response?.data?.errors ?? {})?.[0]?.[0];
+      Alert.alert('Error', firstError || 'Could not save changes. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -753,16 +754,9 @@ export default function EditProfileModal({ visible, profile, token, isDark, onCl
             Edit Profile
           </Text>
 
-          <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={12} activeOpacity={0.7}>
-            {saving
-              ? <ActivityIndicator size="small" color="#ffc801" />
-              : (
-                <View style={{ backgroundColor: '#ffc801', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#212529' }}>Save</Text>
-                </View>
-              )
-            }
-          </TouchableOpacity>
+          <View style={{ opacity: 0 }} pointerEvents="none">
+            <Text style={{ fontSize: 15, fontWeight: '500' }}>Cancel</Text>
+          </View>
         </View>
 
         <ScrollView
@@ -947,35 +941,39 @@ export default function EditProfileModal({ visible, profile, token, isDark, onCl
 
           {/* ─── Bottom save button ────────────────────────────────────────────── */}
           <View style={{ paddingHorizontal: 16, marginTop: 24 }}>
-            <Pressable
+            <TouchableOpacity
               onPress={handleSave}
               disabled={saving}
-              style={({ pressed }) => ({
-                backgroundColor: '#ffc801',
-                borderRadius: 18,
-                paddingVertical: 16,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center',
-                opacity: pressed || saving ? 0.75 : 1,
-                shadowColor: '#ffc801',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.4,
-                shadowRadius: 12,
-                elevation: 6,
-              })}
+              activeOpacity={0.8}
+              style={{ width: '100%', alignSelf: 'stretch', opacity: saving ? 0.75 : 1 }}
             >
-              {saving ? (
-                <ActivityIndicator size="small" color="#212529" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={20} color="#212529" style={{ marginRight: 8 }} />
-                  <Text style={{ fontSize: 16, fontWeight: '800', color: '#212529', letterSpacing: 0.3 }}>
+              <View
+                style={{
+                  width: '100%',
+                  backgroundColor: isDark ? '#ffc801' : '#212529',
+                  borderRadius: 16,
+                  paddingVertical: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color={isDark ? '#000000' : '#ffffff'} />
+                ) : (
+                  <Text
+                    style={{
+                      width: '100%',
+                      textAlign: 'center',
+                      fontSize: 16,
+                      fontWeight: '800',
+                      color: isDark ? '#000000' : '#ffffff',
+                    }}
+                  >
                     Save Changes
                   </Text>
-                </>
-              )}
-            </Pressable>
+                )}
+              </View>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

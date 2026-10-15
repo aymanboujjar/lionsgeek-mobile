@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Pressable,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
@@ -15,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import API from '@/api';
+import useDeleteProfileEntry from './useDeleteProfileEntry';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -293,7 +293,6 @@ export default function ExperienceFormModal({
   const [description, setDescription]   = useState('');
 
   const [saving, setSaving]             = useState(false);
-  const [deleting, setDeleting]         = useState(false);
 
   // Populate form when editing
   useEffect(() => {
@@ -498,60 +497,15 @@ export default function ExperienceFormModal({
     }
   };
 
-  // ── Delete ──
-  const handleDelete = () => {
-    Alert.alert(
-      'Delete Experience',
-      'Are you sure you want to remove this experience?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              const deleteEndpoints = [
-                `mobile/profile/experiences/${experience.id}`,
-                `mobile/profile/experience/${experience.id}`,
-                `mobile/experiences/${experience.id}`,
-                `mobile/experience/${experience.id}`,
-              ];
-
-              let lastError = null;
-              for (const endpoint of deleteEndpoints) {
-                try {
-                  await API.remove(endpoint, token);
-                  lastError = null;
-                  break;
-                } catch (err) {
-                  lastError = err;
-                  if (err?.response?.status !== 404) break;
-                }
-              }
-              if (lastError) throw lastError;
-
-              onDeleted?.(experience.id);
-              onClose();
-            } catch (err) {
-              console.error('[EXPERIENCE_FORM] delete error:', err);
-              const status = err?.response?.status;
-              if (status === 404) {
-                Alert.alert(
-                  'API route not found (404)',
-                  'The app could not find the Experience delete endpoint on the server. Please check your backend routes for the mobile experience delete endpoint.'
-                );
-              } else {
-                Alert.alert('Error', 'Could not delete experience. Please try again.');
-              }
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ],
-    );
-  };
+  const { deleting, confirmDelete } = useDeleteProfileEntry({
+    kind: 'experience',
+    token,
+    onDeleted: (id) => {
+      onDeleted?.(id);
+      onClose();
+    },
+  });
+  const handleDelete = () => confirmDelete(experience);
 
   const bg = isDark ? '#171717' : '#f4f4f5';
 
@@ -613,7 +567,8 @@ export default function ExperienceFormModal({
         </View>
 
         <ScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }}
+          style={{ flex: 1, width: '100%' }}
+          contentContainerStyle={{ width: '100%', alignItems: 'stretch', padding: 16, paddingBottom: insets.bottom + 40 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -756,36 +711,41 @@ export default function ExperienceFormModal({
           </InputCard>
 
           {/* ── Save button ── */}
-          <Pressable
+          <TouchableOpacity
             onPress={handleSave}
             disabled={saving}
-            style={({ pressed }) => ({
-              backgroundColor: '#ffc801',
-              borderRadius: 16,
-              paddingVertical: 15,
-              alignItems: 'center',
-              flexDirection: 'row',
-              justifyContent: 'center',
-              marginTop: 8,
-              opacity: pressed || saving ? 0.75 : 1,
-              shadowColor: '#ffc801',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.4,
-              shadowRadius: 12,
-              elevation: 6,
-            })}
+            activeOpacity={0.8}
+            style={{ width: '100%', alignSelf: 'stretch', marginTop: 8, opacity: saving ? 0.75 : 1 }}
           >
-            {saving ? (
-              <ActivityIndicator size="small" color="#212529" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-circle" size={20} color="#212529" style={{ marginRight: 8 }} />
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#212529' }}>
+            <View
+              className={`w-full items-center justify-center rounded-2xl py-4 ${isDark ? 'bg-alpha' : 'bg-beta'}`}
+              style={{
+                width: '100%',
+                backgroundColor: isDark ? '#ffc801' : '#212529',
+                borderRadius: 16,
+                paddingVertical: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {saving ? (
+                <ActivityIndicator size="small" color={isDark ? '#000000' : '#ffffff'} />
+              ) : (
+                <Text
+                  className={`w-full text-center text-base font-extrabold ${isDark ? 'text-black' : 'text-white'}`}
+                  style={{
+                    width: '100%',
+                    textAlign: 'center',
+                    fontSize: 16,
+                    fontWeight: '800',
+                    color: isDark ? '#000000' : '#ffffff',
+                  }}
+                >
                   {isEditMode ? 'Save Changes' : 'Add Experience'}
                 </Text>
-              </>
-            )}
-          </Pressable>
+              )}
+            </View>
+          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>

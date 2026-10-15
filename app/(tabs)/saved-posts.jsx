@@ -33,8 +33,19 @@ export default function SavedPostsScreen() {
 
     setError(null);
     try {
-      const res = await API.getWithAuth('mobile/posts/saved', token);
-      const list = parseSavedPostsFromApiResponse(res);
+      const list = [];
+      let offset = 0;
+      for (let page = 0; page < 50; page += 1) {
+        const res = await API.getWithAuth(
+          `mobile/posts/saved?offset=${offset}&limit=20`,
+          token,
+        );
+        const batch = parseSavedPostsFromApiResponse(res);
+        list.push(...batch);
+        const next = res?.data?.next_offset;
+        if (next == null || batch.length === 0) break;
+        offset = Number(next);
+      }
       setPosts(normalizeSavedPostsList(list));
     } catch (err) {
       console.error('[SAVED_POSTS] fetch error:', err);

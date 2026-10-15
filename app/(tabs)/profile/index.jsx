@@ -40,7 +40,6 @@ import FollowListModal from './partials/FollowListModal';
 import {
     getLastExperience,
     normalizeSocialLinks,
-    tryFetchFirstList,
 } from '@/utils/profileHelpers';
 import { isRepostPost } from './partials/RepostsGridTab';
 
@@ -130,29 +129,21 @@ export default function ProfileScreen() {
 
         setPostsLoading(true);
         try {
-            // Prefer backend endpoints that return a user's posts directly.
-            // Fallback to filtering `mobile/feed` only if needed.
-            const directCandidates = [
-                `mobile/profile/${profileId}/posts`,
-                `mobile/users/${profileId}/posts`,
-                `mobile/posts/user/${profileId}`,
-                `mobile/posts?user_id=${profileId}`,
-                `mobile/posts?userId=${profileId}`,
-            ];
-
-            let list = await tryFetchFirstList({ token, endpoints: directCandidates });
-            if (!Array.isArray(list) || list.length === 0) {
-                const res = await API.getWithAuth('mobile/feed', token);
-                list = Array.isArray(res?.data?.feed ?? res?.data?.posts)
-                    ? (res?.data?.feed ?? res?.data?.posts)
-                    : [];
+            const list = [];
+            let offset = 0;
+            for (let page = 0; page < 50; page += 1) {
+                const res = await API.getWithAuth(
+                    `mobile/profile/${profileId}/posts?offset=${offset}&limit=20`,
+                    token,
+                );
+                const batch = Array.isArray(res?.data?.posts) ? res.data.posts : [];
+                list.push(...batch);
+                const next = res?.data?.next_offset;
+                if (next == null || batch.length === 0) break;
+                offset = Number(next);
             }
 
             const normalized = list
-                .filter((post) => {
-                    const pid = post?.user?.id ?? post?.author?.id ?? post?.user_id ?? post?.userId;
-                    return pid != null && Number(pid) === Number(profileId);
-                })
                 .map((post) => {
                     const body =
                         post?.body ??
@@ -198,26 +189,18 @@ export default function ProfileScreen() {
 
         setRepostsLoading(true);
         try {
-            const repostCandidates = [
-                `mobile/profile/${profileId}/reposts`,
-                `mobile/users/${profileId}/reposts`,
-                `mobile/posts/reposts?user_id=${profileId}`,
-                `mobile/posts/reposts?userId=${profileId}`,
-            ];
-
-            let list = await tryFetchFirstList({ token, endpoints: repostCandidates });
-
-            // Fallback: if API doesn't have repost endpoints, extract repost entries from general feed.
-            if (!Array.isArray(list) || list.length === 0) {
-                const res = await API.getWithAuth('mobile/feed', token);
-                const feedList = Array.isArray(res?.data?.feed ?? res?.data?.posts)
-                    ? (res?.data?.feed ?? res?.data?.posts)
-                    : [];
-
-                list = feedList.filter((post) => {
-                    const pid = post?.user?.id ?? post?.author?.id ?? post?.user_id ?? post?.userId;
-                    return pid != null && Number(pid) === Number(profileId) && isRepostPost(post);
-                });
+            const list = [];
+            let offset = 0;
+            for (let page = 0; page < 50; page += 1) {
+                const res = await API.getWithAuth(
+                    `mobile/profile/${profileId}/reposts?offset=${offset}&limit=20`,
+                    token,
+                );
+                const batch = Array.isArray(res?.data?.reposts) ? res.data.reposts : [];
+                list.push(...batch);
+                const next = res?.data?.next_offset;
+                if (next == null || batch.length === 0) break;
+                offset = Number(next);
             }
 
             const getRepostSource = (post) => {
@@ -284,6 +267,10 @@ export default function ProfileScreen() {
 
                     const resolvedImages = resolveImages(source?.images);
                     const mediaUrl = resolvedImages?.[0] ?? resolvePostMediaUrl(source);
+                    // On a repost entry, `post.user` is the person who reposted.
+                    const reposterAvatar = resolveAvatarUrl(
+                        post?.user?.avatar || post?.user?.image || post?.author?.avatar || post?.author?.image
+                    );
                     const repostedBy =
                         post?.user?.name ||
                         post?.author?.name ||
@@ -370,6 +357,11 @@ export default function ProfileScreen() {
                         // Repost banner
                         reposted: true,
                         reposted_by: post?.reposted_by || post?.repostedBy || repostedBy,
+                        reposted_by_user: {
+                            id: post?.user?.id ?? post?.author?.id ?? post?.user_id ?? post?.userId ?? null,
+                            name: post?.reposted_by || post?.repostedBy || repostedBy,
+                            avatar: reposterAvatar,
+                        },
 
                         // Preserve original source object for share payloads / future features
                         repost_of: source,
@@ -386,13 +378,26 @@ export default function ProfileScreen() {
     }, [token]);
 
     const loadSavedPosts = useCallback(async () => {
-        if (!token) return;
+        if (!token || !isOwnProfile) {
+            setSavedPosts([]);
+            return;
+        }
 
         setSavedPostsLoading(true);
         try {
-            // Canonical endpoint (implemented in backend): GET /api/mobile/posts/saved
-            const res = await API.getWithAuth('mobile/posts/saved', token);
-            const list = parseSavedPostsFromApiResponse(res);
+            const list = [];
+            let offset = 0;
+            for (let page = 0; page < 50; page += 1) {
+                const res = await API.getWithAuth(
+                    `mobile/posts/saved?offset=${offset}&limit=20`,
+                    token,
+                );
+                const batch = parseSavedPostsFromApiResponse(res);
+                list.push(...batch);
+                const next = res?.data?.next_offset;
+                if (next == null || batch.length === 0) break;
+                offset = Number(next);
+            }
             setSavedPosts(normalizeSavedPostsList(list));
         } catch (err) {
             console.error('[PROFILE] fetch saved posts error:', err);
@@ -400,7 +405,7 @@ export default function ProfileScreen() {
         } finally {
             setSavedPostsLoading(false);
         }
-    }, [token]);
+    }, [token, isOwnProfile]);
 
     // Initial load
     useEffect(() => {
@@ -497,8 +502,8 @@ export default function ProfileScreen() {
                 setProfile((prev) => (prev ? { ...prev, cover: nextCover } : prev));
             }
         } catch (err) {
-            console.error('[PROFILE] cover upload error:', err);
-            Alert.alert('Error', 'Could not update cover. Please try again.');
+            const firstError = Object.values(err?.response?.data?.errors ?? {})?.[0]?.[0];
+            Alert.alert('Error', firstError || err?.response?.data?.message || 'Could not update cover. Please try again.');
         } finally {
             setCoverUploading(false);
         }
@@ -546,7 +551,8 @@ export default function ProfileScreen() {
             }
         } catch (err) {
             console.error('[PROFILE] avatar upload error:', err);
-            Alert.alert('Error', 'Could not update profile picture. Please try again.');
+            const firstError = Object.values(err?.response?.data?.errors ?? {})?.[0]?.[0];
+            Alert.alert('Error', firstError || 'Could not update profile picture. Please try again.');
         } finally {
             setAvatarUploading(false);
         }
@@ -740,8 +746,13 @@ export default function ProfileScreen() {
                 token={token}
                 isDark={isDark}
                 onClose={() => setShowEditProfile(false)}
-                onSaved={(updated) => {
-                    if (updated) setProfile((prev) => ({ ...prev, ...updated }));
+                onSaved={async (updated) => {
+                    if (!updated) return;
+                    setProfile((prev) => ({ ...prev, ...updated }));
+                    // Keep the logged-in user in sync so the new picture shows on every screen.
+                    if (token && currentUser) {
+                        await saveAuth(token, { ...currentUser, ...updated });
+                    }
                 }}
             />
 
@@ -754,8 +765,8 @@ export default function ProfileScreen() {
                 onSaved={(saved) => {
                     setProfile((prev) => {
                         if (!prev) return prev;
-                        const current = Array.isArray(prev.education) ? prev.education : (Array.isArray(prev.educations) ? prev.educations : []);
-                        return { ...prev, education: [saved, ...current] };
+                        const current = Array.isArray(prev.educations) ? prev.educations : [];
+                        return { ...prev, educations: [saved, ...current] };
                     });
                 }}
                 onDeleted={() => { }}
@@ -840,6 +851,13 @@ export default function ProfileScreen() {
                 selectedIndex={selectedSavedPostIndex}
                 insets={insets}
                 isDark={isDark}
+                onUnsave={(post) => {
+                    setSavedPosts((prev) => {
+                        const next = prev.filter((item) => String(item.id) !== String(post.id));
+                        if (next.length === 0) setSelectedSavedPostIndex(-1);
+                        return next;
+                    });
+                }}
             />
         </AppLayout>
     );

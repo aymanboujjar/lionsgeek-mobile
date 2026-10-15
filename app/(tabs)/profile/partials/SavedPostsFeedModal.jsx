@@ -9,6 +9,7 @@ export default function SavedPostsFeedModal({
   selectedIndex,
   insets,
   isDark,
+  onUnsave,
 }) {
   return (
     <Modal
@@ -31,7 +32,17 @@ export default function SavedPostsFeedModal({
         <FlatList
           data={posts}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <FeedItem item={item} />}
+          renderItem={({ item }) => (
+            <FeedItem
+              item={{
+                ...item,
+                is_saved_by_user: true,
+                onBookmarkChange: (saved) => {
+                  if (!saved) onUnsave?.(item);
+                },
+              }}
+            />
+          )}
           showsVerticalScrollIndicator={false}
           initialScrollIndex={selectedIndex >= 0 ? selectedIndex : 0}
           getItemLayout={(_, index) => ({

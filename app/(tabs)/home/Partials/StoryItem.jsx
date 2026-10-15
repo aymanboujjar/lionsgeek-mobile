@@ -32,13 +32,6 @@ export default function StoryItem({
   const displayName = isOwn ? 'Your story' : (user?.name || 'User');
   const initial = (user?.name || 'U').charAt(0).toUpperCase();
 
-  // Ring colour: gold if unseen, grey if seen, transparent if no stories at all
-  // (the "Your story" button when user has not posted anything).
-  let ringColor = 'transparent';
-  if (hasStories) {
-    ringColor = hasUnseen ? '#ffc801' : (isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)');
-  }
-
   return (
     <View style={{ width: 76, marginRight: 12, alignItems: 'center' }}>
       <Pressable
@@ -56,37 +49,22 @@ export default function StoryItem({
         <View
           style={{
             width: 72, height: 72, borderRadius: 36,
-            padding: 2.5,
-            backgroundColor: 'transparent',
-            borderWidth: hasStories ? 2.5 : 0,
-            borderColor: ringColor,
+            overflow: 'hidden',
+            alignItems: 'center', justifyContent: 'center',
           }}
+          className="bg-beta/10 dark:bg-beta/40"
         >
-          {/* White gap ring */}
-          <View
-            style={{
-              flex: 1, borderRadius: 33,
-              backgroundColor: isDark ? '#171717' : '#fafafa',
-              padding: 2,
-            }}
-          >
-            {avatarUrl ? (
-              <Image
-                source={{ uri: avatarUrl }}
-                defaultSource={require('@/assets/images/icon.png')}
-                style={{ width: '100%', height: '100%', borderRadius: 29 }}
-              />
-            ) : (
-              <View
-                style={{ flex: 1, borderRadius: 29, alignItems: 'center', justifyContent: 'center' }}
-                className="bg-beta/10 dark:bg-beta/40"
-              >
-                <Text className="font-extrabold text-base text-black/70 dark:text-white/70">
-                  {initial}
-                </Text>
-              </View>
-            )}
-          </View>
+          {avatarUrl ? (
+            <Image
+              source={{ uri: avatarUrl }}
+              defaultSource={require('@/assets/images/icon.png')}
+              style={{ width: '100%', height: '100%' }}
+            />
+          ) : (
+            <Text className="font-extrabold text-base text-black/70 dark:text-white/70">
+              {initial}
+            </Text>
+          )}
         </View>
       </Pressable>
 

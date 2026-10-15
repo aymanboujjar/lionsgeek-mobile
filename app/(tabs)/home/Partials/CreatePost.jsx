@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, TextInput, Modal, Pressable, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Image, TextInput, Modal, Pressable, Alert, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useAppContext } from '@/context';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
@@ -277,14 +277,10 @@ export default function CreatePost({ onPostPress, onPostCreated }) {
             <Image
               source={{ uri: profileImageUrl }}
               className="w-9 h-9 rounded-full"
-              style={{ borderWidth: 1.5, borderColor: '#ffc801' }}
               defaultSource={require('@/assets/images/icon.png')}
             />
           ) : (
-            <View
-              className="w-9 h-9 rounded-full bg-beta/10 dark:bg-beta/40 items-center justify-center"
-              style={{ borderWidth: 1.5, borderColor: '#ffc801' }}
-            >
+            <View className="w-9 h-9 rounded-full bg-beta/10 dark:bg-beta/40 items-center justify-center">
               <Text className="text-xs font-extrabold text-black/60 dark:text-white/60">
                 {(user?.name || 'U').charAt(0).toUpperCase()}
               </Text>
@@ -377,24 +373,7 @@ export default function CreatePost({ onPostPress, onPostCreated }) {
               <Text style={{ color: isDark ? '#fff' : '#111' }} className="text-base font-extrabold">
                 Create post
               </Text>
-              <Pressable
-                onPress={handlePost}
-                disabled={loading || (!postContent.trim() && newImages.length === 0)}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 999,
-                  backgroundColor: (loading || (!postContent.trim() && newImages.length === 0))
-                    ? (isDark ? '#2a2a2a' : '#e5e5e5')
-                    : '#ffc801',
-                }}
-              >
-                {loading ? (
-                  <Skeleton width={18} height={18} borderRadius={9} isDark={isDark} />
-                ) : (
-                  <Text style={{ fontWeight: '900', color: '#000' }}>Post</Text>
-                )}
-              </Pressable>
+              <View style={{ width: 38 }} />
             </View>
           </View>
 
@@ -407,7 +386,7 @@ export default function CreatePost({ onPostPress, onPostCreated }) {
                 return profileImageUrl ? (
                   <Image
                     source={{ uri: profileImageUrl }}
-                    className="w-12 h-12 rounded-full mr-3 border-2 border-alpha/30"
+                    className="w-12 h-12 rounded-full mr-3"
                     defaultSource={require('@/assets/images/icon.png')}
                   />
                 ) : (
@@ -646,6 +625,46 @@ export default function CreatePost({ onPostPress, onPostCreated }) {
                   </Text>
                 )}
               </View>
+
+              <TouchableOpacity
+                onPress={handlePost}
+                disabled={loading || (!postContent.trim() && newImages.length === 0)}
+                activeOpacity={0.8}
+                style={{
+                  width: '100%',
+                  alignSelf: 'stretch',
+                  marginTop: 16,
+                  marginBottom: 24,
+                  opacity: loading || (!postContent.trim() && newImages.length === 0) ? 0.45 : 1,
+                }}
+              >
+                <View
+                  style={{
+                    width: '100%',
+                    backgroundColor: isDark ? '#ffc801' : '#212529',
+                    borderRadius: 16,
+                    paddingVertical: 16,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color={isDark ? '#000000' : '#ffffff'} />
+                  ) : (
+                    <Text
+                      style={{
+                        width: '100%',
+                        textAlign: 'center',
+                        fontSize: 16,
+                        fontWeight: '800',
+                        color: isDark ? '#000000' : '#ffffff',
+                      }}
+                    >
+                      Post
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>

@@ -266,6 +266,7 @@ export default function TabLayout() {
   return (
     <Tabs
       initialRouteName="home"
+      backBehavior="fullHistory"
       tabBar={renderTabBar}
       screenOptions={{
         tabBarActiveTintColor: Colors.alpha,

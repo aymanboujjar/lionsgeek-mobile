@@ -21,6 +21,29 @@ import * as CalendarAPI from 'expo-calendar';
 import { Ionicons } from '@expo/vector-icons';
 import Skeleton from '@/components/ui/Skeleton';
 
+function PersonRowSkeleton({ isDark, nameWidth }) {
+  return (
+    <View className="mb-3 flex-row items-center justify-between rounded-xl border border-beta/10 p-4 dark:border-light/10">
+      <View className="flex-1 flex-row items-center gap-3">
+        <Skeleton width={48} height={48} borderRadius={24} isDark={isDark} />
+        <Skeleton width={nameWidth} height={14} borderRadius={8} isDark={isDark} />
+      </View>
+      <Skeleton width={24} height={24} borderRadius={12} isDark={isDark} />
+    </View>
+  );
+}
+
+function StudioCardSkeleton({ isDark }) {
+  return (
+    <View className="w-[140px] overflow-hidden rounded-2xl border border-beta/10 dark:border-light/10">
+      <Skeleton width={140} height={100} borderRadius={0} isDark={isDark} />
+      <View className="items-center p-3">
+        <Skeleton width={88} height={12} borderRadius={8} isDark={isDark} />
+      </View>
+    </View>
+  );
+}
+
 export default function NewReservation({ selectedDate: propSelectedDate, prefillTime, onClose, placeId: propPlaceId }) {
   const { user, token } = useAppContext();
   const router = useRouter();
@@ -71,6 +94,7 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
   const [places, setPlaces] = useState([]);
   const [loadingPlaces, setLoadingPlaces] = useState(false);
   const [users, setUsers] = useState([]);
+  const [memberQuery, setMemberQuery] = useState('');
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [equipment, setEquipment] = useState([]);
@@ -110,6 +134,15 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
 
   const toggleUser = (id) =>
     setSelectedUsers(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const memberQueryNormalized = memberQuery.trim().toLowerCase();
+  const visibleUsers = memberQueryNormalized
+    ? users.filter((userItem) => {
+        const name = String(userItem?.name || '').toLowerCase();
+        const username = String(userItem?.username || '').toLowerCase();
+        return name.includes(memberQueryNormalized) || username.includes(memberQueryNormalized);
+      })
+    : users;
 
   const toggleEquipment = (id) =>
     setSelectedEquipment(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -327,7 +360,10 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
             {!routePlaceId && (
               <ReservationFormSection icon="business-outline" title="Select studio">
                 {loadingPlaces ? (
-                  <Skeleton width={26} height={26} borderRadius={13} isDark={isDark} />
+                  <View className="flex-row gap-3">
+                    <StudioCardSkeleton isDark={isDark} />
+                    <StudioCardSkeleton isDark={isDark} />
+                  </View>
                 ) : (
                   <FlatList
                     data={places}
@@ -455,9 +491,28 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
         {step === 2 && (
           <ReservationFormSection icon="people-outline" title="Select team members">
             {loadingUsers ? (
-              <Skeleton width={26} height={26} borderRadius={13} isDark={isDark} />
+              <View>
+                <Skeleton width="100%" height={48} borderRadius={12} isDark={isDark} style={{ marginBottom: 12 }} />
+                {[160, 120, 148, 108, 136].map((nameWidth) => (
+                  <PersonRowSkeleton key={nameWidth} isDark={isDark} nameWidth={nameWidth} />
+                ))}
+              </View>
             ) : (
-              users.map((userItem) => {
+              <ReservationFieldInput
+                value={memberQuery}
+                onChangeText={setMemberQuery}
+                placeholder="Search people"
+                autoCapitalize="none"
+                autoCorrect={false}
+                className="mb-3"
+              />
+            )}
+            {loadingUsers ? null : visibleUsers.length === 0 ? (
+              <Text className="py-6 text-center text-sm text-beta/55 dark:text-light/55">
+                {users.length === 0 ? 'No people available' : 'No people match your search'}
+              </Text>
+            ) : (
+              visibleUsers.map((userItem) => {
                 const hasCustomImage = userItem.image && !userItem.image.includes('pdp.png');
                 const initials = userItem.name
                   ? userItem.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -513,7 +568,20 @@ export default function NewReservation({ selectedDate: propSelectedDate, prefill
         {step === 3 && (
           <ReservationFormSection icon="hardware-chip-outline" title="Select equipment">
             {loadingEquipment ? (
-              <Skeleton width={26} height={26} borderRadius={13} isDark={isDark} />
+              <View>
+                {[150, 118, 142, 96].map((nameWidth) => (
+                  <View
+                    key={nameWidth}
+                    className="mb-3 flex-row items-center justify-between rounded-xl border border-beta/10 p-4 dark:border-light/10"
+                  >
+                    <View className="flex-1 flex-row items-center gap-3">
+                      <Skeleton width={48} height={48} borderRadius={12} isDark={isDark} />
+                      <Skeleton width={nameWidth} height={14} borderRadius={8} isDark={isDark} />
+                    </View>
+                    <Skeleton width={24} height={24} borderRadius={12} isDark={isDark} />
+                  </View>
+                ))}
+              </View>
             ) : (
               equipment.map((item) => {
                 const isSelected = selectedEquipment.includes(item.id);

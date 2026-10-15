@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ExperienceFormModal from '../_components/ExperienceFormModal';
+import useDeleteProfileEntry from '../_components/useDeleteProfileEntry';
+import EntryActionsMenu from '../_components/EntryActionsMenu';
 import { formatPeriod, formatPeriodFromParts, calcDuration, calcDurationFromParts } from '@/utils/profileHelpers';
 
 export default function ExperienceCard({ profile, isDark, isOwnProfile, token, onExperienceAdded, onExperienceUpdated, onExperienceDeleted }) {
@@ -24,6 +26,12 @@ export default function ExperienceCard({ profile, isDark, isOwnProfile, token, o
   const openAdd = () => setFormModal({ visible: true, experience: null });
   const openEdit = (exp) => setFormModal({ visible: true, experience: exp });
   const closeForm = () => setFormModal({ visible: false, experience: null });
+
+  const { deletingId, confirmDelete } = useDeleteProfileEntry({
+    kind: 'experience',
+    token,
+    onDeleted: (id) => onExperienceDeleted?.(id),
+  });
 
   return (
     <>
@@ -172,20 +180,15 @@ export default function ExperienceCard({ profile, isDark, isOwnProfile, token, o
                             </Text>
                           </View>
                         ) : null}
-                        {/* Edit button — own profile only */}
+                        {/* Edit / delete menu — own profile only */}
                         {isOwnProfile && (
-                          <TouchableOpacity
-                            onPress={() => openEdit(exp)}
-                            hitSlop={10}
-                            activeOpacity={0.7}
-                            className="w-6 h-6 rounded-full bg-black/[0.05] dark:bg-white/[0.08] items-center justify-center"
-                          >
-                            <Ionicons
-                              name="pencil"
-                              size={11}
-                              color={isDark ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)'}
-                            />
-                          </TouchableOpacity>
+                          <EntryActionsMenu
+                            isDark={isDark}
+                            title={title}
+                            onEdit={() => openEdit(exp)}
+                            onDelete={() => confirmDelete(exp)}
+                            deleting={deletingId != null && String(deletingId) === String(exp?.id)}
+                          />
                         )}
                       </View>
                     </View>
@@ -229,7 +232,7 @@ export default function ExperienceCard({ profile, isDark, isOwnProfile, token, o
                     {/* Description + see more/less */}
                     {displayedDesc ? (
                       <View className="mt-2 pl-3 border-l-2 border-alpha/30">
-                        <Text className="text-[13px] text-black/55 dark:text-dark_gray5 leading-[20px]">
+                        <Text className="text-[13px] text-beta dark:text-white leading-[20px]">
                           {displayedDesc}
                         </Text>
                         {isDescTruncatable && (

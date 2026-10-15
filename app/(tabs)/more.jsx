@@ -293,11 +293,11 @@ export default function More() {
                   {imageUrl ? (
                     <Image
                       source={{ uri: imageUrl }}
-                      className="h-[88px] w-[88px] rounded-full border-2 border-alpha"
+                      className="h-[88px] w-[88px] rounded-full"
                       defaultSource={require("@/assets/images/icon.png")}
                     />
                   ) : (
-                    <View className="h-[88px] w-[88px] items-center justify-center rounded-full border-2 border-alpha bg-alpha/15">
+                    <View className="h-[88px] w-[88px] items-center justify-center rounded-full bg-alpha/15">
                       <Text className="text-2xl font-bold text-alpha">
                         {initials}
                       </Text>
@@ -369,6 +369,8 @@ export default function More() {
             onPress={() => router.push("/auth/reset-password")}
             right={chevron}
           />
+          {false && (
+            <>
           <RowDivider />
           <SettingRow
             icon="mail-unread-outline"
@@ -390,11 +392,15 @@ export default function More() {
               </View>
             }
           />
+            </>
+          )}
         </SettingsCard>
 
         {/* Feed & library */}
         <SectionLabel title="Feed & library" className="mt-5" />
         <SettingsCard>
+          {false && (
+            <>
           <SettingRow
             icon="bookmark-outline"
             label="Saved posts"
@@ -403,6 +409,8 @@ export default function More() {
             right={chevron}
           />
           <RowDivider />
+            </>
+          )}
           <SettingRow
             icon="time-outline"
             label="Recent activity"
@@ -410,6 +418,8 @@ export default function More() {
             onPress={() => router.push("/(tabs)/activity")}
             right={chevron}
           />
+          {false && (
+            <>
           <RowDivider />
           <SettingRow
             icon="call-outline"
@@ -418,7 +428,9 @@ export default function More() {
             onPress={() => router.push("/(tabs)/call-history")}
             right={chevron}
           />
-          <RowDivider />
+            </>
+          )}
+          {/* <RowDivider />
           <SettingRow
             icon="albums-outline"
             label="Story archive"
@@ -433,9 +445,11 @@ export default function More() {
             sublabel="Who can see your close-friends stories"
             onPress={() => router.push("/(tabs)/settings/close-friends")}
             right={chevron}
-          />
+          /> */}
         </SettingsCard>
 
+        {false && (
+          <>
         {/* Growth & recognition */}
         <SectionLabel title="Growth & recognition" />
         <SettingsCard>
@@ -474,10 +488,14 @@ export default function More() {
             pill={<SoonPill />}
           />
         </SettingsCard>
+          </>
+        )}
 
         {/* Projects & sessions */}
         <SectionLabel title="Projects & sessions" />
         <SettingsCard>
+          {false && (
+            <>
           <SettingRow
             icon="cube-outline"
             label="Projects"
@@ -486,6 +504,8 @@ export default function More() {
             right={chevron}
           />
           <RowDivider />
+            </>
+          )}
           <SettingRow
             icon="clipboard-outline"
             label="Attendance history"
@@ -493,7 +513,7 @@ export default function More() {
             onPress={() => router.push("/(tabs)/attendance-history")}
             right={chevron}
           />
-          {showStudentCheckIn ? (
+          {false && showStudentCheckIn ? (
             <>
               <RowDivider />
               <SettingRow
@@ -534,6 +554,8 @@ export default function More() {
           />
         </SettingsCard>
 
+        {false && (
+          <>
         {/* Personalization */}
         <SectionLabel title="Personalization" />
         <SettingsCard>
@@ -598,7 +620,11 @@ export default function More() {
           />
           */}
         </SettingsCard>
+          </>
+        )}
 
+        {false && (
+          <>
         {/* Community */}
         <SectionLabel title="Community" />
         <SettingsCard>
@@ -637,7 +663,11 @@ export default function More() {
           />
           */}
         </SettingsCard>
+          </>
+        )}
 
+        {false && (
+          <>
         {/* Power user */}
         <SectionLabel title="Power tools" />
         <SettingsCard>
@@ -697,6 +727,8 @@ export default function More() {
           />
           */}
         </SettingsCard>
+          </>
+        )}
 
         {/* Admin & coach insights */}
         {canViewReports ? (
@@ -746,7 +778,7 @@ export default function More() {
         ) : null}
 
         {/* Coach-only extra visibility */}
-        {!isAdmin && canViewMembers ? (
+        {false && !isAdmin && canViewMembers ? (
           <>
             <SectionLabel title="Coach shortcuts" />
             <SettingsCard>

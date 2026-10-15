@@ -472,17 +472,17 @@ export default function NotificationsScreen() {
         router.push('/(tabs)/reservations');
         return;
       }
-      if (targetLink.startsWith('/stories/')) {
-        const query = targetLink.includes('startUserId=') ? targetLink.split('startUserId=')[1] : '';
-        const startUserId = (query || '').split('&')[0];
-        router.push({
-          pathname: '/(tabs)/stories/viewer',
-          params: startUserId
-            ? { startUserId: String(startUserId), openId: String(Date.now()) }
-            : { openId: String(Date.now()) },
-        });
-        return;
-      }
+      // if (targetLink.startsWith('/stories/')) {
+      //   const query = targetLink.includes('startUserId=') ? targetLink.split('startUserId=')[1] : '';
+      //   const startUserId = (query || '').split('&')[0];
+      //   router.push({
+      //     pathname: '/(tabs)/stories/viewer',
+      //     params: startUserId
+      //       ? { startUserId: String(startUserId), openId: String(Date.now()) }
+      //       : { openId: String(Date.now()) },
+      //   });
+      //   return;
+      // }
       if (targetLink.startsWith('/posts/')) {
         router.push(`/(tabs)${targetLink}`);
         return;
@@ -535,8 +535,8 @@ export default function NotificationsScreen() {
       }
     } else if (notification.type === 'post_interaction' || notification.type === 'follow') {
       router.push('/(tabs)/home');
-    } else if (notification.type === 'story_mention') {
-      router.push('/(tabs)/home');
+    // } else if (notification.type === 'story_mention') {
+    //   router.push('/(tabs)/home');
     } else if (notification.type === 'post_report' && notification?.post_id) {
       router.push(`/(tabs)/posts/${notification.post_id}${notification.report_id ? `?reportId=${notification.report_id}` : ''}`);
     } else if (notification.type === 'event' && notification?.event_id) {
@@ -623,7 +623,9 @@ export default function NotificationsScreen() {
               </View>
             ) : notifications.length === 0 ? (
               <View className="py-16 items-center">
-                <Ionicons name="notifications-outline" size={64} color={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'} />
+                {false && (
+                  <Ionicons name="notifications-outline" size={64} color={isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'} />
+                )}
                 <Text className="text-center text-black/60 dark:text-white/60 mt-4 text-base">
                   No notifications yet
                 </Text>
@@ -661,22 +663,24 @@ export default function NotificationsScreen() {
                         className={`mb-3 p-4 rounded-2xl border active:opacity-80 bg-alpha/10 dark:bg-alpha/20 border-alpha/30`}
                       >
                         <View className="flex-row items-start">
-                          <View className="relative mr-4">
-                            {getAvatar(notification) ? (
+                          {getAvatar(notification) ? (
+                            <View className="relative mr-4">
                               <Image
                                 source={{ uri: getAvatar(notification) }}
-                                className="w-14 h-14 rounded-full border-2 border-alpha/50"
+                                className="w-14 h-14 rounded-full"
                                 placeholder={require('@/assets/images/icon.png')}
                                 contentFit="cover"
                                 transition={200}
                                 style={{ width: 56, height: 56, borderRadius: 28 }}
                                 onError={() => { }}
                               />
-                            ) : (
+                            </View>
+                          ) : false && (
+                            <View className="relative mr-4">
                               <View
-                                className={`w-14 h-14 rounded-full items-center justify-center border-2 ${notification.type === 'announcement'
-                                  ? 'bg-alpha/20 dark:bg-alpha/30 border-alpha/40'
-                                  : 'bg-beta/20 dark:bg-beta/40 border-beta/30'
+                                className={`w-14 h-14 rounded-full items-center justify-center ${notification.type === 'announcement'
+                                  ? 'bg-alpha/20 dark:bg-alpha/30'
+                                  : 'bg-beta/20 dark:bg-beta/40'
                                   }`}
                               >
                                 <Ionicons
@@ -685,8 +689,8 @@ export default function NotificationsScreen() {
                                   color={notification.color || Colors.dark_gray}
                                 />
                               </View>
-                            )}
-                          </View>
+                            </View>
+                          )}
                           <View className="flex-1">
                             {notification.title && (
                               <Text className="text-base font-bold text-black dark:text-white mb-1">
@@ -730,14 +734,16 @@ export default function NotificationsScreen() {
                         className="mb-3 p-4 rounded-2xl border bg-light dark:bg-dark border-light/20 dark:border-dark/20 active:opacity-70"
                       >
                         <View className="flex-row items-start">
-                          <View className="relative mr-4">
-                            {getAvatar(notification) ? (
+                          {getAvatar(notification) ? (
+                            <View className="relative mr-4">
                               <Image
                                 source={{ uri: getAvatar(notification) }}
                                 className="w-14 h-14 rounded-full opacity-70"
                                 defaultSource={require('@/assets/images/icon.png')}
                               />
-                            ) : (
+                            </View>
+                          ) : false && (
+                            <View className="relative mr-4">
                               <View
                                 className={`w-14 h-14 rounded-full items-center justify-center opacity-50 ${notification.type === 'announcement'
                                   ? 'bg-alpha/15 dark:bg-alpha/25'
@@ -750,8 +756,8 @@ export default function NotificationsScreen() {
                                   color={isDark ? 'rgba(255,255,255,0.5)' : Colors.beta}
                                 />
                               </View>
-                            )}
-                          </View>
+                            </View>
+                          )}
                           <View className="flex-1">
                             {notification.title && (
                               <Text className="text-base font-bold text-black/80 dark:text-white/80 mb-1">
